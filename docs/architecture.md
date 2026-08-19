@@ -516,17 +516,26 @@ Storage는 버킷(`trip-attachments`)으로 이미 격리되므로 스키마 분
 
 계정을 공유하므로 표시 이름·아바타도 헬쑤의 `public.profiles`를 그대로 쓴다. **Trip은 자체 프로필 테이블을 만들지 않는다.** 같은 사람의 프로필이 두 벌 존재하면 한쪽만 고쳤을 때 어느 쪽이 맞는지 알 수 없어진다.
 
-Trip의 모든 테이블은 프로필이 아니라 `auth.users`를 참조하므로 스키마 의존성은 없다. 클라이언트 기본 스키마가 `trip`이므로 읽을 때만 명시한다.
+Trip의 모든 테이블은 프로필이 아니라 `auth.users`를 참조하므로 FK 의존성은 없다.
 
-```ts
-supabase.schema("public").from("profiles").select("id, display_name, avatar_url")
+**헬쑤 테이블에 정책을 추가하는 방식은 쓰지 않는다.** RLS는 행 단위라 컬럼을 가릴 수 없기 때문이다. `public.profiles`에는 `phone`, `weight_kg`, `body_fat_pct`, `goal`, `banned_at`, `ban_reason` 같은 값이 함께 들어 있어, "같은 여행 멤버끼리 읽기" 정책 한 줄이면 동행자가 상대의 전화번호와 체중까지 전부 읽는다. 여행 앱이 알아야 하는 것은 표시 이름 하나뿐이다.
+
+대신 `trip` 스키마에 **필요한 컬럼만 내보내는 뷰**를 둔다.
+
+```sql
+create view trip.member_profiles with (security_barrier = true) as
+select p.user_id,
+       coalesce(nullif(btrim(p.nickname), ''), nullif(btrim(p.name), '')) as display_name
+from public.profiles p
+where p.user_id = (select auth.uid())
+   or trip_private.shares_trip_with(p.user_id);
 ```
 
-**남은 작업 하나** — 동행자 목록에 표시 이름을 보여주려면 헬쑤의 `public.profiles`에 "같은 여행 멤버끼리 읽을 수 있다"는 정책을 추가해야 한다. 헬퍼(`trip_private.shares_trip_with`)는 준비돼 있다. 다만 **상대 앱 테이블을 건드리는 일**이므로 다음을 먼저 확인한다.
+```ts
+supabase.from("member_profiles").select("user_id, display_name")
+```
 
-1. `public.profiles`의 실제 컬럼 이름 (`display_name`이 아닐 수 있다)
-2. 기존 RLS 정책 — 정책은 OR로 합쳐지므로 추가는 헬쑤 기능을 깨지 않지만, **헬쑤 사용자의 프로필이 Trip 동행자에게 보이게 되는 노출 범위 변경**이다. 헬쑤 쪽 합의가 필요하다.
-3. 정책 추가 후 헬쑤가 정상 동작하는지 점검
+뷰는 소유자 권한으로 실행되어 헬쑤의 "본인 행만" 정책을 우회하므로 접근 통제를 `WHERE` 절에서 직접 한다. **헬쑤의 테이블·정책·권한은 전혀 건드리지 않으며**, 되돌리려면 뷰만 지우면 된다. RLS 테스트가 "헬쑤 원본 테이블은 여전히 본인 행만 보인다"를 함께 검증한다.
 
 ### 개발 서버 포트는 3100으로 고정한다
 
