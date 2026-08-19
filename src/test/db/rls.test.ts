@@ -515,3 +515,108 @@ describe("첨부파일 경로 제약", () => {
     expect(rows.rows).toHaveLength(1);
   });
 });
+
+describe("동행자 표시 이름 (헬쑤 profiles 공유)", () => {
+  async function seedProfile(
+    userId: string,
+    fields: { name?: string | null; nickname?: string | null; phone?: string | null },
+  ) {
+    // 헬쑤 앱이 만들어 둔 행을 흉내 낸다. Trip 은 이 테이블에 쓰지 않는다.
+    await db.asSuperuser();
+    await db.pg.query(
+      `insert into public.profiles (user_id, gender, experience, name, nickname, phone, weight_kg)
+       values ($1, 'male', 'beginner', $2, $3, $4, 78.5)`,
+      [userId, fields.name ?? null, fields.nickname ?? null, fields.phone ?? null],
+    );
+  }
+
+  it("같은 여행 멤버의 표시 이름을 읽을 수 있다", async () => {
+    const tripId = await seedTrip();
+    await seedProfile(USER.editor, { name: "김편집", nickname: "에디터" });
+
+    await db.asUser(USER.owner);
+    const rows = await db.pg.query<{ user_id: string; display_name: string }>(
+      "select user_id, display_name from trip.member_profiles where user_id = $1",
+      [USER.editor],
+    );
+
+    expect(rows.rows).toEqual([{ user_id: USER.editor, display_name: "에디터" }]);
+    expect(tripId).toBeTruthy();
+  });
+
+  it("닉네임이 없으면 이름으로 폴백한다", async () => {
+    await seedTrip();
+    await seedProfile(USER.viewer, { name: "박뷰어", nickname: "   " });
+
+    await db.asUser(USER.owner);
+    const rows = await db.pg.query<{ display_name: string | null }>(
+      "select display_name from trip.member_profiles where user_id = $1",
+      [USER.viewer],
+    );
+
+    expect(rows.rows[0].display_name).toBe("박뷰어");
+  });
+
+  it("같은 여행에 속하지 않은 사람은 보이지 않는다", async () => {
+    await seedTrip();
+    await seedProfile(USER.stranger, { name: "남남", nickname: "스트레인저" });
+
+    await db.asUser(USER.owner);
+    const rows = await db.pg.query("select user_id from trip.member_profiles where user_id = $1", [
+      USER.stranger,
+    ]);
+
+    expect(rows.rows).toHaveLength(0);
+  });
+
+  it("본인 프로필은 여행과 무관하게 보인다", async () => {
+    await seedProfile(USER.owner, { name: "나", nickname: null });
+
+    await db.asUser(USER.owner);
+    const rows = await db.pg.query("select user_id from trip.member_profiles");
+
+    expect(rows.rows).toEqual([{ user_id: USER.owner }]);
+  });
+
+  it("로그인하지 않으면 아무것도 읽을 수 없다", async () => {
+    await seedTrip();
+    await seedProfile(USER.editor, { name: "김편집", nickname: null });
+
+    await db.asAnon();
+    const message = await expectDenied(() =>
+      db.pg.query("select user_id from trip.member_profiles"),
+    );
+    expect(message).toMatch(/permission denied/i);
+  });
+
+  it("민감한 컬럼을 노출하지 않는다", async () => {
+    // 이것이 이 뷰의 존재 이유다. public.profiles 에 정책을 추가하는 방식이었다면
+    // RLS 는 행 단위라 전화번호·체중·정지사유까지 전부 함께 열렸을 것이다.
+    await db.asSuperuser();
+    const columns = await db.pg.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+       where table_schema = 'trip' and table_name = 'member_profiles'
+       order by column_name`,
+    );
+
+    expect(columns.rows.map((row) => row.column_name)).toEqual([
+      "display_name",
+      "user_id",
+    ]);
+  });
+
+  it("헬쑤 원본 테이블의 정책은 그대로다", async () => {
+    // Trip 은 public.profiles 에 정책·권한을 추가하지 않았다.
+    // 동행자여도 원본 테이블로는 여전히 본인 행만 보여야 한다.
+    await seedTrip();
+    await seedProfile(USER.owner, { name: "나", nickname: null });
+    await seedProfile(USER.editor, { name: "김편집", nickname: null, phone: "010-0000-0000" });
+
+    await db.asUser(USER.owner);
+    const rows = await db.pg.query<{ user_id: string }>(
+      "select user_id from public.profiles",
+    );
+
+    expect(rows.rows).toEqual([{ user_id: USER.owner }]);
+  });
+});

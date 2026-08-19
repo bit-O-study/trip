@@ -16,26 +16,38 @@
 
 계정을 공유하므로 표시 이름·아바타도 헬쑤의 `public.profiles` 를 그대로 씁니다. **Trip 은 자체 프로필 테이블을 만들지 않습니다.** 같은 사람의 프로필이 두 벌 있으면 한쪽만 고쳤을 때 어느 쪽이 맞는지 알 수 없어집니다.
 
-Trip 테이블은 모두 `auth.users` 를 참조하므로 프로필에 대한 스키마 의존성은 없습니다. 읽을 때만 스키마를 명시합니다 (클라이언트 기본 스키마가 `trip` 이므로).
+Trip 테이블은 모두 `auth.users` 를 참조하므로 프로필에 대한 FK 의존성은 없습니다.
+
+### 왜 헬쑤 테이블에 정책을 추가하지 않는가
+
+동행자 목록에 이름을 보여주려면 남의 프로필을 읽어야 합니다. 그렇다고 `public.profiles` 에 "같은 여행 멤버끼리 읽을 수 있다" 정책을 추가하면 **안 됩니다.**
+
+**RLS 는 행 단위라 컬럼을 가릴 수 없습니다.** 헬쑤의 `public.profiles` 에는 표시 이름 말고도 이런 것이 들어 있습니다.
+
+```
+phone, gender, experience, height_cm, weight_kg, body_fat_pct, muscle_mass_kg,
+goal, target_weight_kg, target_body_fat_pct, target_muscle_kg,
+suspended_until, banned_at, ban_reason, withdrawn_at
+```
+
+정책 한 줄이면 여행 동행자가 상대의 **전화번호·체중·체지방률·정지 사유**까지 전부 읽습니다. 여행 앱이 알아야 하는 것은 표시 이름 하나뿐입니다.
+
+### `trip.member_profiles` 뷰
+
+대신 `trip` 스키마에 필요한 컬럼만 내보내는 뷰를 둡니다 (`20260819000006_member_profiles.sql`).
 
 ```ts
-supabase.schema("public").from("profiles").select("id, display_name, avatar_url")
+// 클라이언트 기본 스키마가 trip 이므로 그대로 읽으면 된다.
+supabase.from("member_profiles").select("user_id, display_name")
 ```
 
-**아직 하지 않은 일** — 동행자 목록에 표시 이름을 보여주려면 헬쑤의 `public.profiles` 에 "같은 여행 멤버끼리 읽을 수 있다" 정책을 추가해야 합니다. 헬퍼(`trip_private.shares_trip_with`)는 준비돼 있지만, **상대 앱 테이블을 건드리는 일이라 아직 마이그레이션으로 만들지 않았습니다.** 다음을 먼저 확인하세요.
+- 노출 컬럼은 `user_id`, `display_name` **둘뿐**입니다. 헬쑤가 나중에 컬럼을 추가해도 새지 않습니다.
+- `display_name` 은 `nickname` 우선, 없으면 `name` — 헬쑤의 표시 규칙과 같습니다.
+- 뷰는 소유자 권한으로 실행되어 헬쑤의 "본인 행만" 정책을 우회하므로, 접근 통제를 `WHERE` 절에서 직접 합니다 (본인 또는 같은 여행 멤버). `security_barrier` 로 조건이 먼저 평가되게 강제합니다.
+- **헬쑤의 테이블·정책·권한을 전혀 건드리지 않습니다.** 되돌리려면 이 뷰만 지우면 됩니다.
+- Supabase 린터가 "security definer view" 경고를 낼 수 있습니다. 의도된 것입니다.
 
-1. `public.profiles` 가 실제로 존재하는지, 컬럼 이름이 무엇인지 (`display_name` 이 아닐 수 있음)
-2. 기존 RLS 정책 — 정책은 OR 로 합쳐지므로 추가가 헬쑤 기능을 깨지는 않지만, **헬쑤 사용자의 프로필이 Trip 동행자에게 보이게 되는 노출 범위 변경**입니다. 헬쑤 쪽 합의가 필요합니다.
-3. 추가 후 헬쑤 정상 동작 점검
-
-확인이 끝나면 대략 아래 형태가 됩니다. **컬럼·정책 이름은 실제 스키마를 보고 맞춰야 합니다.**
-
-```sql
--- 예시. 그대로 실행하지 마세요.
-create policy trip_members_can_read_profile on public.profiles
-  for select to authenticated
-  using (trip_private.shares_trip_with(id));
-```
+`src/test/db/rls.test.ts` 가 검증하는 것: 동행자 이름 조회, 무관한 사용자 차단, 닉네임 폴백, **뷰가 민감 컬럼을 노출하지 않음**, 그리고 **헬쑤 원본 테이블은 여전히 본인 행만 보임**.
 
 ### 절대 하면 안 되는 것
 
