@@ -65,6 +65,8 @@ export type ItineraryItem = {
   allDay: boolean;
   sortOrder: number;
   updatedAt: string;
+  /** 지도에 찍을 좌표. 장소가 붙지 않은 항목은 null. */
+  coordinate: { latitude: number; longitude: number } | null;
 };
 
 /** owner/editor 만 편집할 수 있다. RLS 와 같은 규칙을 화면에서도 쓴다. */
