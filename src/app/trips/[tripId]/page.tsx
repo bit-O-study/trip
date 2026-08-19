@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { TripMap, type MapPoint } from "@/features/map/trip-map";
+import { PlaceSearch } from "@/features/places/components/place-search";
 import { deleteItemAction, softDeleteTripAction } from "@/features/trips/actions";
 import { ItemForm } from "@/features/trips/components/item-form";
 import { listItems, getTrip } from "@/features/trips/queries";
@@ -49,6 +51,25 @@ export default async function TripDetailPage({ params }: Props) {
     .filter(([key]) => !dayKeys.has(key))
     .sort(([a], [b]) => a.localeCompare(b));
 
+  // 지도에 찍을 점. 좌표가 없는 항목(수동 입력 등)은 자연스럽게 빠진다.
+  const dayIndexByDate = new Map(days.map((day) => [day.date, day.index]));
+  const mapPoints: MapPoint[] = [];
+  for (const [dateKey, dayItems] of byDay) {
+    const dayIndex = dayIndexByDate.get(dateKey);
+    if (dayIndex === undefined) continue; // 기간 밖 항목은 지도에서 뺀다
+    dayItems.forEach((item, index) => {
+      if (!item.coordinate) return;
+      mapPoints.push({
+        id: item.id,
+        title: item.title,
+        latitude: item.coordinate.latitude,
+        longitude: item.coordinate.longitude,
+        dayIndex,
+        order: index + 1,
+      });
+    });
+  }
+
   return (
     <div className="space-y-6">
       <header className="space-y-1">
@@ -67,6 +88,16 @@ export default async function TripDetailPage({ params }: Props) {
           <p className="text-sm text-muted-foreground">읽기 전용으로 참여 중입니다.</p>
         ) : null}
       </header>
+
+      <TripMap points={mapPoints} className="h-64 md:h-80" />
+
+      {editable ? (
+        <PlaceSearch
+          tripId={trip.id}
+          defaultDate={days[0]?.date ?? trip.startDate}
+          timezone={trip.timezone}
+        />
+      ) : null}
 
       {days.length > 1 ? (
         <nav aria-label="날짜 이동" className="sticky top-14 z-20 -mx-4 bg-background/90 px-4 py-2 backdrop-blur">

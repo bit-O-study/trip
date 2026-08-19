@@ -123,14 +123,33 @@ type ItemRow = {
   all_day: boolean;
   sort_order: string | number;
   updated_at: string;
+  place_snapshot: Record<string, unknown> | null;
 };
+
+/**
+ * 스냅샷에서 좌표를 꺼낸다.
+ *
+ * place_snapshot 은 jsonb 라 형태를 보장할 수 없다. 값이 이상하면 좌표 없는
+ * 항목으로 취급한다 — 지도에 엉뚱한 점을 찍는 것보다 안 찍는 편이 낫다.
+ */
+function readCoordinate(
+  snapshot: Record<string, unknown> | null,
+): { latitude: number; longitude: number } | null {
+  if (!snapshot) return null;
+  const latitude = snapshot.latitude;
+  const longitude = snapshot.longitude;
+  if (typeof latitude !== "number" || typeof longitude !== "number") return null;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+  return { latitude, longitude };
+}
 
 export async function listItems(tripId: string): Promise<ItineraryItem[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("itinerary_items")
     .select(
-      "id, trip_id, type, status, title, note, location_text, start_at, end_at, all_day, sort_order, updated_at",
+      "id, trip_id, type, status, title, note, location_text, start_at, end_at, all_day, sort_order, updated_at, place_snapshot",
     )
     .eq("trip_id", tripId)
     .is("deleted_at", null)
@@ -153,5 +172,6 @@ export async function listItems(tripId: string): Promise<ItineraryItem[]> {
     // numeric 은 정밀도 손실을 막으려고 문자열로 온다.
     sortOrder: Number(row.sort_order),
     updatedAt: row.updated_at,
+    coordinate: readCoordinate(row.place_snapshot),
   }));
 }
