@@ -17,7 +17,8 @@
     "db:link": "npx --yes supabase link",
     "db:push": "npx --yes supabase db push",
     "db:status": "npx --yes supabase migration list",
-    "test:e2e:dev": "PLAYWRIGHT_DEV=1 playwright test"
+    "test:e2e:dev": "PLAYWRIGHT_DEV=1 playwright test",
+    "db:sql": "node scripts/build-combined-sql.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

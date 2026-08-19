@@ -113,11 +113,13 @@ export type TestDb = {
   truncateAll: () => Promise<void>;
 };
 
-export async function createTestDb(): Promise<TestDb> {
-  const pg = new PGlite();
-
-  await pg.exec(SUPABASE_SHIM);
-
+/**
+ * 마이그레이션을 순서대로 적용한다.
+ *
+ * 여러 번 호출할 수 있어야 한다. 대시보드 SQL 에디터로 적용하다 중간에
+ * 실패하면 부분 적용 상태로 남는데, 그때 그냥 다시 실행할 수 있어야 한다.
+ */
+export async function applyMigrations(pg: PGlite): Promise<void> {
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((name) => name.endsWith(".sql"))
     .sort();
@@ -134,6 +136,13 @@ export async function createTestDb(): Promise<TestDb> {
       throw new Error(`마이그레이션 실패: ${file}\n${(error as Error).message}`);
     }
   }
+}
+
+export async function createTestDb(): Promise<TestDb> {
+  const pg = new PGlite();
+
+  await pg.exec(SUPABASE_SHIM);
+  await applyMigrations(pg);
 
   const asSuperuser = async () => {
     await pg.exec("reset role; select set_config('request.jwt.claim.sub', '', false);");

@@ -8,6 +8,9 @@
 .env*
 !.env.example
 
+# 생성물 (원본은 supabase/migrations/)
+/supabase/.combined.sql
+
 # Deployment and test artifacts
 /.vercel/
 /coverage/
