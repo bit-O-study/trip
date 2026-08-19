@@ -8,7 +8,7 @@
 -- ---------------------------------------------------------------------------
 -- profiles
 -- ---------------------------------------------------------------------------
-create table public.profiles (
+create table trip.profiles (
   id           uuid primary key references auth.users (id) on delete cascade,
   display_name text,
   avatar_url   text,
@@ -19,7 +19,7 @@ create table public.profiles (
 -- ---------------------------------------------------------------------------
 -- trips
 -- ---------------------------------------------------------------------------
-create table public.trips (
+create table trip.trips (
   id               uuid primary key default gen_random_uuid(),
   owner_id         uuid not null references auth.users (id) on delete restrict,
   title            text not null check (length(btrim(title)) > 0),
@@ -31,7 +31,7 @@ create table public.trips (
   -- 여행지 시간대. 일정 표시의 기준이며 IANA 이름을 저장한다 ("Asia/Tokyo").
   timezone         text not null default 'Asia/Seoul',
   base_currency    char(3) not null default 'KRW',
-  status           public.trip_status not null default 'planning',
+  status           trip.trip_status not null default 'planning',
   archived_at      timestamptz,
   deleted_at       timestamptz,
   created_at       timestamptz not null default now(),
@@ -43,10 +43,10 @@ create table public.trips (
 -- ---------------------------------------------------------------------------
 -- trip_members
 -- ---------------------------------------------------------------------------
-create table public.trip_members (
-  trip_id   uuid not null references public.trips (id) on delete cascade,
+create table trip.trip_members (
+  trip_id   uuid not null references trip.trips (id) on delete cascade,
   user_id   uuid not null references auth.users (id) on delete cascade,
-  role      public.trip_member_role not null default 'viewer',
+  role      trip.trip_member_role not null default 'viewer',
   joined_at timestamptz not null default now(),
 
   primary key (trip_id, user_id)
@@ -55,13 +55,13 @@ create table public.trip_members (
 -- ---------------------------------------------------------------------------
 -- trip_invites — 회원 초대 (계정에 귀속)
 -- ---------------------------------------------------------------------------
-create table public.trip_invites (
+create table trip.trip_invites (
   id          uuid primary key default gen_random_uuid(),
-  trip_id     uuid not null references public.trips (id) on delete cascade,
+  trip_id     uuid not null references trip.trips (id) on delete cascade,
   created_by  uuid not null references auth.users (id) on delete cascade,
   -- 원문 토큰은 저장하지 않는다. 단방향 해시만 보관한다.
   token_hash  text not null unique,
-  role        public.trip_member_role not null default 'editor',
+  role        trip.trip_member_role not null default 'editor',
   max_uses    integer not null default 1 check (max_uses > 0),
   used_count  integer not null default 0 check (used_count >= 0),
   expires_at  timestamptz,
@@ -80,9 +80,9 @@ create table public.trip_invites (
 -- trip_invites 와 역할이 달라 테이블을 분리한다. 하나로 합치면 만료·폐기·권한
 -- 정책이 뒤섞인다.
 -- ---------------------------------------------------------------------------
-create table public.trip_share_links (
+create table trip.trip_share_links (
   id               uuid primary key default gen_random_uuid(),
-  trip_id          uuid not null references public.trips (id) on delete cascade,
+  trip_id          uuid not null references trip.trips (id) on delete cascade,
   created_by       uuid not null references auth.users (id) on delete cascade,
   token_hash       text not null unique,
   -- 토큰 없는 공유 URL(/s/[tripShortId])에 쓰는 공개 식별자.
@@ -100,13 +100,13 @@ create table public.trip_share_links (
 -- 저장된 일정의 불변성은 itinerary_items.place_snapshot 이 보장하므로
 -- 이 테이블은 최신 정보로 갱신할 수 있다.
 -- ---------------------------------------------------------------------------
-create table public.places (
+create table trip.places (
   id                uuid primary key default gen_random_uuid(),
   provider          text not null check (provider in ('kakao', 'naver', 'manual')),
   provider_place_id text not null,
   name              text not null,
   category          text,
-  category_group    public.place_category_group not null default 'etc',
+  category_group    trip.place_category_group not null default 'etc',
   address           text,
   road_address      text,
   phone             text,
@@ -125,7 +125,7 @@ create table public.places (
 -- ---------------------------------------------------------------------------
 -- flights — 정규화된 공유 엔티티
 -- ---------------------------------------------------------------------------
-create table public.flights (
+create table trip.flights (
   id                       uuid primary key default gen_random_uuid(),
   provider                 text not null
     check (provider in ('kac_gw', 'aerodatabox', 'manual')),
@@ -162,7 +162,7 @@ create table public.flights (
   estimated_arrival        timestamptz,
   actual_arrival           timestamptz,
 
-  status                   public.flight_status not null default 'scheduled',
+  status                   trip.flight_status not null default 'scheduled',
   raw                      jsonb not null default '{}'::jsonb,
   created_at               timestamptz not null default now(),
   updated_at               timestamptz not null default now(),
@@ -176,15 +176,15 @@ create table public.flights (
 -- ---------------------------------------------------------------------------
 -- itinerary_items — 모든 일정 항목이 여기로 들어온다
 -- ---------------------------------------------------------------------------
-create table public.itinerary_items (
+create table trip.itinerary_items (
   id               uuid primary key default gen_random_uuid(),
-  trip_id          uuid not null references public.trips (id) on delete cascade,
+  trip_id          uuid not null references trip.trips (id) on delete cascade,
   created_by       uuid references auth.users (id) on delete set null,
 
-  type             public.itinerary_item_type not null,
-  status           public.itinerary_item_status not null default 'confirmed',
-  source           public.itinerary_item_source not null default 'manual',
-  share_visibility public.share_visibility not null default 'visible',
+  type             trip.itinerary_item_type not null,
+  status           trip.itinerary_item_status not null default 'confirmed',
+  source           trip.itinerary_item_source not null default 'manual',
+  share_visibility trip.share_visibility not null default 'visible',
 
   title            text not null check (length(btrim(title)) > 0),
   note             text,
@@ -201,11 +201,11 @@ create table public.itinerary_items (
   -- 중간값이 고갈되지 않는다. 자릿수가 과도해지면 해당 날짜만 재번호화한다.
   sort_order       numeric not null default 1000,
 
-  place_id         uuid references public.places (id) on delete set null,
+  place_id         uuid references trip.places (id) on delete set null,
   -- 선택 시점의 불변 사본. 외부 API 결과가 바뀌거나 사라져도 일정이 유지된다.
   place_snapshot   jsonb,
 
-  flight_id        uuid references public.flights (id) on delete set null,
+  flight_id        uuid references trip.flights (id) on delete set null,
   flight_snapshot  jsonb,
 
   reservation_code text,
@@ -220,10 +220,10 @@ create table public.itinerary_items (
 -- ---------------------------------------------------------------------------
 -- attachments — 티켓·바우처·사진
 -- ---------------------------------------------------------------------------
-create table public.attachments (
+create table trip.attachments (
   id           uuid primary key default gen_random_uuid(),
-  trip_id      uuid not null references public.trips (id) on delete cascade,
-  item_id      uuid references public.itinerary_items (id) on delete cascade,
+  trip_id      uuid not null references trip.trips (id) on delete cascade,
+  item_id      uuid references trip.itinerary_items (id) on delete cascade,
   uploaded_by  uuid references auth.users (id) on delete set null,
   -- Storage object 경로. 첫 세그먼트가 trip_id 여야 Storage RLS 에서
   -- 멤버십 검사를 걸 수 있다.
@@ -244,9 +244,9 @@ create table public.attachments (
 -- 일반 사용자는 INSERT/UPDATE/DELETE 할 수 없다. 생성은 트리거나 서버 전용
 -- 함수만 수행한다. 클라이언트가 직접 쓸 수 있으면 기록을 신뢰할 수 없다.
 -- ---------------------------------------------------------------------------
-create table public.audit_events (
+create table trip.audit_events (
   id          bigint generated always as identity primary key,
-  trip_id     uuid not null references public.trips (id) on delete cascade,
+  trip_id     uuid not null references trip.trips (id) on delete cascade,
   actor_id    uuid references auth.users (id) on delete set null,
   action      text not null,
   target_type text,
@@ -262,24 +262,24 @@ create table public.audit_events (
 -- 타임라인 조회의 기본 정렬. soft delete 된 행은 대부분의 조회에서 빠지므로
 -- 부분 인덱스로 크기를 줄인다.
 create index itinerary_items_trip_time_idx
-  on public.itinerary_items (trip_id, start_at, sort_order)
+  on trip.itinerary_items (trip_id, start_at, sort_order)
   where deleted_at is null;
 
-create index itinerary_items_place_idx on public.itinerary_items (place_id);
-create index itinerary_items_flight_idx on public.itinerary_items (flight_id);
+create index itinerary_items_place_idx on trip.itinerary_items (place_id);
+create index itinerary_items_flight_idx on trip.itinerary_items (flight_id);
 
 -- "내가 속한 여행" 조회. RLS 헬퍼가 매 질의마다 타므로 중요하다.
-create index trip_members_user_idx on public.trip_members (user_id, trip_id);
+create index trip_members_user_idx on trip.trip_members (user_id, trip_id);
 
-create index trips_owner_idx on public.trips (owner_id) where deleted_at is null;
+create index trips_owner_idx on trip.trips (owner_id) where deleted_at is null;
 
 create index flights_lookup_idx
-  on public.flights (flight_number_key, scheduled_departure);
+  on trip.flights (flight_number_key, scheduled_departure);
 
-create index attachments_trip_idx on public.attachments (trip_id)
+create index attachments_trip_idx on trip.attachments (trip_id)
   where deleted_at is null;
 
-create index audit_events_trip_idx on public.audit_events (trip_id, created_at desc);
+create index audit_events_trip_idx on trip.audit_events (trip_id, created_at desc);
 
-create index trip_invites_trip_idx on public.trip_invites (trip_id);
-create index trip_share_links_trip_idx on public.trip_share_links (trip_id);
+create index trip_invites_trip_idx on trip.trip_invites (trip_id);
+create index trip_share_links_trip_idx on trip.trip_share_links (trip_id);

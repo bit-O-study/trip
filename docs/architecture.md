@@ -497,7 +497,20 @@ Supabase Storage의 **private bucket**을 사용한다.
 
 `.env.local`에는 참고 앱 값 중 필요한 항목만 복사한다.
 
-> 현재 Supabase 값은 **Health 프로젝트**를 가리킨다. **그 DB에 여행 스키마를 적용하지 않는다.** Trip 전용 Supabase 프로젝트를 만든 뒤 값을 교체해야 한다.
+> **결정 변경(2026-08-19): 헬쑤 Supabase 프로젝트를 공유한다.** 계정(`auth.users`)을 공유해 사용자가 두 앱에서 같은 아이디를 쓰게 하는 것이 목적이다. 이전 초안의 "Trip 전용 프로젝트를 만들라"는 지침은 폐기한다.
+
+### 공유 DB에서의 격리 규칙
+
+계정은 공유하되 **애플리케이션 테이블은 절대 섞지 않는다.**
+
+- **앱 테이블은 `trip` 스키마, SECURITY DEFINER 헬퍼는 `trip_private` 스키마.** `public`에는 아무것도 만들지 않는다.
+- **`... on all tables in schema public` 구문을 쓰지 않는다.** 초안의 `revoke all on all tables in schema public from anon, authenticated`는 헬쑤의 모든 테이블 권한까지 회수해 **헬쑤를 즉시 중단시킨다.** 권한은 우리 테이블에만 건다.
+- `profiles`처럼 흔한 이름은 `public`에 두면 반드시 충돌한다. 스키마 분리로 원천 차단한다.
+- 문제가 생기면 `drop schema trip cascade`로 우리 것만 되돌릴 수 있다.
+
+**추가 설정이 필요하다.** `trip` 스키마를 API로 쓰려면 Supabase 대시보드에서 노출 스키마에 추가해야 한다(Settings → API → Exposed schemas). 클라이언트에는 `db: { schema: "trip" }`를 지정한다.
+
+Storage는 버킷(`trip-attachments`)으로 이미 격리되므로 스키마 분리가 필요 없다.
 
 ### 개발 서버 포트는 3100으로 고정한다
 
@@ -589,7 +602,7 @@ Vercel 프로젝트는 별도로 만들고 Preview/Production 환경변수를 �
 | 항목 | 상태 | 결론 / 다음 행동 |
 |---|---|---|
 | 항공 데이터 공급자와 요금제 | **미결** | [ADR-0001](adr/0001-flight-data-provider.md)의 12개 항목을 실제 샘플 응답으로 검증. GW API 활용 신청 먼저 접수 |
-| Trip Supabase 프로젝트 생성 시점 | 결정 | 구현 순서 2단계 착수 전 즉시. Health 프로젝트에 스키마를 적용하는 사고를 원천 차단 |
+| Supabase 프로젝트 | **결정 변경** | 헬쑤 프로젝트를 공유한다(계정 공유가 목적). 앱 테이블은 `trip`/`trip_private` 스키마로 격리하고 `public`은 건드리지 않는다 (§7) |
 | Kakao 단독 검색 vs Naver fallback | 결정 | Kakao 단독. Naver는 결과 5건·페이지 이동 불가·상세정보 부족으로 fallback 부적합. v1.1 후기·사진 보강으로만 도입 |
 | 동행자 편집 vs 읽기 공유 | 결정 | 읽기 공유(`trip_share_links`)부터. 구현이 짧고 실시간 충돌 처리가 불필요 |
 | `sort_order` 표현 | 결정 | `numeric` + `1000` 간격 배치, 중간값 삽입. 인접 차이 `0.000001` 미만 시 해당 날짜만 재번호화. LexoRank는 이 규모에 과함 |

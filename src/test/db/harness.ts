@@ -139,16 +139,16 @@ export async function createTestDb(): Promise<TestDb> {
     await pg.exec(`
       truncate table storage.objects;
       truncate table
-        public.audit_events,
-        public.attachments,
-        public.itinerary_items,
-        public.trip_share_links,
-        public.trip_invites,
-        public.trip_members,
-        public.trips,
-        public.places,
-        public.flights,
-        public.profiles,
+        trip.audit_events,
+        trip.attachments,
+        trip.itinerary_items,
+        trip.trip_share_links,
+        trip.trip_invites,
+        trip.trip_members,
+        trip.trips,
+        trip.places,
+        trip.flights,
+        trip.profiles,
         auth.users
       restart identity cascade;
     `);

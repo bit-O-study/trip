@@ -40,4 +40,5 @@ npm run build       # 프로덕션 빌드 (Turbopack)
 - 드래그로만 되는 조작을 만들지 않는다. 키보드 대체 경로를 함께 제공한다.
 - **미들웨어 파일은 `src/proxy.ts` 다.** Next.js 16 에서 `middleware` 규약이 `proxy` 로 바뀌었고 런타임은 nodejs 고정이다. `middleware.ts` 를 만들지 않는다.
 - **접근 제어는 `src/proxy.ts` 와 RLS 가 담당한다.** `getCurrentUser()` 는 화면 표시용이며 권한 판정에 쓰지 않는다. 공개 경로는 `src/lib/auth/paths.ts` 의 화이트리스트로만 늘린다 — 기본값은 항상 보호다.
+- **이 DB 는 헬쑤와 공유한다.** 앱 테이블은 `trip`, 헬퍼는 `trip_private` 스키마에 둔다. `public` 에는 아무것도 만들지 않고, `... on all tables in schema public` 구문은 어떤 이유로도 쓰지 않는다 — 헬쑤의 권한까지 회수해 상대 앱을 죽인다.
 - **스키마는 `supabase/migrations/` 가 유일한 출처다.** 대시보드 SQL 에디터에서 직접 바꾸지 않는다. RLS 정책을 추가하면 `src/test/db/rls.test.ts` 에 **거부되는 경우**까지 테스트를 함께 쓴다. 자세한 내용은 [supabase/README.md](supabase/README.md).
