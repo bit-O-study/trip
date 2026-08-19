@@ -4,6 +4,8 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3100";
 
 export default defineConfig({
   testDir: "./e2e",
+  // webServer 가 뜬 뒤 주요 라우트를 미리 컴파일시킨다.
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
   /*
    * dev 서버가 차가운 상태에서는 첫 라우트 컴파일에 시간이 걸린다.

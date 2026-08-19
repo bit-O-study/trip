@@ -534,7 +534,7 @@ Vercel 프로젝트는 별도로 만들고 Preview/Production 환경변수를 �
 
 1. ~~Next.js 기본 앱, 모바일 레이아웃, lint/test 구성~~ **완료**
 2. ~~SQL migration과 RLS 테스트 (SECURITY DEFINER 요건 포함)~~ **완료** — Trip 전용 Supabase 프로젝트 생성 후 `npm run db:push` 적용만 남음 (`supabase/README.md`)
-3. Supabase SSR 로그인 및 Google/Kakao OAuth (URL 2종 분리 등록)
+3. ~~Supabase SSR 로그인 및 Google/Kakao OAuth~~ **코드 완료** — 실제 로그인 검증은 Supabase 프로젝트 생성과 OAuth 콘솔 URL 2종 등록 후
 4. 여행 CRUD와 날짜별 타임라인, soft delete·복구
 5. Kakao 장소 검색·지도와 장소 일정 저장 (`place_snapshot` 포함)
 6. 타임라인 ↔ 지도 양방향 하이라이트, Day 색상·번호 마커, 키보드 재정렬
