@@ -22,6 +22,7 @@ npm run dev        # http://localhost:3100
 | `npm test` | 단위 테스트 (Vitest) |
 | `npm run test:e2e` | E2E 테스트 (Playwright, 모바일·데스크톱 뷰포트) |
 | `npm run build` | 프로덕션 빌드 |
+| `npm run db:push` | 마이그레이션을 Supabase 프로젝트에 적용 ([supabase/README.md](supabase/README.md)) |
 
 E2E는 처음 한 번 브라우저 설치가 필요합니다.
 
@@ -34,7 +35,7 @@ npx playwright install chromium
 구현 순서는 [docs/architecture.md](docs/architecture.md) 8절을 따릅니다.
 
 - [x] 1단계 — Next.js 기본 앱, 모바일 우선 레이아웃, lint/test 구성
-- [ ] 2단계 — Trip 전용 Supabase, SQL migration과 RLS 테스트
+- [x] 2단계 — SQL migration과 RLS 테스트 (Supabase 프로젝트 생성 후 `npm run db:push` 필요)
 - [ ] 3단계 — Supabase SSR 로그인 및 Google/Kakao OAuth
 - [ ] 4단계 — 여행 CRUD와 날짜별 타임라인
 - [ ] 5단계 — Kakao 장소 검색·지도
