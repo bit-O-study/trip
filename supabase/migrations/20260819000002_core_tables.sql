@@ -6,15 +6,18 @@
 --  - 사용자 데이터를 담는 테이블에는 deleted_at 을 두어 soft delete 한다.
 
 -- ---------------------------------------------------------------------------
--- profiles
+-- profiles 테이블은 만들지 않는다.
+--
+-- 계정을 헬쑤와 공유하므로 표시 이름·아바타도 헬쑤의 profiles 를 그대로 쓴다.
+-- 같은 사람의 프로필이 두 벌 존재하면 한쪽만 고쳤을 때 어느 쪽이 맞는지 알 수
+-- 없어진다.
+--
+-- 이 테이블들은 profiles 가 아니라 auth.users 를 참조하므로 의존성이 없다.
+-- 동행자 목록에 표시 이름을 보여주려면 헬쑤의 profiles 에 "같은 여행 멤버끼리
+-- 읽을 수 있다" 정책을 추가해야 한다 — 상대 앱 테이블을 건드리는 일이라
+-- 실제 스키마와 기존 정책을 확인한 뒤 별도 마이그레이션으로 처리한다.
+-- 자세한 내용은 supabase/README.md 의 "헬쑤 profiles 공유" 절 참고.
 -- ---------------------------------------------------------------------------
-create table trip.profiles (
-  id           uuid primary key references auth.users (id) on delete cascade,
-  display_name text,
-  avatar_url   text,
-  created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
-);
 
 -- ---------------------------------------------------------------------------
 -- trips
