@@ -270,13 +270,38 @@ async function expose(client) {
     throw new Error("trip_private 가 노출돼 있습니다. 수동으로 제거하세요.");
   }
 
-  const next = [...list, "trip"].join(", ");
+  const nextList = [...list, "trip"];
+
+  /*
+   * ALTER ROLE ... SET 은 유틸리티 명령이라 파라미터 바인딩($1)을 받지 못한다.
+   * 값을 문자열로 넣어야 하므로, 넣기 전에 스키마 이름 형식을 엄격히 검사한다.
+   * 이 값은 DB 에서 읽어온 것이지만 확인 없이 SQL 에 이어 붙이지 않는다.
+   */
+  const VALID_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  for (const name of nextList) {
+    if (!VALID_NAME.test(name)) {
+      throw new Error(`스키마 이름 형식이 올바르지 않아 중단합니다: ${JSON.stringify(name)}`);
+    }
+  }
+
+  const next = nextList.join(", ");
   console.log("변경 후:", next);
 
-  await client.query(`alter role authenticator set pgrst.db_schemas = $1`, [next]);
+  await client.query(`alter role authenticator set pgrst.db_schemas = '${next}'`);
   await client.query(`notify pgrst, 'reload config'`);
   await client.query(`notify pgrst, 'reload schema'`);
-  console.log("적용하고 PostgREST 에 재읽기를 알렸습니다.");
+
+  // 저장된 값을 다시 읽어 확인한다.
+  const after = await client.query(
+    `select setconfig from pg_db_role_setting s
+     join pg_roles r on r.oid = s.setrole
+     where r.rolname = 'authenticator'`,
+  );
+  const saved = (after.rows[0]?.setconfig ?? []).find((s) =>
+    s.startsWith("pgrst.db_schemas="),
+  );
+  console.log("저장 확인:", saved ?? "(읽지 못함)");
+  console.log("PostgREST 에 재읽기를 알렸습니다.");
 }
 
 const { command, envFile } = parseArgs(process.argv);
