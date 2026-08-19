@@ -16,7 +16,7 @@
 -- 멤버십 헬퍼
 -- ---------------------------------------------------------------------------
 
-create or replace function private.is_trip_member(p_trip_id uuid)
+create or replace function trip_private.is_trip_member(p_trip_id uuid)
 returns boolean
 language sql
 stable
@@ -25,13 +25,13 @@ set search_path = ''
 as $$
   select exists (
     select 1
-    from public.trip_members m
+    from trip.trip_members m
     where m.trip_id = p_trip_id
       and m.user_id = (select auth.uid())
   );
 $$;
 
-create or replace function private.can_edit_trip(p_trip_id uuid)
+create or replace function trip_private.can_edit_trip(p_trip_id uuid)
 returns boolean
 language sql
 stable
@@ -40,14 +40,14 @@ set search_path = ''
 as $$
   select exists (
     select 1
-    from public.trip_members m
+    from trip.trip_members m
     where m.trip_id = p_trip_id
       and m.user_id = (select auth.uid())
       and m.role in ('owner', 'editor')
   );
 $$;
 
-create or replace function private.is_trip_owner(p_trip_id uuid)
+create or replace function trip_private.is_trip_owner(p_trip_id uuid)
 returns boolean
 language sql
 stable
@@ -56,7 +56,7 @@ set search_path = ''
 as $$
   select exists (
     select 1
-    from public.trip_members m
+    from trip.trip_members m
     where m.trip_id = p_trip_id
       and m.user_id = (select auth.uid())
       and m.role = 'owner'
@@ -64,7 +64,7 @@ as $$
 $$;
 
 -- 같은 여행에 속한 사람인지. 멤버 목록에 표시 이름을 보여주려면 필요하다.
-create or replace function private.shares_trip_with(p_user_id uuid)
+create or replace function trip_private.shares_trip_with(p_user_id uuid)
 returns boolean
 language sql
 stable
@@ -73,25 +73,25 @@ set search_path = ''
 as $$
   select exists (
     select 1
-    from public.trip_members me
-    join public.trip_members other on other.trip_id = me.trip_id
+    from trip.trip_members me
+    join trip.trip_members other on other.trip_id = me.trip_id
     where me.user_id = (select auth.uid())
       and other.user_id = p_user_id
   );
 $$;
 
 revoke all on function
-  private.is_trip_member(uuid),
-  private.can_edit_trip(uuid),
-  private.is_trip_owner(uuid),
-  private.shares_trip_with(uuid)
+  trip_private.is_trip_member(uuid),
+  trip_private.can_edit_trip(uuid),
+  trip_private.is_trip_owner(uuid),
+  trip_private.shares_trip_with(uuid)
 from public, anon;
 
 grant execute on function
-  private.is_trip_member(uuid),
-  private.can_edit_trip(uuid),
-  private.is_trip_owner(uuid),
-  private.shares_trip_with(uuid)
+  trip_private.is_trip_member(uuid),
+  trip_private.can_edit_trip(uuid),
+  trip_private.is_trip_owner(uuid),
+  trip_private.shares_trip_with(uuid)
 to authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ to authenticated;
 -- 있으므로 트리거로 강제한다.
 -- ---------------------------------------------------------------------------
 
-create or replace function private.set_updated_at()
+create or replace function trip_private.set_updated_at()
 returns trigger
 language plpgsql
 set search_path = ''
@@ -114,24 +114,24 @@ end;
 $$;
 
 create trigger profiles_set_updated_at
-  before update on public.profiles
-  for each row execute function private.set_updated_at();
+  before update on trip.profiles
+  for each row execute function trip_private.set_updated_at();
 
 create trigger trips_set_updated_at
-  before update on public.trips
-  for each row execute function private.set_updated_at();
+  before update on trip.trips
+  for each row execute function trip_private.set_updated_at();
 
 create trigger places_set_updated_at
-  before update on public.places
-  for each row execute function private.set_updated_at();
+  before update on trip.places
+  for each row execute function trip_private.set_updated_at();
 
 create trigger flights_set_updated_at
-  before update on public.flights
-  for each row execute function private.set_updated_at();
+  before update on trip.flights
+  for each row execute function trip_private.set_updated_at();
 
 create trigger itinerary_items_set_updated_at
-  before update on public.itinerary_items
-  for each row execute function private.set_updated_at();
+  before update on trip.itinerary_items
+  for each row execute function trip_private.set_updated_at();
 
 -- ---------------------------------------------------------------------------
 -- 여행 생성자를 owner 멤버로 등록
@@ -141,14 +141,14 @@ create trigger itinerary_items_set_updated_at
 -- 트리거로 원자적으로 처리한다.
 -- ---------------------------------------------------------------------------
 
-create or replace function private.add_owner_membership()
+create or replace function trip_private.add_owner_membership()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
 begin
-  insert into public.trip_members (trip_id, user_id, role)
+  insert into trip.trip_members (trip_id, user_id, role)
   values (new.id, new.owner_id, 'owner')
   on conflict (trip_id, user_id) do update set role = 'owner';
   return new;
@@ -156,8 +156,8 @@ end;
 $$;
 
 create trigger trips_add_owner_membership
-  after insert on public.trips
-  for each row execute function private.add_owner_membership();
+  after insert on trip.trips
+  for each row execute function trip_private.add_owner_membership();
 
 -- ---------------------------------------------------------------------------
 -- 마지막 owner 보호
@@ -166,7 +166,7 @@ create trigger trips_add_owner_membership
 -- 소유권 이전을 먼저 거치도록 정책 수준에서 막는다.
 -- ---------------------------------------------------------------------------
 
-create or replace function private.guard_last_owner()
+create or replace function trip_private.guard_last_owner()
 returns trigger
 language plpgsql
 security definer
@@ -190,7 +190,7 @@ begin
   end if;
 
   select count(*) into v_owner_count
-  from public.trip_members m
+  from trip.trip_members m
   where m.trip_id = v_trip_id
     and m.role = 'owner';
 
@@ -208,8 +208,8 @@ end;
 $$;
 
 create trigger trip_members_guard_last_owner
-  before update or delete on public.trip_members
-  for each row execute function private.guard_last_owner();
+  before update or delete on trip.trip_members
+  for each row execute function trip_private.guard_last_owner();
 
 -- ---------------------------------------------------------------------------
 -- 감사 기록
@@ -218,14 +218,14 @@ create trigger trip_members_guard_last_owner
 -- token_hash 가 감사 로그로 새어 나가면 안 되므로, 남길 필드를 명시적으로 고른다.
 -- ---------------------------------------------------------------------------
 
-create or replace function private.audit_trip_members()
+create or replace function trip_private.audit_trip_members()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
-  v_row public.trip_members;
+  v_row trip.trip_members;
 begin
   if tg_op = 'DELETE' then
     v_row := old;
@@ -233,7 +233,7 @@ begin
     v_row := new;
   end if;
 
-  insert into public.audit_events (trip_id, actor_id, action, target_type, target_id, metadata)
+  insert into trip.audit_events (trip_id, actor_id, action, target_type, target_id, metadata)
   values (
     v_row.trip_id,
     (select auth.uid()),
@@ -250,17 +250,17 @@ end;
 $$;
 
 create trigger trip_members_audit
-  after insert or update or delete on public.trip_members
-  for each row execute function private.audit_trip_members();
+  after insert or update or delete on trip.trip_members
+  for each row execute function trip_private.audit_trip_members();
 
-create or replace function private.audit_share_links()
+create or replace function trip_private.audit_share_links()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
-  v_row public.trip_share_links;
+  v_row trip.trip_share_links;
 begin
   if tg_op = 'DELETE' then
     v_row := old;
@@ -268,7 +268,7 @@ begin
     v_row := new;
   end if;
 
-  insert into public.audit_events (trip_id, actor_id, action, target_type, target_id, metadata)
+  insert into trip.audit_events (trip_id, actor_id, action, target_type, target_id, metadata)
   values (
     v_row.trip_id,
     (select auth.uid()),
@@ -286,5 +286,5 @@ end;
 $$;
 
 create trigger trip_share_links_audit
-  after insert or update or delete on public.trip_share_links
-  for each row execute function private.audit_share_links();
+  after insert or update or delete on trip.trip_share_links
+  for each row execute function trip_private.audit_share_links();

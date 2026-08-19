@@ -14,6 +14,8 @@ export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(env.url, env.publishableKey, {
+    // 앱 테이블은 public 이 아니라 trip 스키마에 있다 (헬쑤와 DB 공유).
+    db: { schema: "trip" },
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -51,6 +53,7 @@ export function createSupabaseServiceRoleClient() {
   }
 
   return createServerClient(env.url, serviceRoleKey, {
+    db: { schema: "trip" },
     // 서비스 역할은 사용자 세션과 무관하다. 쿠키를 읽지도 쓰지도 않는다.
     cookies: {
       getAll() {
