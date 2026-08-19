@@ -12,6 +12,31 @@
 | `trip_private` | SECURITY DEFINER 헬퍼 | **비노출** |
 | `public` | 헬쑤 소유. **건드리지 않는다** | — |
 
+### 헬쑤 profiles 공유
+
+계정을 공유하므로 표시 이름·아바타도 헬쑤의 `public.profiles` 를 그대로 씁니다. **Trip 은 자체 프로필 테이블을 만들지 않습니다.** 같은 사람의 프로필이 두 벌 있으면 한쪽만 고쳤을 때 어느 쪽이 맞는지 알 수 없어집니다.
+
+Trip 테이블은 모두 `auth.users` 를 참조하므로 프로필에 대한 스키마 의존성은 없습니다. 읽을 때만 스키마를 명시합니다 (클라이언트 기본 스키마가 `trip` 이므로).
+
+```ts
+supabase.schema("public").from("profiles").select("id, display_name, avatar_url")
+```
+
+**아직 하지 않은 일** — 동행자 목록에 표시 이름을 보여주려면 헬쑤의 `public.profiles` 에 "같은 여행 멤버끼리 읽을 수 있다" 정책을 추가해야 합니다. 헬퍼(`trip_private.shares_trip_with`)는 준비돼 있지만, **상대 앱 테이블을 건드리는 일이라 아직 마이그레이션으로 만들지 않았습니다.** 다음을 먼저 확인하세요.
+
+1. `public.profiles` 가 실제로 존재하는지, 컬럼 이름이 무엇인지 (`display_name` 이 아닐 수 있음)
+2. 기존 RLS 정책 — 정책은 OR 로 합쳐지므로 추가가 헬쑤 기능을 깨지는 않지만, **헬쑤 사용자의 프로필이 Trip 동행자에게 보이게 되는 노출 범위 변경**입니다. 헬쑤 쪽 합의가 필요합니다.
+3. 추가 후 헬쑤 정상 동작 점검
+
+확인이 끝나면 대략 아래 형태가 됩니다. **컬럼·정책 이름은 실제 스키마를 보고 맞춰야 합니다.**
+
+```sql
+-- 예시. 그대로 실행하지 마세요.
+create policy trip_members_can_read_profile on public.profiles
+  for select to authenticated
+  using (trip_private.shares_trip_with(id));
+```
+
 ### 절대 하면 안 되는 것
 
 ```sql
