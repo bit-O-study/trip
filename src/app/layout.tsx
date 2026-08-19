@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { getCurrentUser } from "@/lib/supabase/user";
 
 import "./globals.css";
 
@@ -29,11 +30,18 @@ export const viewport: Viewport = {
    */
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  /*
+   * 셸이 로그인 상태에 따라 달라지므로 레이아웃이 동적 렌더링이 된다.
+   * 인증이 필요한 앱에서는 정상이다. 공개 공유 뷰(/s/...)는 별도 레이아웃으로
+   * 분리해 정적 렌더링을 되찾을 수 있다(8단계).
+   */
+  const user = await getCurrentUser();
+
   return (
     <html lang="ko">
       <body className="antialiased">
-        <AppShell>{children}</AppShell>
+        <AppShell user={user}>{children}</AppShell>
       </body>
     </html>
   );

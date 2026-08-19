@@ -36,7 +36,8 @@ npx playwright install chromium
 
 - [x] 1단계 — Next.js 기본 앱, 모바일 우선 레이아웃, lint/test 구성
 - [x] 2단계 — SQL migration과 RLS 테스트 (Supabase 프로젝트 생성 후 `npm run db:push` 필요)
-- [ ] 3단계 — Supabase SSR 로그인 및 Google/Kakao OAuth
+- [x] 3단계 코드 — Supabase SSR 클라이언트·세션 proxy·로그인 UI·OAuth 콜백·로그아웃
+  - [ ] Trip 프로젝트 연결 및 Google/Kakao 콘솔 등록 후 실제 로그인 통합 검증
 - [ ] 4단계 — 여행 CRUD와 날짜별 타임라인
 - [ ] 5단계 — Kakao 장소 검색·지도
 - [ ] 6단계 — 타임라인 ↔ 지도 양방향 하이라이트
