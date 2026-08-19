@@ -36,6 +36,7 @@ grant execute on function trip_private.trip_id_from_storage_path(text) to authen
 -- 읽기는 멤버 전체, 쓰기는 편집 권한이 있는 멤버만.
 -- 공개 공유 링크(/s/...)에는 첨부를 노출하지 않으므로 anon 정책은 두지 않는다.
 
+drop policy if exists trip_attachments_select on storage.objects;
 create policy trip_attachments_select on storage.objects
   for select to authenticated
   using (
@@ -43,6 +44,7 @@ create policy trip_attachments_select on storage.objects
     and trip_private.is_trip_member(trip_private.trip_id_from_storage_path(name))
   );
 
+drop policy if exists trip_attachments_insert on storage.objects;
 create policy trip_attachments_insert on storage.objects
   for insert to authenticated
   with check (
@@ -50,6 +52,7 @@ create policy trip_attachments_insert on storage.objects
     and trip_private.can_edit_trip(trip_private.trip_id_from_storage_path(name))
   );
 
+drop policy if exists trip_attachments_update on storage.objects;
 create policy trip_attachments_update on storage.objects
   for update to authenticated
   using (
@@ -61,6 +64,7 @@ create policy trip_attachments_update on storage.objects
     and trip_private.can_edit_trip(trip_private.trip_id_from_storage_path(name))
   );
 
+drop policy if exists trip_attachments_delete on storage.objects;
 create policy trip_attachments_delete on storage.objects
   for delete to authenticated
   using (

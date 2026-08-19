@@ -22,7 +22,7 @@
 -- ---------------------------------------------------------------------------
 -- trips
 -- ---------------------------------------------------------------------------
-create table trip.trips (
+create table if not exists trip.trips (
   id               uuid primary key default gen_random_uuid(),
   owner_id         uuid not null references auth.users (id) on delete restrict,
   title            text not null check (length(btrim(title)) > 0),
@@ -46,7 +46,7 @@ create table trip.trips (
 -- ---------------------------------------------------------------------------
 -- trip_members
 -- ---------------------------------------------------------------------------
-create table trip.trip_members (
+create table if not exists trip.trip_members (
   trip_id   uuid not null references trip.trips (id) on delete cascade,
   user_id   uuid not null references auth.users (id) on delete cascade,
   role      trip.trip_member_role not null default 'viewer',
@@ -58,7 +58,7 @@ create table trip.trip_members (
 -- ---------------------------------------------------------------------------
 -- trip_invites — 회원 초대 (계정에 귀속)
 -- ---------------------------------------------------------------------------
-create table trip.trip_invites (
+create table if not exists trip.trip_invites (
   id          uuid primary key default gen_random_uuid(),
   trip_id     uuid not null references trip.trips (id) on delete cascade,
   created_by  uuid not null references auth.users (id) on delete cascade,
@@ -83,7 +83,7 @@ create table trip.trip_invites (
 -- trip_invites 와 역할이 달라 테이블을 분리한다. 하나로 합치면 만료·폐기·권한
 -- 정책이 뒤섞인다.
 -- ---------------------------------------------------------------------------
-create table trip.trip_share_links (
+create table if not exists trip.trip_share_links (
   id               uuid primary key default gen_random_uuid(),
   trip_id          uuid not null references trip.trips (id) on delete cascade,
   created_by       uuid not null references auth.users (id) on delete cascade,
@@ -103,7 +103,7 @@ create table trip.trip_share_links (
 -- 저장된 일정의 불변성은 itinerary_items.place_snapshot 이 보장하므로
 -- 이 테이블은 최신 정보로 갱신할 수 있다.
 -- ---------------------------------------------------------------------------
-create table trip.places (
+create table if not exists trip.places (
   id                uuid primary key default gen_random_uuid(),
   provider          text not null check (provider in ('kakao', 'naver', 'manual')),
   provider_place_id text not null,
@@ -128,7 +128,7 @@ create table trip.places (
 -- ---------------------------------------------------------------------------
 -- flights — 정규화된 공유 엔티티
 -- ---------------------------------------------------------------------------
-create table trip.flights (
+create table if not exists trip.flights (
   id                       uuid primary key default gen_random_uuid(),
   provider                 text not null
     check (provider in ('kac_gw', 'aerodatabox', 'manual')),
@@ -179,7 +179,7 @@ create table trip.flights (
 -- ---------------------------------------------------------------------------
 -- itinerary_items — 모든 일정 항목이 여기로 들어온다
 -- ---------------------------------------------------------------------------
-create table trip.itinerary_items (
+create table if not exists trip.itinerary_items (
   id               uuid primary key default gen_random_uuid(),
   trip_id          uuid not null references trip.trips (id) on delete cascade,
   created_by       uuid references auth.users (id) on delete set null,
@@ -223,7 +223,7 @@ create table trip.itinerary_items (
 -- ---------------------------------------------------------------------------
 -- attachments — 티켓·바우처·사진
 -- ---------------------------------------------------------------------------
-create table trip.attachments (
+create table if not exists trip.attachments (
   id           uuid primary key default gen_random_uuid(),
   trip_id      uuid not null references trip.trips (id) on delete cascade,
   item_id      uuid references trip.itinerary_items (id) on delete cascade,
@@ -247,7 +247,7 @@ create table trip.attachments (
 -- 일반 사용자는 INSERT/UPDATE/DELETE 할 수 없다. 생성은 트리거나 서버 전용
 -- 함수만 수행한다. 클라이언트가 직접 쓸 수 있으면 기록을 신뢰할 수 없다.
 -- ---------------------------------------------------------------------------
-create table trip.audit_events (
+create table if not exists trip.audit_events (
   id          bigint generated always as identity primary key,
   trip_id     uuid not null references trip.trips (id) on delete cascade,
   actor_id    uuid references auth.users (id) on delete set null,
@@ -264,25 +264,25 @@ create table trip.audit_events (
 
 -- 타임라인 조회의 기본 정렬. soft delete 된 행은 대부분의 조회에서 빠지므로
 -- 부분 인덱스로 크기를 줄인다.
-create index itinerary_items_trip_time_idx
+create index if not exists itinerary_items_trip_time_idx
   on trip.itinerary_items (trip_id, start_at, sort_order)
   where deleted_at is null;
 
-create index itinerary_items_place_idx on trip.itinerary_items (place_id);
-create index itinerary_items_flight_idx on trip.itinerary_items (flight_id);
+create index if not exists itinerary_items_place_idx on trip.itinerary_items (place_id);
+create index if not exists itinerary_items_flight_idx on trip.itinerary_items (flight_id);
 
 -- "내가 속한 여행" 조회. RLS 헬퍼가 매 질의마다 타므로 중요하다.
-create index trip_members_user_idx on trip.trip_members (user_id, trip_id);
+create index if not exists trip_members_user_idx on trip.trip_members (user_id, trip_id);
 
-create index trips_owner_idx on trip.trips (owner_id) where deleted_at is null;
+create index if not exists trips_owner_idx on trip.trips (owner_id) where deleted_at is null;
 
-create index flights_lookup_idx
+create index if not exists flights_lookup_idx
   on trip.flights (flight_number_key, scheduled_departure);
 
-create index attachments_trip_idx on trip.attachments (trip_id)
+create index if not exists attachments_trip_idx on trip.attachments (trip_id)
   where deleted_at is null;
 
-create index audit_events_trip_idx on trip.audit_events (trip_id, created_at desc);
+create index if not exists audit_events_trip_idx on trip.audit_events (trip_id, created_at desc);
 
-create index trip_invites_trip_idx on trip.trip_invites (trip_id);
-create index trip_share_links_trip_idx on trip.trip_share_links (trip_id);
+create index if not exists trip_invites_trip_idx on trip.trip_invites (trip_id);
+create index if not exists trip_share_links_trip_idx on trip.trip_share_links (trip_id);

@@ -39,20 +39,24 @@ grant select, insert, update, delete on trip.trips to authenticated;
 -- 생성자를 owner 멤버로 등록하는 AFTER 트리거는 그 시점 이후에 실행된다.
 -- is_trip_member 만 두면 "여행을 만들고 id 를 돌려받는" 기본 흐름이 실패한다.
 -- 부수 효과로 trip_members 행이 유실돼도 소유자가 자기 여행에서 잠기지 않는다.
+drop policy if exists trips_select on trip.trips;
 create policy trips_select on trip.trips
   for select to authenticated
   using (owner_id = (select auth.uid()) or trip_private.is_trip_member(id));
 
+drop policy if exists trips_insert on trip.trips;
 create policy trips_insert on trip.trips
   for insert to authenticated
   with check (owner_id = (select auth.uid()));
 
+drop policy if exists trips_update on trip.trips;
 create policy trips_update on trip.trips
   for update to authenticated
   using (trip_private.can_edit_trip(id))
   with check (trip_private.can_edit_trip(id));
 
 -- 물리 삭제는 owner 만. 일반 경로는 deleted_at 을 채우는 UPDATE 다.
+drop policy if exists trips_delete on trip.trips;
 create policy trips_delete on trip.trips
   for delete to authenticated
   using (trip_private.is_trip_owner(id));
@@ -65,19 +69,23 @@ create policy trips_delete on trip.trips
 -- ---------------------------------------------------------------------------
 grant select, insert, update, delete on trip.trip_members to authenticated;
 
+drop policy if exists trip_members_select on trip.trip_members;
 create policy trip_members_select on trip.trip_members
   for select to authenticated
   using (trip_private.is_trip_member(trip_id));
 
+drop policy if exists trip_members_insert on trip.trip_members;
 create policy trip_members_insert on trip.trip_members
   for insert to authenticated
   with check (trip_private.is_trip_owner(trip_id));
 
+drop policy if exists trip_members_update on trip.trip_members;
 create policy trip_members_update on trip.trip_members
   for update to authenticated
   using (trip_private.is_trip_owner(trip_id))
   with check (trip_private.is_trip_owner(trip_id));
 
+drop policy if exists trip_members_delete on trip.trip_members;
 create policy trip_members_delete on trip.trip_members
   for delete to authenticated
   using (trip_private.is_trip_owner(trip_id));
@@ -90,6 +98,7 @@ create policy trip_members_delete on trip.trip_members
 -- ---------------------------------------------------------------------------
 grant select, insert, update, delete on trip.trip_invites to authenticated;
 
+drop policy if exists trip_invites_all on trip.trip_invites;
 create policy trip_invites_all on trip.trip_invites
   for all to authenticated
   using (trip_private.is_trip_owner(trip_id))
@@ -97,6 +106,7 @@ create policy trip_invites_all on trip.trip_invites
 
 grant select, insert, update, delete on trip.trip_share_links to authenticated;
 
+drop policy if exists trip_share_links_all on trip.trip_share_links;
 create policy trip_share_links_all on trip.trip_share_links
   for all to authenticated
   using (trip_private.is_trip_owner(trip_id))
@@ -111,20 +121,24 @@ create policy trip_share_links_all on trip.trip_share_links
 -- ---------------------------------------------------------------------------
 grant select, insert on trip.places to authenticated;
 
+drop policy if exists places_select on trip.places;
 create policy places_select on trip.places
   for select to authenticated
   using (true);
 
+drop policy if exists places_insert on trip.places;
 create policy places_insert on trip.places
   for insert to authenticated
   with check (true);
 
 grant select, insert on trip.flights to authenticated;
 
+drop policy if exists flights_select on trip.flights;
 create policy flights_select on trip.flights
   for select to authenticated
   using (true);
 
+drop policy if exists flights_insert on trip.flights;
 create policy flights_insert on trip.flights
   for insert to authenticated
   with check (true);
@@ -134,19 +148,23 @@ create policy flights_insert on trip.flights
 -- ---------------------------------------------------------------------------
 grant select, insert, update, delete on trip.itinerary_items to authenticated;
 
+drop policy if exists itinerary_items_select on trip.itinerary_items;
 create policy itinerary_items_select on trip.itinerary_items
   for select to authenticated
   using (trip_private.is_trip_member(trip_id));
 
+drop policy if exists itinerary_items_insert on trip.itinerary_items;
 create policy itinerary_items_insert on trip.itinerary_items
   for insert to authenticated
   with check (trip_private.can_edit_trip(trip_id));
 
+drop policy if exists itinerary_items_update on trip.itinerary_items;
 create policy itinerary_items_update on trip.itinerary_items
   for update to authenticated
   using (trip_private.can_edit_trip(trip_id))
   with check (trip_private.can_edit_trip(trip_id));
 
+drop policy if exists itinerary_items_delete on trip.itinerary_items;
 create policy itinerary_items_delete on trip.itinerary_items
   for delete to authenticated
   using (trip_private.can_edit_trip(trip_id));
@@ -156,19 +174,23 @@ create policy itinerary_items_delete on trip.itinerary_items
 -- ---------------------------------------------------------------------------
 grant select, insert, update, delete on trip.attachments to authenticated;
 
+drop policy if exists attachments_select on trip.attachments;
 create policy attachments_select on trip.attachments
   for select to authenticated
   using (trip_private.is_trip_member(trip_id));
 
+drop policy if exists attachments_insert on trip.attachments;
 create policy attachments_insert on trip.attachments
   for insert to authenticated
   with check (trip_private.can_edit_trip(trip_id));
 
+drop policy if exists attachments_update on trip.attachments;
 create policy attachments_update on trip.attachments
   for update to authenticated
   using (trip_private.can_edit_trip(trip_id))
   with check (trip_private.can_edit_trip(trip_id));
 
+drop policy if exists attachments_delete on trip.attachments;
 create policy attachments_delete on trip.attachments
   for delete to authenticated
   using (trip_private.can_edit_trip(trip_id));
@@ -181,6 +203,7 @@ create policy attachments_delete on trip.attachments
 -- ---------------------------------------------------------------------------
 grant select on trip.audit_events to authenticated;
 
+drop policy if exists audit_events_select on trip.audit_events;
 create policy audit_events_select on trip.audit_events
   for select to authenticated
   using (trip_private.is_trip_owner(trip_id));

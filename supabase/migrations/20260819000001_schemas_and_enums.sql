@@ -30,32 +30,56 @@ grant usage on schema trip_private to authenticated, service_role;
 -- 값 집합이 닫혀 있고 잘 바뀌지 않는 것만 enum으로 둔다.
 -- 공급자 이름처럼 늘어날 값은 text + check 로 둬서 마이그레이션 부담을 줄인다.
 
-create type trip.trip_member_role as enum ('owner', 'editor', 'viewer');
+do $$ begin
+  create type trip.trip_member_role as enum ('owner', 'editor', 'viewer');
+exception when duplicate_object then null;
+end $$;
 
-create type trip.trip_status as enum ('planning', 'ongoing', 'completed');
+do $$ begin
+  create type trip.trip_status as enum ('planning', 'ongoing', 'completed');
+exception when duplicate_object then null;
+end $$;
 
-create type trip.itinerary_item_type as enum (
-  'flight', 'lodging', 'food', 'activity', 'transport', 'memo'
-);
+do $$ begin
+  create type trip.itinerary_item_type as enum (
+    'flight', 'lodging', 'food', 'activity', 'transport', 'memo'
+  );
+exception when duplicate_object then null;
+end $$;
 
-create type trip.itinerary_item_status as enum (
-  'confirmed', 'tentative', 'candidate', 'cancelled'
-);
+do $$ begin
+  create type trip.itinerary_item_status as enum (
+    'confirmed', 'tentative', 'candidate', 'cancelled'
+  );
+exception when duplicate_object then null;
+end $$;
 
-create type trip.itinerary_item_source as enum (
-  'kakao', 'flight_api', 'manual', 'imported'
-);
+do $$ begin
+  create type trip.itinerary_item_source as enum (
+    'kakao', 'flight_api', 'manual', 'imported'
+  );
+exception when duplicate_object then null;
+end $$;
 
 -- 공개 공유 링크에서의 노출 여부만 제어한다.
 -- hidden 이어도 여행 멤버에게는 항상 보인다. 멤버에게도 비공개인 개인 메모는
 -- 별도 테이블(item_private_notes, Phase 2)로 분리한다.
-create type trip.share_visibility as enum ('visible', 'hidden');
+do $$ begin
+  create type trip.share_visibility as enum ('visible', 'hidden');
+exception when duplicate_object then null;
+end $$;
 
-create type trip.place_category_group as enum (
-  'food', 'cafe', 'lodging', 'attraction', 'shopping', 'transport', 'etc'
-);
+do $$ begin
+  create type trip.place_category_group as enum (
+    'food', 'cafe', 'lodging', 'attraction', 'shopping', 'transport', 'etc'
+  );
+exception when duplicate_object then null;
+end $$;
 
-create type trip.flight_status as enum (
-  'scheduled', 'delayed', 'boarding', 'departed', 'landed', 'cancelled',
-  'diverted', 'unknown'
-);
+do $$ begin
+  create type trip.flight_status as enum (
+    'scheduled', 'delayed', 'boarding', 'departed', 'landed', 'cancelled',
+    'diverted', 'unknown'
+  );
+exception when duplicate_object then null;
+end $$;

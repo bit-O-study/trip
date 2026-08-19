@@ -117,18 +117,22 @@ begin
 end;
 $$;
 
+drop trigger if exists trips_set_updated_at on trip.trips;
 create trigger trips_set_updated_at
   before update on trip.trips
   for each row execute function trip_private.set_updated_at();
 
+drop trigger if exists places_set_updated_at on trip.places;
 create trigger places_set_updated_at
   before update on trip.places
   for each row execute function trip_private.set_updated_at();
 
+drop trigger if exists flights_set_updated_at on trip.flights;
 create trigger flights_set_updated_at
   before update on trip.flights
   for each row execute function trip_private.set_updated_at();
 
+drop trigger if exists itinerary_items_set_updated_at on trip.itinerary_items;
 create trigger itinerary_items_set_updated_at
   before update on trip.itinerary_items
   for each row execute function trip_private.set_updated_at();
@@ -155,6 +159,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trips_add_owner_membership on trip.trips;
 create trigger trips_add_owner_membership
   after insert on trip.trips
   for each row execute function trip_private.add_owner_membership();
@@ -207,6 +212,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trip_members_guard_last_owner on trip.trip_members;
 create trigger trip_members_guard_last_owner
   before update or delete on trip.trip_members
   for each row execute function trip_private.guard_last_owner();
@@ -249,6 +255,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trip_members_audit on trip.trip_members;
 create trigger trip_members_audit
   after insert or update or delete on trip.trip_members
   for each row execute function trip_private.audit_trip_members();
@@ -285,6 +292,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trip_share_links_audit on trip.trip_share_links;
 create trigger trip_share_links_audit
   after insert or update or delete on trip.trip_share_links
   for each row execute function trip_private.audit_share_links();
