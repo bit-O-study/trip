@@ -16,14 +16,16 @@
     "check": "npm run lint && npm run typecheck && npm run test",
     "db:link": "npx --yes supabase link",
     "db:push": "npx --yes supabase db push",
-    "db:status": "npx --yes supabase migration list"
+    "db:status": "npx --yes supabase migration list",
+    "test:e2e:dev": "PLAYWRIGHT_DEV=1 playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.5",

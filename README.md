@@ -20,7 +20,8 @@ npm run dev        # http://localhost:3100
 | `npm run dev` | 개발 서버 |
 | `npm run check` | lint + 타입 검사 + 단위 테스트 |
 | `npm test` | 단위 테스트 (Vitest) |
-| `npm run test:e2e` | E2E 테스트 (Playwright, 모바일·데스크톱 뷰포트) |
+| `npm run test:e2e` | E2E 테스트 (프로덕션 빌드 대상, 모바일·데스크톱 뷰포트) |
+| `npm run test:e2e:dev` | E2E 테스트 (dev 서버 대상, 화면 수정 중 빠른 확인용) |
 | `npm run build` | 프로덕션 빌드 |
 | `npm run db:push` | 마이그레이션을 Supabase 프로젝트에 적용 ([supabase/README.md](supabase/README.md)) |
 
@@ -38,7 +39,7 @@ npx playwright install chromium
 - [x] 2단계 — SQL migration과 RLS 테스트 (Supabase 프로젝트 생성 후 `npm run db:push` 필요)
 - [x] 3단계 코드 — Supabase SSR 클라이언트·세션 proxy·로그인 UI·OAuth 콜백·로그아웃
   - [ ] Trip 프로젝트 연결 및 Google/Kakao 콘솔 등록 후 실제 로그인 통합 검증
-- [ ] 4단계 — 여행 CRUD와 날짜별 타임라인
+- [x] 4단계 — 여행 CRUD와 날짜별 타임라인 (실제 DB 연결 후 동작 확인 필요)
 - [ ] 5단계 — Kakao 장소 검색·지도
 - [ ] 6단계 — 타임라인 ↔ 지도 양방향 하이라이트
 - [ ] 7단계 — 항공 provider adapter

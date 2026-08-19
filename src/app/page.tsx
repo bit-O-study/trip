@@ -1,13 +1,11 @@
 import Link from "next/link";
 
+import { listTrips } from "@/features/trips/queries";
 import { MapPinIcon, PlusIcon } from "@/components/icons";
+import { tripDurationLabel } from "@/lib/datetime";
 
-export default function TripListPage() {
-  /*
-   * 구현 순서 4단계에서 Supabase 조회로 대체한다.
-   * 지금은 빈 상태만 렌더링해 셸 레이아웃을 확인할 수 있게 한다.
-   */
-  const trips: never[] = [];
+export default async function TripListPage() {
+  const trips = await listTrips();
 
   return (
     <div className="space-y-6">
@@ -41,7 +39,34 @@ export default function TripListPage() {
             <PlusIcon className="size-4" />첫 여행 만들기
           </Link>
         </div>
-      ) : null}
+      ) : (
+        <ul className="space-y-3">
+          {trips.map((trip) => (
+            <li key={trip.id}>
+              <Link
+                href={`/trips/${trip.id}`}
+                className="block rounded-xl border border-border bg-card px-4 py-4 transition-colors hover:bg-muted"
+              >
+                <p className="text-base font-medium">{trip.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {trip.destinationName ? `${trip.destinationName} · ` : ""}
+                  {trip.startDate} ~ {trip.endDate}
+                  {(() => {
+                    const label = tripDurationLabel(trip.startDate, trip.endDate);
+                    return label ? ` · ${label}` : "";
+                  })()}
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="pt-2 text-center">
+        <Link href="/trips/trash" className="text-sm text-muted-foreground hover:underline">
+          휴지통
+        </Link>
+      </div>
     </div>
   );
 }
