@@ -421,6 +421,14 @@ Phase 3에서 Vercel Cron이 임박한 항공편만 배치 갱신한다.
 - `PUBLIC`·`anon`에 대한 불필요한 `EXECUTE` 권한을 회수한다.
 - **`owner`가 자기 membership을 삭제해 여행이 고아가 되는 상황을 차단한다.** 마지막 owner의 탈퇴·강등을 정책 수준에서 막고, 소유권 이전 경로를 별도로 제공한다.
 
+### `INSERT ... RETURNING`은 SELECT 정책도 통과해야 한다
+
+구현 중 RLS 테스트가 잡아낸 문제다. `trips`의 SELECT 정책을 멤버십 검사만으로 두면, **여행을 만들고 id를 돌려받는 기본 흐름이 실패한다.** 생성자를 owner 멤버로 등록하는 AFTER 트리거가 RETURNING 계산보다 나중에 실행되기 때문이다.
+
+`trips`의 SELECT 정책에 `owner_id = auth.uid()` 조건을 함께 둔다. 부수 효과로 `trip_members` 행이 유실돼도 소유자가 자기 여행에서 잠기지 않는다. **새 테이블에 정책을 추가할 때마다 같은 문제를 확인한다.**
+
+여행 생성자의 owner 멤버십은 애플리케이션 코드가 아니라 **AFTER INSERT 트리거**가 만든다. 두 번의 왕복과 중간 실패 가능성을 없애기 위해서다.
+
 ### Kakao JavaScript 키
 
 노출이 전제인 키다. Kakao 콘솔의 **플랫폼 도메인 화이트리스트 등록이 유일한 실질적 보호 장치**이며, 이를 빠뜨리면 키가 도용되어 쿼터가 소진된다.
@@ -525,7 +533,7 @@ Vercel 프로젝트는 별도로 만들고 Preview/Production 환경변수를 �
 ## 8. 구현 순서
 
 1. ~~Next.js 기본 앱, 모바일 레이아웃, lint/test 구성~~ **완료**
-2. Trip 전용 Supabase, SQL migration과 RLS 테스트 (SECURITY DEFINER 요건 포함)
+2. ~~SQL migration과 RLS 테스트 (SECURITY DEFINER 요건 포함)~~ **완료** — Trip 전용 Supabase 프로젝트 생성 후 `npm run db:push` 적용만 남음 (`supabase/README.md`)
 3. Supabase SSR 로그인 및 Google/Kakao OAuth (URL 2종 분리 등록)
 4. 여행 CRUD와 날짜별 타임라인, soft delete·복구
 5. Kakao 장소 검색·지도와 장소 일정 저장 (`place_snapshot` 포함)
