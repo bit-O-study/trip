@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/*
+ * 한글 우선 시스템 폰트 스택.
+ * 웹폰트를 쓰지 않는 이유: 빌드 시 외부 폰트 다운로드 의존성을 만들지 않고,
+ * 한국 사용자 기기에서 이미 최적화된 한글 폰트가 렌더링되기 때문.
+ */
+:root {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+
+  --background: #ffffff;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --danger: #dc2626;
+
+  /*
+   * Day 팔레트. 지도 마커와 타임라인이 같은 색을 공유하므로
+   * 여기 한 곳에서만 정의한다 (src/lib/day-color.ts 참고).
+   * 지도 위에서 서로 구별되도록 색상환에서 충분히 떨어진 8색을 고름.
+   */
+  --day-1: #2563eb;
+  --day-2: #ea580c;
+  --day-3: #059669;
+  --day-4: #7c3aed;
+  --day-5: #e11d48;
+  --day-6: #d97706;
+  --day-7: #0891b2;
+  --day-8: #c026d3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #09090b;
+    --foreground: #fafafa;
+    --card: #18181b;
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    --border: #27272a;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --danger: #ef4444;
+  }
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-danger: var(--danger);
+
+  --color-day-1: var(--day-1);
+  --color-day-2: var(--day-2);
+  --color-day-3: var(--day-3);
+  --color-day-4: var(--day-4);
+  --color-day-5: var(--day-5);
+  --color-day-6: var(--day-6);
+  --color-day-7: var(--day-7);
+  --color-day-8: var(--day-8);
+}
+
+html {
+  /* iOS 가로 회전 시 글자 크기가 임의로 커지는 것을 방지 */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  /* 모바일에서 바텀시트/지도 제스처와 충돌하는 가로 스크롤 제거 */
+  overflow-x: hidden;
+}
+
+/* 키보드 포커스만 링을 표시한다 (마우스 클릭 시 제외) */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
