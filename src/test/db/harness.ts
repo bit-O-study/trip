@@ -148,7 +148,6 @@ export async function createTestDb(): Promise<TestDb> {
         trip.trips,
         trip.places,
         trip.flights,
-        trip.profiles,
         auth.users
       restart identity cascade;
     `);

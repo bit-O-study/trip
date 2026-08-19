@@ -12,7 +12,6 @@
 -- "all tables in schema public" 같은 구문은 절대 쓰지 않는다. 상대 앱 테이블의
 -- 권한까지 회수·부여해 남의 서비스를 죽인다. 권한은 우리 테이블에만 건다.
 
-alter table trip.profiles          enable row level security;
 alter table trip.trips             enable row level security;
 alter table trip.trip_members      enable row level security;
 alter table trip.trip_invites      enable row level security;
@@ -25,23 +24,7 @@ alter table trip.audit_events      enable row level security;
 
 grant all on all tables in schema trip to service_role;
 
--- ---------------------------------------------------------------------------
--- profiles
--- ---------------------------------------------------------------------------
-grant select, insert, update on trip.profiles to authenticated;
-
-create policy profiles_select on trip.profiles
-  for select to authenticated
-  using (id = (select auth.uid()) or trip_private.shares_trip_with(id));
-
-create policy profiles_insert on trip.profiles
-  for insert to authenticated
-  with check (id = (select auth.uid()));
-
-create policy profiles_update on trip.profiles
-  for update to authenticated
-  using (id = (select auth.uid()))
-  with check (id = (select auth.uid()));
+-- profiles 는 헬쑤의 public.profiles 를 그대로 쓴다. 여기서는 다루지 않는다.
 
 -- ---------------------------------------------------------------------------
 -- trips

@@ -63,7 +63,11 @@ as $$
   );
 $$;
 
--- 같은 여행에 속한 사람인지. 멤버 목록에 표시 이름을 보여주려면 필요하다.
+-- 같은 여행에 속한 사람인지.
+--
+-- 지금은 어떤 정책도 이 함수를 쓰지 않는다. 헬쑤의 profiles 에 "같은 여행
+-- 멤버끼리 표시 이름을 읽을 수 있다" 정책을 추가할 때 쓸 것이라 미리 둔다.
+-- 그 정책은 상대 앱 테이블을 건드리므로 실제 스키마 확인 후에 작성한다.
 create or replace function trip_private.shares_trip_with(p_user_id uuid)
 returns boolean
 language sql
@@ -112,10 +116,6 @@ begin
   return new;
 end;
 $$;
-
-create trigger profiles_set_updated_at
-  before update on trip.profiles
-  for each row execute function trip_private.set_updated_at();
 
 create trigger trips_set_updated_at
   before update on trip.trips
