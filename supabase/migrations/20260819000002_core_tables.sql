@@ -22,6 +22,17 @@
 -- ---------------------------------------------------------------------------
 -- trips
 -- ---------------------------------------------------------------------------
+create table if not exists trip.profiles (
+  user_id      uuid primary key references auth.users (id) on delete cascade,
+  display_name text,
+  avatar_url   text,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+
+  constraint profiles_display_name_not_blank
+    check (display_name is null or length(btrim(display_name)) > 0)
+);
+
 create table if not exists trip.trips (
   id               uuid primary key default gen_random_uuid(),
   owner_id         uuid not null references auth.users (id) on delete restrict,

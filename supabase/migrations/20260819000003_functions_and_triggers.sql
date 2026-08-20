@@ -63,11 +63,7 @@ as $$
   );
 $$;
 
--- 같은 여행에 속한 사람인지.
---
--- 지금은 어떤 정책도 이 함수를 쓰지 않는다. 헬쑤의 profiles 에 "같은 여행
--- 멤버끼리 표시 이름을 읽을 수 있다" 정책을 추가할 때 쓸 것이라 미리 둔다.
--- 그 정책은 상대 앱 테이블을 건드리므로 실제 스키마 확인 후에 작성한다.
+-- 같은 여행에 속한 사람인지. profiles SELECT 정책에서 사용한다.
 create or replace function trip_private.shares_trip_with(p_user_id uuid)
 returns boolean
 language sql
@@ -98,6 +94,37 @@ grant execute on function
   trip_private.shares_trip_with(uuid)
 to authenticated;
 
+create or replace function trip_private.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into trip.profiles (user_id, display_name, avatar_url)
+  values (
+    new.id,
+    coalesce(
+      nullif(btrim(new.raw_user_meta_data ->> 'full_name'), ''),
+      nullif(btrim(new.raw_user_meta_data ->> 'name'), ''),
+      nullif(btrim(new.raw_user_meta_data ->> 'user_name'), ''),
+      nullif(split_part(coalesce(new.email, ''), '@', 1), '')
+    ),
+    coalesce(
+      nullif(btrim(new.raw_user_meta_data ->> 'avatar_url'), ''),
+      nullif(btrim(new.raw_user_meta_data ->> 'picture'), '')
+    )
+  )
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created_trip_profile on auth.users;
+create trigger on_auth_user_created_trip_profile
+  after insert on auth.users
+  for each row execute function trip_private.handle_new_user();
+
 -- ---------------------------------------------------------------------------
 -- updated_at 자동 갱신
 --
@@ -120,6 +147,11 @@ $$;
 drop trigger if exists trips_set_updated_at on trip.trips;
 create trigger trips_set_updated_at
   before update on trip.trips
+  for each row execute function trip_private.set_updated_at();
+
+drop trigger if exists profiles_set_updated_at on trip.profiles;
+create trigger profiles_set_updated_at
+  before update on trip.profiles
   for each row execute function trip_private.set_updated_at();
 
 drop trigger if exists places_set_updated_at on trip.places;

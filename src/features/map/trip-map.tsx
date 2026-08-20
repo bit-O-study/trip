@@ -3,12 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
-  loadKakaoMaps,
+  loadGoogleMaps,
   MapLoadError,
-  type KakaoMap,
-  type KakaoMaps,
-  type KakaoOverlay,
-} from "@/features/map/kakao-sdk";
+  type GoogleMapsLibraries,
+} from "@/features/map/google-sdk";
 import { dayColor } from "@/lib/day-color";
 
 export type MapPoint = {
@@ -70,21 +68,53 @@ function markerButton(point: MapPoint, onSelect: (id: string) => void): HTMLButt
 /** 선택된 마커를 키운다. 색은 Day 를 뜻하므로 바꾸지 않고 크기·테두리로만 구분한다. */
 function applyMarkerSelection(el: HTMLElement, selected: boolean) {
   el.setAttribute("aria-pressed", String(selected));
-  el.style.transform = selected ? "scale(1.45)" : "scale(1)";
+  el.style.transform = selected
+    ? "translate(-50%, -50%) scale(1.45)"
+    : "translate(-50%, -50%) scale(1)";
   el.style.boxShadow = selected
     ? "0 0 0 4px rgba(37,99,235,.45), 0 2px 8px rgba(0,0,0,.4)"
     : "0 1px 4px rgba(0,0,0,.35)";
   el.style.zIndex = selected ? "999" : "";
 }
 
+function createMarkerOverlay(
+  maps: GoogleMapsLibraries,
+  map: google.maps.Map,
+  position: google.maps.LatLng,
+  element: HTMLElement,
+): google.maps.OverlayView {
+  class MarkerOverlay extends maps.OverlayView {
+    onAdd() {
+      this.getPanes()?.overlayMouseTarget.appendChild(element);
+    }
+
+    draw() {
+      const pixel = this.getProjection().fromLatLngToDivPixel(position);
+      if (!pixel) return;
+      element.style.position = "absolute";
+      element.style.left = `${pixel.x}px`;
+      element.style.top = `${pixel.y}px`;
+      if (!element.style.transform) element.style.transform = "translate(-50%, -50%)";
+    }
+
+    onRemove() {
+      element.remove();
+    }
+  }
+
+  const overlay = new MarkerOverlay();
+  overlay.setMap(map);
+  return overlay;
+}
+
 export function TripMap({ points, className, selectedId, recenter, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<KakaoMap | null>(null);
-  const overlaysRef = useRef<KakaoOverlay[]>([]);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const overlaysRef = useRef<Array<google.maps.OverlayView | google.maps.Polyline>>([]);
   /** 선택이 바뀔 때마다 마커를 다시 그리지 않으려고 DOM 을 들고 있는다. */
   const markersRef = useRef(new Map<string, HTMLElement>());
   const positionsRef = useRef(new Map<string, { lat: number; lng: number }>());
-  const [maps, setMaps] = useState<KakaoMaps | null>(null);
+  const [maps, setMaps] = useState<GoogleMapsLibraries | null>(null);
   const [error, setError] = useState<MapLoadError | null>(null);
 
   // 콜백은 ref 로 받는다. 의존성에 넣으면 부모가 인라인 함수를 넘길 때마다
@@ -96,7 +126,7 @@ export function TripMap({ points, className, selectedId, recenter, onSelect }: P
 
   useEffect(() => {
     let cancelled = false;
-    loadKakaoMaps(process.env.NEXT_PUBLIC_KAKAO_JS_KEY)
+    loadGoogleMaps(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)
       .then((loaded) => {
         if (!cancelled) setMaps(loaded);
       })
@@ -118,8 +148,11 @@ export function TripMap({ points, className, selectedId, recenter, onSelect }: P
 
     if (!mapRef.current) {
       mapRef.current = new maps.Map(containerRef.current, {
-        center: new maps.LatLng(FALLBACK_CENTER.lat, FALLBACK_CENTER.lng),
-        level: 5,
+        center: FALLBACK_CENTER,
+        zoom: 12,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
       });
     }
     const map = mapRef.current;
@@ -142,14 +175,8 @@ export function TripMap({ points, className, selectedId, recenter, onSelect }: P
       markersRef.current.set(point.id, element);
       positionsRef.current.set(point.id, { lat: point.latitude, lng: point.longitude });
 
-      const overlay = new maps.CustomOverlay({
-        position,
-        content: element,
-        yAnchor: 0.5,
-        zIndex: 10 + point.order,
-        clickable: true,
-      });
-      overlay.setMap(map);
+      element.style.zIndex = String(10 + point.order);
+      const overlay = createMarkerOverlay(maps, map, position, element);
       overlaysRef.current.push(overlay);
     }
 
@@ -177,13 +204,12 @@ export function TripMap({ points, className, selectedId, recenter, onSelect }: P
         strokeWeight: 3,
         strokeColor: dayColor(dayIndex),
         strokeOpacity: 0.8,
-        strokeStyle: "shortdash",
       });
       line.setMap(map);
       overlaysRef.current.push(line);
     }
 
-    map.setBounds(bounds, 48, 48, 48, 48);
+    map.fitBounds(bounds, 48);
   }, [maps, points]);
 
   // 선택 반영은 마커를 다시 만들지 않는다. 다시 만들면 setBounds 가 함께 돌아
@@ -216,8 +242,8 @@ export function TripMap({ points, className, selectedId, recenter, onSelect }: P
         <p className="text-sm font-medium">지도를 표시할 수 없습니다</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {error.kind === "not_configured"
-            ? "지도 키(NEXT_PUBLIC_KAKAO_JS_KEY)가 설정되지 않았습니다."
-            : "네트워크 문제이거나, Kakao 개발자 콘솔에 이 사이트 도메인이 등록되지 않았습니다."}
+            ? "지도 키(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)가 설정되지 않았습니다."
+            : "Google Maps API 사용 설정, 결제 연결, 웹사이트 제한을 확인하세요."}
         </p>
         {error.kind !== "not_configured" && origin ? (
           <p className="mt-1 text-xs text-muted-foreground">
