@@ -3,6 +3,7 @@ import { cache } from "react";
 import type {
   ItineraryItem,
   RestaurantCandidate,
+  RestaurantPollView,
   TripDetail,
   TripRole,
   TripSummary,
@@ -153,7 +154,7 @@ export async function listItems(tripId: string): Promise<ItineraryItem[]> {
       "id, trip_id, type, status, title, note, location_text, start_at, end_at, all_day, sort_order, updated_at, place_snapshot",
     )
     .eq("trip_id", tripId)
-    .neq("status", "candidate")
+    .in("status", ["confirmed", "tentative"])
     .is("deleted_at", null)
     .order("start_at", { ascending: true })
     .order("sort_order", { ascending: true });
@@ -189,19 +190,28 @@ function cuisineLabel(snapshot: Record<string, unknown> | null): string {
   return snapshot?.categoryGroup === "cafe" ? "카페" : "음식점";
 }
 
-export async function listRestaurantCandidates(tripId: string): Promise<RestaurantCandidate[]> {
+export async function listRestaurantPolls(tripId: string): Promise<RestaurantPollView[]> {
   const supabase = await createSupabaseServerClient();
-  const [{ data: auth }, itemsResult] = await Promise.all([
+  await supabase.rpc("finalize_due_restaurant_polls");
+  const [{ data: auth }, pollsResult, itemsResult] = await Promise.all([
     supabase.auth.getUser(),
     supabase
+      .from("restaurant_polls")
+      .select("id, title, scheduled_at, closes_at, status, winner_item_id")
+      .eq("trip_id", tripId)
+      .order("scheduled_at", { ascending: true }),
+    supabase
       .from("itinerary_items")
-      .select("id, title, location_text, place_snapshot")
+      .select("id, restaurant_poll_id, title, location_text, place_snapshot")
       .eq("trip_id", tripId)
       .eq("type", "food")
-      .eq("status", "candidate")
+      .not("restaurant_poll_id", "is", null)
+      .in("status", ["candidate", "confirmed", "cancelled"])
       .is("deleted_at", null)
       .order("created_at", { ascending: true }),
   ]);
+
+  if (pollsResult.error) throw new Error(`투표를 불러오지 못했습니다: ${pollsResult.error.message}`);
 
   if (itemsResult.error) {
     throw new Error(`음식점 후보를 불러오지 못했습니다: ${itemsResult.error.message}`);
@@ -209,16 +219,14 @@ export async function listRestaurantCandidates(tripId: string): Promise<Restaura
 
   const rows = itemsResult.data as Array<{
     id: string;
+    restaurant_poll_id: string;
     title: string;
     location_text: string | null;
     place_snapshot: Record<string, unknown> | null;
   }>;
-  if (rows.length === 0) return [];
-
-  const { data: votes, error: voteError } = await supabase
-    .from("restaurant_votes")
-    .select("item_id, user_id")
-    .in("item_id", rows.map((row) => row.id));
+  const { data: votes, error: voteError } = rows.length === 0
+    ? { data: [], error: null }
+    : await supabase.from("restaurant_votes").select("item_id, user_id").in("item_id", rows.map((row) => row.id));
   if (voteError) throw new Error(`투표를 불러오지 못했습니다: ${voteError.message}`);
 
   const counts = new Map<string, number>();
@@ -228,8 +236,9 @@ export async function listRestaurantCandidates(tripId: string): Promise<Restaura
     if (vote.user_id === auth.user?.id) mine.add(vote.item_id);
   }
 
-  return rows.map((row) => ({
+  const candidates: RestaurantCandidate[] = rows.map((row) => ({
     id: row.id,
+    pollId: row.restaurant_poll_id,
     title: row.title,
     locationText: row.location_text,
     cuisineType: cuisineLabel(row.place_snapshot),
@@ -244,5 +253,15 @@ export async function listRestaurantCandidates(tripId: string): Promise<Restaura
       typeof row.place_snapshot?.closedOnDate === "boolean"
         ? row.place_snapshot.closedOnDate
         : null,
+  }));
+
+  return (pollsResult.data ?? []).map((poll) => ({
+    id: poll.id,
+    title: poll.title,
+    scheduledAt: poll.scheduled_at,
+    closesAt: poll.closes_at,
+    status: poll.status as RestaurantPollView["status"],
+    winnerItemId: poll.winner_item_id,
+    candidates: candidates.filter((candidate) => candidate.pollId === poll.id),
   }));
 }

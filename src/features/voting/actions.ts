@@ -3,8 +3,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import type { InviteActionState } from "@/features/voting/types";
+import { getTrip } from "@/features/trips/queries";
+import { zonedLocalToUtc } from "@/lib/datetime";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function value(formData: FormData, key: string): string {
@@ -16,9 +19,46 @@ function tokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
+const createPollSchema = z.object({
+  tripId: z.uuid(),
+  title: z.string().trim().min(1).max(120),
+  scheduledLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
+  closesLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
+});
+
+export async function createRestaurantPollAction(formData: FormData): Promise<void> {
+  const parsed = createPollSchema.safeParse({
+    tripId: value(formData, "tripId"),
+    title: value(formData, "title"),
+    scheduledLocal: value(formData, "scheduledLocal"),
+    closesLocal: value(formData, "closesLocal"),
+  });
+  if (!parsed.success) throw new Error("투표 제목과 일정·종료 시각을 확인하세요.");
+  const trip = await getTrip(parsed.data.tripId);
+  if (!trip) throw new Error("여행을 찾을 수 없습니다.");
+  const scheduledAt = zonedLocalToUtc(parsed.data.scheduledLocal, trip.timezone);
+  const closesAt = zonedLocalToUtc(parsed.data.closesLocal, trip.timezone);
+  if (new Date(closesAt) >= new Date(scheduledAt)) {
+    throw new Error("투표 종료 시각은 식사 일정 시각보다 빨라야 합니다.");
+  }
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("로그인이 필요합니다.");
+  const { error } = await supabase.from("restaurant_polls").insert({
+    trip_id: parsed.data.tripId,
+    title: parsed.data.title,
+    scheduled_at: scheduledAt,
+    closes_at: closesAt,
+    created_by: auth.user.id,
+  });
+  if (error) throw new Error(`투표를 만들지 못했습니다: ${error.message}`);
+  revalidatePath(`/trips/${parsed.data.tripId}`);
+}
+
 export async function toggleRestaurantVoteAction(formData: FormData): Promise<void> {
   const tripId = value(formData, "tripId");
   const itemId = value(formData, "itemId");
+  const pollId = value(formData, "pollId");
   const remove = value(formData, "remove") === "true";
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
@@ -30,9 +70,19 @@ export async function toggleRestaurantVoteAction(formData: FormData): Promise<vo
         .delete()
         .eq("item_id", itemId)
         .eq("user_id", auth.user.id)
-    : await supabase
-        .from("restaurant_votes")
-        .upsert({ item_id: itemId, user_id: auth.user.id }, { onConflict: "item_id,user_id" });
+    : await (async () => {
+        const removed = await supabase
+          .from("restaurant_votes")
+          .delete()
+          .eq("poll_id", pollId)
+          .eq("user_id", auth.user.id);
+        if (removed.error) return removed;
+        return supabase.from("restaurant_votes").insert({
+          poll_id: pollId,
+          item_id: itemId,
+          user_id: auth.user.id,
+        });
+      })();
 
   if (result.error) throw new Error(`투표를 반영하지 못했습니다: ${result.error.message}`);
   revalidatePath(`/trips/${tripId}`);

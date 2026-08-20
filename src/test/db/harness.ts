@@ -154,6 +154,7 @@ export async function createTestDb(): Promise<TestDb> {
         trip.attachments,
         trip.restaurant_votes,
         trip.itinerary_items,
+        trip.restaurant_polls,
         trip.trip_share_links,
         trip.trip_invites,
         trip.trip_members,

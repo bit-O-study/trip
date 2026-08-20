@@ -33,6 +33,7 @@ type Props = {
   /** 선택한 항목으로 지도를 옮길지. 지도에서 시작한 선택이면 옮기지 않는다. */
   recenter?: boolean;
   onSelect?: (id: string) => void;
+  initialCenter?: { latitude: number; longitude: number };
 };
 
 /** 서울시청. 좌표가 하나도 없을 때의 기본 중심. */
@@ -123,7 +124,7 @@ function createMarkerOverlay(
   return overlay;
 }
 
-export function TripMap({ points, className, selectedId, recenter, onSelect }: Props) {
+export function TripMap({ points, className, selectedId, recenter, onSelect, initialCenter }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const overlaysRef = useRef<Array<google.maps.OverlayView | google.maps.Polyline>>([]);
@@ -164,8 +165,10 @@ export function TripMap({ points, className, selectedId, recenter, onSelect }: P
 
     if (!mapRef.current) {
       mapRef.current = new maps.Map(containerRef.current, {
-        center: FALLBACK_CENTER,
-        zoom: 12,
+        center: initialCenter
+          ? { lat: initialCenter.latitude, lng: initialCenter.longitude }
+          : FALLBACK_CENTER,
+        zoom: initialCenter ? 10 : 12,
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
@@ -226,7 +229,7 @@ export function TripMap({ points, className, selectedId, recenter, onSelect }: P
     }
 
     map.fitBounds(bounds, 48);
-  }, [maps, points]);
+  }, [maps, points, initialCenter]);
 
   // 선택 반영은 마커를 다시 만들지 않는다. 다시 만들면 setBounds 가 함께 돌아
   // 항목을 누를 때마다 지도 축척이 튄다.

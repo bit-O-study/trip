@@ -5,6 +5,7 @@ import { useActionState, useState, type FormEvent } from "react";
 import { addPlaceToTripAction } from "@/features/places/actions";
 import { PLACE_CATEGORY_LABELS, type PlaceSearchResult } from "@/features/places/types";
 import { IDLE, type ActionState } from "@/features/trips/action-state";
+import type { RestaurantPollView } from "@/features/trips/types";
 import { openDatePicker } from "@/lib/date-picker";
 
 const CATEGORY_FILTERS = [
@@ -19,6 +20,7 @@ type Props = {
   /** 추가할 때 기본으로 채울 날짜 */
   defaultDate: string;
   timezone: string;
+  polls: RestaurantPollView[];
 };
 
 type SearchState =
@@ -27,12 +29,25 @@ type SearchState =
   | { status: "error"; message: string; retryable: boolean }
   | { status: "done"; results: PlaceSearchResult[]; reachableCount: number; totalCount: number };
 
-export function PlaceSearch({ tripId, defaultDate, timezone }: Props) {
+function dateInTimezone(iso: string, timezone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(iso));
+  const read = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${read("year")}-${read("month")}-${read("day")}`;
+}
+
+export function PlaceSearch({ tripId, defaultDate, timezone, polls }: Props) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [search, setSearch] = useState<SearchState>({ status: "idle" });
   const [selected, setSelected] = useState<PlaceSearchResult | null>(null);
   const [startLocal, setStartLocal] = useState(`${defaultDate}T09:00`);
+  const openPolls = polls.filter((poll) => poll.status === "open");
+  const [pollId, setPollId] = useState(openPolls[0]?.id ?? "");
 
   const [addState, addAction, adding] = useActionState<ActionState, FormData>(
     addPlaceToTripAction,
@@ -51,7 +66,8 @@ export function PlaceSearch({ tripId, defaultDate, timezone }: Props) {
       const url = new URL("/api/places/search", window.location.origin);
       url.searchParams.set("q", trimmed);
       if (category) url.searchParams.set("category", category);
-      url.searchParams.set("date", startLocal.slice(0, 10));
+      const selectedPoll = polls.find((poll) => poll.id === pollId);
+      url.searchParams.set("date", selectedPoll ? dateInTimezone(selectedPoll.scheduledAt, timezone) : startLocal.slice(0, 10));
 
       const response = await fetch(url);
       const body = await response.json();
@@ -207,8 +223,18 @@ export function PlaceSearch({ tripId, defaultDate, timezone }: Props) {
           <input
             type="hidden"
             name="payload"
-            value={JSON.stringify({ ...selected, tripId, startLocal })}
+            value={JSON.stringify({ ...selected, tripId, startLocal, pollId: pollId || null })}
           />
+
+          {selected.categoryGroup === "food" || selected.categoryGroup === "cafe" ? (
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">투표 후보로 넣기</span>
+              <select value={pollId} onChange={(event) => setPollId(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2">
+                <option value="">투표 선택</option>
+                {openPolls.map((poll) => <option key={poll.id} value={poll.id}>{poll.title}</option>)}
+              </select>
+            </label>
+          ) : null}
 
           {addState.status === "error" && addState.message ? (
             <p role="alert" className="text-sm text-danger">
@@ -231,7 +257,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone }: Props) {
                 type="submit"
                 name="intent"
                 value="candidate"
-                disabled={adding}
+                disabled={adding || !pollId}
                 className="flex-1 rounded-lg border border-primary px-4 py-2 text-sm font-medium text-primary transition-opacity hover:bg-primary/10 disabled:opacity-50"
               >
                 투표 후보로 등록

@@ -44,9 +44,10 @@ type Props = {
   points: MapPoint[];
   mapClassName?: string;
   children: React.ReactNode;
+  initialCenter?: { latitude: number; longitude: number };
 };
 
-export function TripBoard({ points, mapClassName, children }: Props) {
+export function TripBoard({ points, mapClassName, children, initialCenter }: Props) {
   const [selected, setSelected] = useState<{ id: string; origin: Origin } | null>(null);
 
   const select = useCallback((id: string | null, origin: Origin) => {
@@ -97,6 +98,7 @@ export function TripBoard({ points, mapClassName, children }: Props) {
            지도를 다시 움직이지 않는다. */
         recenter={selected?.origin === "timeline"}
         onSelect={(id) => select(id, "map")}
+        initialCenter={initialCenter}
       />
       {children}
     </SelectionContext.Provider>

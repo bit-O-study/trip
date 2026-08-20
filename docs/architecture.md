@@ -168,6 +168,14 @@ Kakao·Naver 지도 웹페이지를 스크래핑하지 않는다. 약관 위반�
 
 ## 4. 데이터 모델
 
+### 음식점 시간제 투표
+
+- `restaurant_polls`는 여행, 투표 제목, 실제 식사 시각(`scheduled_at`), 종료 시각(`closes_at`)을 저장한다.
+- 후보 음식점은 `itinerary_items.restaurant_poll_id`로 투표에 속하며 종료 전에는 `candidate` 상태다.
+- 한 회원은 투표 하나당 한 후보만 선택할 수 있다. 동률이면 먼저 등록된 후보를 우선한다.
+- `trip.finalize_due_restaurant_polls()`가 종료된 투표의 1위를 `confirmed`로, 나머지를 `cancelled`로 바꾸고 1위 일정을 `scheduled_at`에 배치한다.
+- Supabase Cron이 가능하면 매분 확정하며, 화면 조회 시에도 같은 함수를 호출해 지연된 종료를 보정한다.
+
 ### 스냅샷 전략
 
 **`places`는 정규화된 공유 엔티티, `itinerary_items.place_snapshot`은 선택 시점의 불변 사본**으로 역할을 나눈다.
