@@ -105,7 +105,6 @@ export const getTripRole = cache(async (tripId: string): Promise<TripRole | null
     .from("trip_members")
     .select("role")
     .eq("trip_id", tripId)
-    .neq("status", "candidate")
     .maybeSingle();
 
   if (error) throw new Error(`권한을 확인하지 못했습니다: ${error.message}`);
@@ -154,6 +153,7 @@ export async function listItems(tripId: string): Promise<ItineraryItem[]> {
       "id, trip_id, type, status, title, note, location_text, start_at, end_at, all_day, sort_order, updated_at, place_snapshot",
     )
     .eq("trip_id", tripId)
+    .neq("status", "candidate")
     .is("deleted_at", null)
     .order("start_at", { ascending: true })
     .order("sort_order", { ascending: true });
