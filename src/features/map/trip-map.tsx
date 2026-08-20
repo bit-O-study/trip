@@ -26,37 +26,73 @@ type Props = {
   points: MapPoint[];
   /** 지도 높이. 모바일 바텀시트로 바뀌면 조정한다. */
   className?: string;
+  /** 타임라인과 공유하는 선택 항목 */
+  selectedId?: string | null;
+  /** 선택한 항목으로 지도를 옮길지. 지도에서 시작한 선택이면 옮기지 않는다. */
+  recenter?: boolean;
+  onSelect?: (id: string) => void;
 };
 
 /** 서울시청. 좌표가 하나도 없을 때의 기본 중심. */
 const FALLBACK_CENTER = { lat: 37.5665, lng: 126.978 };
 
-function markerElement(point: MapPoint): HTMLElement {
-  const el = document.createElement("div");
+/**
+ * 마커는 `button` 이다. 지도 위 클릭만 되는 요소를 만들면 키보드 사용자에게는
+ * 지도가 통째로 사라진다. CustomOverlay 의 clickable 을 켜야 DOM 이벤트가
+ * 지도에 먹히지 않고 버튼까지 도달한다.
+ */
+function markerButton(point: MapPoint, onSelect: (id: string) => void): HTMLButtonElement {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.dataset.pointId = point.id;
+  el.textContent = String(point.order);
+  el.setAttribute("aria-label", `${point.order}번째 일정 ${point.title}`);
   el.style.cssText = [
     "display:flex",
     "align-items:center",
     "justify-content:center",
     "width:26px",
     "height:26px",
+    "padding:0",
+    "cursor:pointer",
     "border-radius:9999px",
     "border:2px solid #fff",
     "box-shadow:0 1px 4px rgba(0,0,0,.35)",
     "font:600 12px/1 system-ui,sans-serif",
     "color:#fff",
+    "transition:transform .12s ease, box-shadow .12s ease",
     `background:${dayColor(point.dayIndex)}`,
   ].join(";");
-  el.textContent = String(point.order);
-  el.title = point.title;
+  el.addEventListener("click", () => onSelect(point.id));
   return el;
 }
 
-export function TripMap({ points, className }: Props) {
+/** 선택된 마커를 키운다. 색은 Day 를 뜻하므로 바꾸지 않고 크기·테두리로만 구분한다. */
+function applyMarkerSelection(el: HTMLElement, selected: boolean) {
+  el.setAttribute("aria-pressed", String(selected));
+  el.style.transform = selected ? "scale(1.45)" : "scale(1)";
+  el.style.boxShadow = selected
+    ? "0 0 0 4px rgba(37,99,235,.45), 0 2px 8px rgba(0,0,0,.4)"
+    : "0 1px 4px rgba(0,0,0,.35)";
+  el.style.zIndex = selected ? "999" : "";
+}
+
+export function TripMap({ points, className, selectedId, recenter, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMap | null>(null);
   const overlaysRef = useRef<KakaoOverlay[]>([]);
+  /** 선택이 바뀔 때마다 마커를 다시 그리지 않으려고 DOM 을 들고 있는다. */
+  const markersRef = useRef(new Map<string, HTMLElement>());
+  const positionsRef = useRef(new Map<string, { lat: number; lng: number }>());
   const [maps, setMaps] = useState<KakaoMaps | null>(null);
   const [error, setError] = useState<MapLoadError | null>(null);
+
+  // 콜백은 ref 로 받는다. 의존성에 넣으면 부모가 인라인 함수를 넘길 때마다
+  // 마커를 전부 다시 만들고 setBounds 가 함께 돌아 지도가 튄다.
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +127,8 @@ export function TripMap({ points, className }: Props) {
     // 이전 마커·선을 지운다. 지우지 않으면 갱신할 때마다 겹쳐 쌓인다.
     for (const overlay of overlaysRef.current) overlay.setMap(null);
     overlaysRef.current = [];
+    markersRef.current = new Map();
+    positionsRef.current = new Map();
 
     if (points.length === 0) return;
 
@@ -100,11 +138,16 @@ export function TripMap({ points, className }: Props) {
       const position = new maps.LatLng(point.latitude, point.longitude);
       bounds.extend(position);
 
+      const element = markerButton(point, (id) => onSelectRef.current?.(id));
+      markersRef.current.set(point.id, element);
+      positionsRef.current.set(point.id, { lat: point.latitude, lng: point.longitude });
+
       const overlay = new maps.CustomOverlay({
         position,
-        content: markerElement(point),
+        content: element,
         yAnchor: 0.5,
         zIndex: 10 + point.order,
+        clickable: true,
       });
       overlay.setMap(map);
       overlaysRef.current.push(overlay);
@@ -143,6 +186,19 @@ export function TripMap({ points, className }: Props) {
     map.setBounds(bounds, 48, 48, 48, 48);
   }, [maps, points]);
 
+  // 선택 반영은 마커를 다시 만들지 않는다. 다시 만들면 setBounds 가 함께 돌아
+  // 항목을 누를 때마다 지도 축척이 튄다.
+  useEffect(() => {
+    for (const [id, element] of markersRef.current) {
+      applyMarkerSelection(element, id === selectedId);
+    }
+
+    if (!recenter || !selectedId || !mapRef.current || !maps) return;
+    const position = positionsRef.current.get(selectedId);
+    if (!position) return;
+    mapRef.current.panTo(new maps.LatLng(position.lat, position.lng));
+  }, [selectedId, recenter, maps, points]);
+
   if (error) {
     return (
       <div
@@ -171,7 +227,8 @@ export function TripMap({ points, className }: Props) {
       />
       {points.length > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          점선은 방문 순서를 잇는 선이며 실제 이동 경로가 아닙니다.
+          점선은 방문 순서를 잇는 선이며 실제 이동 경로가 아닙니다. 마커를 누르면 아래
+          타임라인에서 같은 일정을 찾아 줍니다.
         </p>
       ) : (
         <p className="mt-2 text-xs text-muted-foreground">

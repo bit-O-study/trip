@@ -128,7 +128,8 @@ export function ItemForm({ tripId, defaultDate, timezone }: Props) {
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
         />
         <p className="text-xs text-muted-foreground">
-          지도 검색으로 장소를 붙이는 기능은 5단계에서 추가됩니다.
+          좌표를 붙여 지도에 표시하려면 위의 장소 검색을 쓰세요. 여기서 직접 입력한
+          장소는 글자로만 남습니다.
         </p>
         <FieldError errors={errors.locationText} />
       </div>

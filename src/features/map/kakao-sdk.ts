@@ -14,6 +14,8 @@ type KakaoBounds = { extend(latlng: KakaoLatLng): void; isEmpty(): boolean };
 
 export type KakaoMap = {
   setCenter(latlng: KakaoLatLng): void;
+  /** 부드럽게 이동. 선택한 항목을 따라갈 때 순간이동보다 위치 감각이 유지된다. */
+  panTo(latlng: KakaoLatLng): void;
   setLevel(level: number): void;
   setBounds(bounds: KakaoBounds, ...padding: number[]): void;
   relayout(): void;
