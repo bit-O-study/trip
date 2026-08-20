@@ -185,8 +185,11 @@ Kakao·Naver 지도 웹페이지를 스크래핑하지 않는다. 약관 위반�
 ### 테이블
 
 ```
--- profiles 는 만들지 않는다. 헬쑤의 public.profiles 를 공유한다 (§7).
--- 아래 테이블은 모두 profiles 가 아니라 auth.users 를 참조한다.
+profiles
+  user_id, display_name, avatar_url
+  created_at, updated_at
+
+-- 관계 테이블은 profiles 가 아니라 auth.users 를 참조한다.
 
 trips
   id, owner_id
@@ -503,45 +506,28 @@ Supabase Storage의 **private bucket**을 사용한다.
 
 `.env.local`에는 참고 앱 값 중 필요한 항목만 복사한다.
 
-> **결정 변경(2026-08-19): 헬쑤 Supabase 프로젝트를 공유한다.** 계정(`auth.users`)을 공유해 사용자가 두 앱에서 같은 아이디를 쓰게 하는 것이 목적이다. 이전 초안의 "Trip 전용 프로젝트를 만들라"는 지침은 폐기한다.
+> **결정 변경(2026-08-20): Trip 전용 Supabase 프로젝트를 사용한다.** 인증 계정과 데이터가 헬쑤의 운영·인증 설정에 영향을 주지 않도록 완전히 분리한다.
 
-### 공유 DB에서의 격리 규칙
+### 스키마 격리 규칙
 
-계정은 공유하되 **애플리케이션 테이블은 절대 섞지 않는다.**
+Trip 데이터는 전용 프로젝트 안에서도 역할별 스키마로 분리한다.
 
-- **앱 테이블은 `trip` 스키마, SECURITY DEFINER 헬퍼는 `trip_private` 스키마.** `public`에는 아무것도 만들지 않는다.
-- **`... on all tables in schema public` 구문을 쓰지 않는다.** 초안의 `revoke all on all tables in schema public from anon, authenticated`는 헬쑤의 모든 테이블 권한까지 회수해 **헬쑤를 즉시 중단시킨다.** 권한은 우리 테이블에만 건다.
-- `profiles`처럼 흔한 이름은 `public`에 두면 반드시 충돌한다. 스키마 분리로 원천 차단한다.
+- **앱 테이블과 프로필은 `trip` 스키마, SECURITY DEFINER 헬퍼는 `trip_private` 스키마.** `public`에는 앱 테이블을 만들지 않는다.
+- 권한은 필요한 테이블에만 명시적으로 부여한다.
 - 문제가 생기면 `drop schema trip cascade`로 우리 것만 되돌릴 수 있다.
 
 **추가 설정이 필요하다.** `trip` 스키마를 API로 쓰려면 Supabase 대시보드에서 노출 스키마에 추가해야 한다(Settings → API → Exposed schemas). 클라이언트에는 `db: { schema: "trip" }`를 지정한다.
 
 Storage는 버킷(`trip-attachments`)으로 이미 격리되므로 스키마 분리가 필요 없다.
 
-### 프로필은 헬쑤 것을 공유한다
+### Trip 전용 프로필
 
-계정을 공유하므로 표시 이름·아바타도 헬쑤의 `public.profiles`를 그대로 쓴다. **Trip은 자체 프로필 테이블을 만들지 않는다.** 같은 사람의 프로필이 두 벌 존재하면 한쪽만 고쳤을 때 어느 쪽이 맞는지 알 수 없어진다.
+`trip.profiles`에는 동행자 화면에 필요한 `display_name`과 `avatar_url`만 저장한다. 인증 사용자가 생성되면 DB 트리거가 OAuth 메타데이터 또는 이메일을 바탕으로 프로필을 자동 생성한다.
 
-Trip의 모든 테이블은 프로필이 아니라 `auth.users`를 참조하므로 FK 의존성은 없다.
-
-**헬쑤 테이블에 정책을 추가하는 방식은 쓰지 않는다.** RLS는 행 단위라 컬럼을 가릴 수 없기 때문이다. `public.profiles`에는 `phone`, `weight_kg`, `body_fat_pct`, `goal`, `banned_at`, `ban_reason` 같은 값이 함께 들어 있어, "같은 여행 멤버끼리 읽기" 정책 한 줄이면 동행자가 상대의 전화번호와 체중까지 전부 읽는다. 여행 앱이 알아야 하는 것은 표시 이름 하나뿐이다.
-
-대신 `trip` 스키마에 **필요한 컬럼만 내보내는 뷰**를 둔다.
-
-```sql
-create view trip.member_profiles with (security_barrier = true) as
-select p.user_id,
-       coalesce(nullif(btrim(p.nickname), ''), nullif(btrim(p.name), '')) as display_name
-from public.profiles p
-where p.user_id = (select auth.uid())
-   or trip_private.shares_trip_with(p.user_id);
-```
-
-```ts
-supabase.from("member_profiles").select("user_id, display_name")
-```
-
-뷰는 소유자 권한으로 실행되어 헬쑤의 "본인 행만" 정책을 우회하므로 접근 통제를 `WHERE` 절에서 직접 한다. **헬쑤의 테이블·정책·권한은 전혀 건드리지 않으며**, 되돌리려면 뷰만 지우면 된다. RLS 테스트가 "헬쑤 원본 테이블은 여전히 본인 행만 보인다"를 함께 검증한다.
+- 본인은 언제나 자신의 프로필을 조회·수정할 수 있다.
+- 같은 여행 멤버는 서로의 프로필을 조회할 수 있다.
+- 타인의 프로필 수정과 익명 조회는 RLS가 거부한다.
+- 관계 테이블은 프로필이 아니라 `auth.users`를 참조한다.
 
 ### 개발 서버 포트는 3100으로 고정한다
 
@@ -644,7 +630,7 @@ Vercel 프로젝트는 별도로 만들고 Preview/Production 환경변수를 �
 | 항목 | 상태 | 결론 / 다음 행동 |
 |---|---|---|
 | 항공 데이터 공급자와 요금제 | **미결** | [ADR-0001](adr/0001-flight-data-provider.md)의 12개 항목을 실제 샘플 응답으로 검증. GW API 활용 신청 먼저 접수 |
-| Supabase 프로젝트 | **결정 변경** | 헬쑤 프로젝트를 공유한다(계정 공유가 목적). 앱 테이블은 `trip`/`trip_private` 스키마로 격리하고 `public`은 건드리지 않는다 (§7) |
+| Supabase 프로젝트 | **결정 변경** | Trip 전용 프로젝트를 사용한다. 앱 테이블은 `trip`, 헬퍼는 `trip_private` 스키마에 둔다 (§7) |
 | Kakao 단독 검색 vs Naver fallback | 결정 | Kakao 단독. Naver는 결과 5건·페이지 이동 불가·상세정보 부족으로 fallback 부적합. v1.1 후기·사진 보강으로만 도입 |
 | 동행자 편집 vs 읽기 공유 | 결정 | 읽기 공유(`trip_share_links`)부터. 구현이 짧고 실시간 충돌 처리가 불필요 |
 | `sort_order` 표현 | 결정 | `numeric` + `1000` 간격 배치, 중간값 삽입. 인접 차이 `0.000001` 미만 시 해당 날짜만 재번호화. LexoRank는 이 규모에 과함 |

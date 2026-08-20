@@ -31,8 +31,9 @@ const SUPABASE_SHIM = `
   grant usage on schema auth to anon, authenticated, service_role;
 
   create table auth.users (
-    id    uuid primary key,
-    email text
+    id                 uuid primary key,
+    email              text,
+    raw_user_meta_data jsonb not null default '{}'::jsonb
   );
 
   -- Supabase 의 auth.uid() 는 JWT 클레임에서 사용자 id 를 읽는다.
@@ -67,34 +68,6 @@ const SUPABASE_SHIM = `
   grant select on storage.buckets to authenticated;
   grant all on storage.objects, storage.buckets to service_role;
 
-  -- 헬쑤(health_app)의 public.profiles.
-  -- Trip 은 이 테이블을 만들지도 고치지도 않지만 trip.member_profiles 뷰가
-  -- 읽는다. 실제 컬럼 이름·타입과 "본인 행만" RLS 를 그대로 재현해야
-  -- 뷰가 의도대로 동작하는지 검증할 수 있다.
-  -- 출처: C:/git/heltch/health_app/supabase/schema.sql
-  create table public.profiles (
-    user_id     uuid primary key references auth.users (id) on delete cascade,
-    gender      text,
-    experience  text,
-    name        text,
-    nickname    text,
-    phone       text,
-    weight_kg   numeric(5, 1),
-    banned_at   timestamptz,
-    created_at  timestamptz not null default now(),
-    updated_at  timestamptz not null default now()
-  );
-
-  alter table public.profiles enable row level security;
-  grant select, insert, update on public.profiles to authenticated;
-
-  -- 헬쑤의 기존 정책: 본인 행만 읽는다.
-  create policy "Users can read own profile"
-    on public.profiles for select
-    using (auth.uid() = user_id);
-  create policy "Users can insert own profile"
-    on public.profiles for insert
-    with check (auth.uid() = user_id);
 `;
 
 export type TestDb = {
@@ -184,9 +157,9 @@ export async function createTestDb(): Promise<TestDb> {
         trip.trip_invites,
         trip.trip_members,
         trip.trips,
+        trip.profiles,
         trip.places,
         trip.flights,
-        public.profiles,
         auth.users
       restart identity cascade;
     `);
