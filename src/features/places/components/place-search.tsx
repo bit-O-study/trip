@@ -8,10 +8,10 @@ import { IDLE, type ActionState } from "@/features/trips/action-state";
 import { openDatePicker } from "@/lib/date-picker";
 
 const CATEGORY_FILTERS = [
-  { code: "FD6", label: "맛집" },
-  { code: "CE7", label: "카페" },
-  { code: "AD5", label: "숙소" },
-  { code: "AT4", label: "명소" },
+  { code: "food", label: "맛집" },
+  { code: "cafe", label: "카페" },
+  { code: "lodging", label: "숙소" },
+  { code: "attraction", label: "명소" },
 ] as const;
 
 type Props = {
@@ -51,6 +51,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone }: Props) {
       const url = new URL("/api/places/search", window.location.origin);
       url.searchParams.set("q", trimmed);
       if (category) url.searchParams.set("category", category);
+      url.searchParams.set("date", startLocal.slice(0, 10));
 
       const response = await fetch(url);
       const body = await response.json();
@@ -218,11 +219,24 @@ export function PlaceSearch({ tripId, defaultDate, timezone }: Props) {
           <div className="flex gap-2">
             <button
               type="submit"
+              name="intent"
+              value="schedule"
               disabled={adding}
               className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               일정에 추가
             </button>
+            {selected.categoryGroup === "food" || selected.categoryGroup === "cafe" ? (
+              <button
+                type="submit"
+                name="intent"
+                value="candidate"
+                disabled={adding}
+                className="flex-1 rounded-lg border border-primary px-4 py-2 text-sm font-medium text-primary transition-opacity hover:bg-primary/10 disabled:opacity-50"
+              >
+                투표 후보로 등록
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => setSelected(null)}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { PlaceSearchError, searchPlaces } from "@/features/places/kakao";
+import { GooglePlaceSearchError, searchGooglePlaces } from "@/features/places/google";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -15,7 +15,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 const searchParamsSchema = z.object({
   q: z.string().trim().min(1, "검색어를 입력하세요").max(80),
   page: z.coerce.number().int().min(1).max(3).default(1),
-  category: z.enum(["FD6", "CE7", "AD5", "AT4"]).optional(),
+  category: z.enum(["food", "cafe", "lodging", "attraction"]).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
 });
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
     q: url.searchParams.get("q") ?? "",
     page: url.searchParams.get("page") ?? undefined,
     category: url.searchParams.get("category") ?? undefined,
+    date: url.searchParams.get("date") ?? undefined,
     lat: url.searchParams.get("lat") ?? undefined,
     lng: url.searchParams.get("lng") ?? undefined,
   });
@@ -60,13 +62,13 @@ export async function GET(request: Request) {
     );
   }
 
-  const { q, page, category, lat, lng } = parsed.data;
+  const { q, category, date, lat, lng } = parsed.data;
 
   try {
-    const result = await searchPlaces({
+    const result = await searchGooglePlaces({
       query: q,
-      page,
-      categoryGroupCode: category,
+      category,
+      date,
       center: lat !== undefined && lng !== undefined ? { latitude: lat, longitude: lng } : undefined,
     });
 
@@ -76,7 +78,7 @@ export async function GET(request: Request) {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
-    if (error instanceof PlaceSearchError) {
+    if (error instanceof GooglePlaceSearchError) {
       /*
        * degraded mode — 검색만 막히고 저장된 일정 조회와 수동 입력은 계속
        * 동작해야 한다. 그래서 500 이 아니라 상황에 맞는 코드를 돌려주고

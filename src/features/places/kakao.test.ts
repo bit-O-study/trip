@@ -42,6 +42,9 @@ describe("normalizeDocument", () => {
       url: "http://place.map.kakao.com/27253757",
       latitude: 37.5511360518077,
       longitude: 126.922634627821,
+      cuisineType: "초밥,롤",
+      googleRating: null,
+      closedOnDate: null,
     });
   });
 

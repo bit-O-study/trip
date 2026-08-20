@@ -103,6 +103,9 @@ export function normalizeDocument(doc: KakaoDocument): PlaceSearchResult | null 
     url: trimOrNull(doc.place_url),
     latitude,
     longitude,
+    cuisineType: doc.category_name?.split(" > ").at(-1) ?? null,
+    googleRating: null,
+    closedOnDate: null,
   };
 }
 
