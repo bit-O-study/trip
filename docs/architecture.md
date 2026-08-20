@@ -558,17 +558,28 @@ supabase.from("member_profiles").select("user_id, display_name")
 
 ```text
 http://localhost:3100/auth/callback
-https://<production-domain>/auth/callback
+https://trip-planner-tau-jade.vercel.app/auth/callback
+https://trip-planner-*.vercel.app/auth/callback
 ```
 
-Vercel Preview 배포는 도메인이 매번 바뀌므로 wildcard 패턴을 사용할 수 있다. 운영 주소는 wildcard 대신 **정확한 URL을 등록**하는 것이 권장된다.
+Vercel Preview 배포는 도메인이 매번 바뀌므로 세 번째 줄처럼 wildcard 패턴을 쓴다. 운영 주소는 wildcard 대신 **정확한 URL을 등록**한다.
 
 **2) Google Cloud Console / Kakao Developers → OAuth callback URL**
 공급자가 **Supabase로 돌려보낼** 주소다. 앱 도메인이 아니라 Supabase 프로젝트 주소를 넣는다.
 
 ```text
-https://<supabase-project-ref>.supabase.co/auth/v1/callback
+https://hgfsfupazyjcrmophmzc.supabase.co/auth/v1/callback
 ```
+
+**3) Kakao 개발자 콘솔 → 앱 설정 → 플랫폼 → Web 사이트 도메인**
+위 둘과 **별개**다. 로그인이 아니라 **지도 SDK**가 이 목록을 본다. 등록되지 않은 주소에서는 SDK 요청이 `401 AccessDeniedError: domain mismatched!` 로 거절되고, 브라우저는 그 JSON을 스크립트로 실행하지 못해 `ERR_BLOCKED_BY_ORB`로 막는다. 화면에는 "스크립트 로드 실패"로만 보여 원인을 구분할 수 없으므로, `npm run kakao:check`로 등록 여부를 직접 확인한다.
+
+```text
+http://localhost:3100
+https://trip-planner-tau-jade.vercel.app
+```
+
+경로나 끝의 슬래시 없이 origin만 넣는다. **Kakao는 wildcard를 지원하지 않으므로 Vercel Preview 배포에서는 지도를 띄울 수 없다.** Preview는 목록 전용 폴백으로 동작하는 것이 정상이며, 이는 결함이 아니다.
 
 Vercel 프로젝트는 별도로 만들고 Preview/Production 환경변수를 분리한다. 기존 앱의 `.vercel` 연결 정보는 복사하지 않는다.
 
@@ -584,7 +595,7 @@ Vercel 프로젝트는 별도로 만들고 Preview/Production 환경변수를 �
 6. ~~타임라인 ↔ 지도 양방향 하이라이트, Day 색상·번호 마커, 키보드 재정렬~~ **코드 완료** — 로그인 상태 E2E 는 9단계에서 (테스트 계정 픽스처가 아직 없다)
 7. 항공 provider adapter — [ADR-0001](adr/0001-flight-data-provider.md) 검증 완료 후 착수
 8. 읽기 전용 공유 링크(`trip_share_links`), 이후 동행자 초대와 권한 검증
-9. Playwright 핵심 흐름과 Vercel Preview 배포
+9. Playwright 핵심 흐름과 Vercel 배포 — 배포는 완료(`https://trip-planner-tau-jade.vercel.app`). 로그인 상태 E2E 픽스처가 남았다
 
 각 단계는 타입 검사, 단위 테스트, 최소 한 개의 핵심 E2E 흐름으로 검증한다. RLS는 **권한별 접근 거부 케이스까지** 테스트한다.
 

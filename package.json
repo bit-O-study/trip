@@ -19,7 +19,8 @@
     "db:inspect": "node scripts/db.mjs inspect",
     "db:apply": "node scripts/db.mjs apply",
     "db:verify": "node scripts/db.mjs verify",
-    "db:expose": "node scripts/db.mjs expose"
+    "db:expose": "node scripts/db.mjs expose",
+    "kakao:check": "node scripts/kakao-check.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
