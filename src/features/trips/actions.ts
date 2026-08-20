@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 
 import { IDLE, fail, type ActionState } from "@/features/trips/action-state";
 import { itemFormSchema, tripFormSchema } from "@/features/trips/schema";
-import { getTrip } from "@/features/trips/queries";
+import { listItems, getTrip } from "@/features/trips/queries";
+import { planMoveDown, planMoveToDay, planMoveUp, type MovePlan } from "@/features/trips/reorder";
+import type { ItineraryItem } from "@/features/trips/types";
 import { zonedLocalToUtc } from "@/lib/datetime";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -291,25 +293,64 @@ export async function deleteItemAction(formData: FormData): Promise<void> {
 }
 
 /**
- * 항목을 같은 날짜 안에서 한 칸 옮긴다.
+ * 순서 이동.
  *
- * 실제 계산은 DB 의 trip.move_item 이 원자적으로 처리한다.
- * 드래그 앤 드롭이 붙기 전까지의 키보드·버튼 경로이며, 드래그가 생겨도
+ * 계획(어느 시각·누구 뒤)은 `reorder.ts` 의 순수 함수가 세우고, 실제 sort_order
+ * 계산과 쓰기는 `trip.move_item` 이 한 번의 원자적 호출로 처리한다.
+ *
+ * 계획을 서버에서 다시 세우는 이유: 화면이 오래된 상태일 수 있다. 클라이언트가
+ * 계산한 "b 뒤로" 를 그대로 믿으면 그 사이 b 가 삭제되거나 다른 날로 옮겨진
+ * 경우 엉뚱한 자리에 놓인다. 폼은 "무엇을 어느 방향으로" 만 보낸다.
+ *
+ * 버튼 기반이므로 키보드로 그대로 동작한다. 드래그가 붙어도 이 경로는
  * 접근성 대체 경로로 남는다.
  */
-export async function moveItemAction(formData: FormData): Promise<void> {
-  const itemId = text(formData, "itemId");
-  const tripId = text(formData, "tripId");
-  const startAt = text(formData, "startAt");
-  const afterItemId = text(formData, "afterItemId");
+async function applyMove(
+  tripId: string,
+  itemId: string,
+  plan: (items: ItineraryItem[], timezone: string) => MovePlan | null,
+): Promise<void> {
+  const trip = await getTrip(tripId);
+  if (!trip) throw new Error("여행을 찾을 수 없습니다");
+
+  const items = await listItems(tripId);
+  const move = plan(items, trip.timezone);
+  // 이미 맨 위/맨 아래거나 같은 날짜였다. 오류가 아니라 할 일이 없는 것이다.
+  if (!move) return;
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("move_item", {
     p_item_id: itemId,
-    p_start_at: startAt,
-    p_after_item_id: afterItemId || null,
+    p_start_at: move.startAt,
+    p_after_item_id: move.afterItemId,
   });
 
   if (error) throw new Error(`순서를 바꾸지 못했습니다: ${error.message}`);
   revalidatePath(`/trips/${tripId}`);
+}
+
+export async function moveItemUpAction(formData: FormData): Promise<void> {
+  const itemId = text(formData, "itemId");
+  const tripId = text(formData, "tripId");
+  await applyMove(tripId, itemId, (items, timezone) => planMoveUp(items, itemId, timezone));
+}
+
+export async function moveItemDownAction(formData: FormData): Promise<void> {
+  const itemId = text(formData, "itemId");
+  const tripId = text(formData, "tripId");
+  await applyMove(tripId, itemId, (items, timezone) => planMoveDown(items, itemId, timezone));
+}
+
+export async function moveItemToDayAction(formData: FormData): Promise<void> {
+  const itemId = text(formData, "itemId");
+  const tripId = text(formData, "tripId");
+  const date = text(formData, "date");
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error(`날짜 형식이 올바르지 않습니다: ${date}`);
+  }
+
+  await applyMove(tripId, itemId, (items, timezone) =>
+    planMoveToDay(items, itemId, date, timezone),
+  );
 }
