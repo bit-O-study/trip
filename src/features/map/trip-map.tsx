@@ -18,6 +18,10 @@ export type MapPoint = {
   dayIndex: number;
   /** 그 날의 방문 순번 (1-based) */
   order: number;
+  /** 음식점 후보처럼 지도 위에 직접 보여 줄 요약. */
+  badgeLabel?: string;
+  /** 휴무처럼 강조할 짧은 경고. */
+  warning?: string;
 };
 
 type Props = {
@@ -43,23 +47,35 @@ function markerButton(point: MapPoint, onSelect: (id: string) => void): HTMLButt
   const el = document.createElement("button");
   el.type = "button";
   el.dataset.pointId = point.id;
-  el.textContent = String(point.order);
+  if (point.badgeLabel) {
+    const label = document.createElement("span");
+    label.textContent = point.badgeLabel;
+    el.appendChild(label);
+    if (point.warning) {
+      const warning = document.createElement("span");
+      warning.textContent = point.warning;
+      warning.style.cssText = "display:block;margin-top:2px;font-size:10px;font-weight:700;color:#dc2626";
+      el.appendChild(warning);
+    }
+  } else {
+    el.textContent = String(point.order);
+  }
   el.setAttribute("aria-label", `${point.order}번째 일정 ${point.title}`);
   el.style.cssText = [
     "display:flex",
     "align-items:center",
     "justify-content:center",
-    "width:26px",
-    "height:26px",
-    "padding:0",
+    point.badgeLabel ? "width:auto" : "width:26px",
+    point.badgeLabel ? "height:auto" : "height:26px",
+    point.badgeLabel ? "padding:5px 8px" : "padding:0",
     "cursor:pointer",
-    "border-radius:9999px",
+    point.badgeLabel ? "border-radius:8px" : "border-radius:9999px",
     "border:2px solid #fff",
     "box-shadow:0 1px 4px rgba(0,0,0,.35)",
     "font:600 12px/1 system-ui,sans-serif",
-    "color:#fff",
+    point.badgeLabel ? "color:#111827" : "color:#fff",
     "transition:transform .12s ease, box-shadow .12s ease",
-    `background:${dayColor(point.dayIndex)}`,
+    `background:${point.badgeLabel ? "#fff" : dayColor(point.dayIndex)}`,
   ].join(";");
   el.addEventListener("click", () => onSelect(point.id));
   return el;

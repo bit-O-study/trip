@@ -2,6 +2,7 @@ import { cache } from "react";
 
 import type {
   ItineraryItem,
+  RestaurantCandidate,
   TripDetail,
   TripRole,
   TripSummary,
@@ -104,6 +105,7 @@ export const getTripRole = cache(async (tripId: string): Promise<TripRole | null
     .from("trip_members")
     .select("role")
     .eq("trip_id", tripId)
+    .neq("status", "candidate")
     .maybeSingle();
 
   if (error) throw new Error(`권한을 확인하지 못했습니다: ${error.message}`);
@@ -173,5 +175,74 @@ export async function listItems(tripId: string): Promise<ItineraryItem[]> {
     sortOrder: Number(row.sort_order),
     updatedAt: row.updated_at,
     coordinate: readCoordinate(row.place_snapshot),
+  }));
+}
+
+function cuisineLabel(snapshot: Record<string, unknown> | null): string {
+  const explicit = snapshot?.cuisineType;
+  if (typeof explicit === "string" && explicit.trim()) return explicit.trim();
+  const category = snapshot?.category;
+  if (typeof category === "string") {
+    const parts = category.split(">").map((part) => part.trim()).filter(Boolean);
+    if (parts.length > 1) return parts[1];
+  }
+  return snapshot?.categoryGroup === "cafe" ? "카페" : "음식점";
+}
+
+export async function listRestaurantCandidates(tripId: string): Promise<RestaurantCandidate[]> {
+  const supabase = await createSupabaseServerClient();
+  const [{ data: auth }, itemsResult] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("itinerary_items")
+      .select("id, title, location_text, place_snapshot")
+      .eq("trip_id", tripId)
+      .eq("type", "food")
+      .eq("status", "candidate")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (itemsResult.error) {
+    throw new Error(`음식점 후보를 불러오지 못했습니다: ${itemsResult.error.message}`);
+  }
+
+  const rows = itemsResult.data as Array<{
+    id: string;
+    title: string;
+    location_text: string | null;
+    place_snapshot: Record<string, unknown> | null;
+  }>;
+  if (rows.length === 0) return [];
+
+  const { data: votes, error: voteError } = await supabase
+    .from("restaurant_votes")
+    .select("item_id, user_id")
+    .in("item_id", rows.map((row) => row.id));
+  if (voteError) throw new Error(`투표를 불러오지 못했습니다: ${voteError.message}`);
+
+  const counts = new Map<string, number>();
+  const mine = new Set<string>();
+  for (const vote of votes ?? []) {
+    counts.set(vote.item_id, (counts.get(vote.item_id) ?? 0) + 1);
+    if (vote.user_id === auth.user?.id) mine.add(vote.item_id);
+  }
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    locationText: row.location_text,
+    cuisineType: cuisineLabel(row.place_snapshot),
+    googleRating:
+      typeof row.place_snapshot?.googleRating === "number"
+        ? row.place_snapshot.googleRating
+        : null,
+    voteCount: counts.get(row.id) ?? 0,
+    votedByMe: mine.has(row.id),
+    coordinate: readCoordinate(row.place_snapshot),
+    closedOnDate:
+      typeof row.place_snapshot?.closedOnDate === "boolean"
+        ? row.place_snapshot.closedOnDate
+        : null,
   }));
 }

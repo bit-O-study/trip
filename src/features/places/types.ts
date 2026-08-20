@@ -54,7 +54,7 @@ export function toCategoryGroup(kakaoCode: string | null | undefined): PlaceCate
 
 /** 검색 결과. 좌표는 이미 WGS84 실수로 정규화된 상태다. */
 export type PlaceSearchResult = {
-  provider: "kakao";
+  provider: "google" | "kakao";
   providerPlaceId: string;
   name: string;
   /** 원본 카테고리 문자열 ("음식점 > 일식 > 초밥,롤") */
@@ -66,6 +66,11 @@ export type PlaceSearchResult = {
   url: string | null;
   latitude: number;
   longitude: number;
+  /** Google Places가 제공하는 음식 종류 표시명. */
+  cuisineType: string | null;
+  googleRating: number | null;
+  /** 선택한 날짜의 정기 영업시간 기준. 정보가 없으면 null. */
+  closedOnDate: boolean | null;
 };
 
 export type PlaceSearchResponse = {

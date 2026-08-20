@@ -12,6 +12,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const placeItemSchema = z.object({
   tripId: z.uuid(),
+  provider: z.enum(["google", "kakao"]),
   providerPlaceId: z.string().trim().min(1),
   name: z.string().trim().min(1).max(200),
   category: z.string().trim().max(200).nullable(),
@@ -22,6 +23,9 @@ const placeItemSchema = z.object({
   url: z.string().trim().max(500).nullable(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
+  cuisineType: z.string().trim().max(100).nullable(),
+  googleRating: z.number().min(0).max(5).nullable(),
+  closedOnDate: z.boolean().nullable(),
   startLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
 });
 
@@ -48,6 +52,7 @@ export async function addPlaceToTripAction(
   formData: FormData,
 ): Promise<ActionState> {
   const raw = formData.get("payload");
+  const intent = formData.get("intent") === "candidate" ? "candidate" : "schedule";
   if (typeof raw !== "string") return fail("요청이 올바르지 않습니다");
 
   let parsedJson: unknown;
@@ -62,6 +67,9 @@ export async function addPlaceToTripAction(
     return fail(parsed.error.issues[0]?.message ?? "입력을 확인하세요");
   }
   const input = parsed.data;
+  if (intent === "candidate" && !["food", "cafe"].includes(input.categoryGroup)) {
+    return fail("음식점과 카페만 투표 후보로 등록할 수 있습니다");
+  }
 
   const trip = await getTrip(input.tripId);
   if (!trip) return fail("여행을 찾을 수 없습니다");
@@ -81,7 +89,7 @@ export async function addPlaceToTripAction(
    * 넣어 보고 중복(23505)이면 기존 행을 읽는다.
    */
   const placeRow = {
-    provider: "kakao",
+    provider: input.provider,
     provider_place_id: input.providerPlaceId,
     name: input.name,
     category: input.category,
@@ -104,7 +112,7 @@ export async function addPlaceToTripAction(
     const existing = await supabase
       .from("places")
       .select("id")
-      .eq("provider", "kakao")
+      .eq("provider", input.provider)
       .eq("provider_place_id", input.providerPlaceId)
       .single();
     if (existing.error) {
@@ -130,7 +138,7 @@ export async function addPlaceToTripAction(
     place_id: placeId,
     // 선택 시점의 사본. 외부 API 가 바뀌어도 이 값은 그대로다.
     place_snapshot: {
-      provider: "kakao",
+      provider: input.provider,
       providerPlaceId: input.providerPlaceId,
       name: input.name,
       category: input.category,
@@ -141,10 +149,14 @@ export async function addPlaceToTripAction(
       url: input.url,
       latitude: input.latitude,
       longitude: input.longitude,
+      cuisineType: input.cuisineType,
+      googleRating: input.googleRating,
+      closedOnDate: input.closedOnDate,
       capturedAt: new Date().toISOString(),
     },
     sort_order: sortOrder,
-    source: "kakao",
+    source: input.provider,
+    status: intent === "candidate" ? "candidate" : "confirmed",
   });
 
   if (error) return fail(`일정에 추가하지 못했습니다: ${error.message}`);

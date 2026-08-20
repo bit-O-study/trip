@@ -152,6 +152,7 @@ export async function createTestDb(): Promise<TestDb> {
       truncate table
         trip.audit_events,
         trip.attachments,
+        trip.restaurant_votes,
         trip.itinerary_items,
         trip.trip_share_links,
         trip.trip_invites,

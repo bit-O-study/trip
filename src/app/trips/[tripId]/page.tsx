@@ -7,8 +7,10 @@ import { softDeleteTripAction } from "@/features/trips/actions";
 import { ItemForm } from "@/features/trips/components/item-form";
 import { ItemRow, type DayOption } from "@/features/trips/components/item-row";
 import { TripBoard } from "@/features/trips/components/trip-board";
-import { listItems, getTrip } from "@/features/trips/queries";
+import { listItems, getTrip, listRestaurantCandidates } from "@/features/trips/queries";
 import { canEdit, type ItineraryItem } from "@/features/trips/types";
+import { InviteLink } from "@/features/voting/invite-link";
+import { RestaurantPoll } from "@/features/voting/restaurant-poll";
 import { dayColorVar } from "@/lib/day-color";
 import { tripDays, tripDurationLabel, zonedDateKey } from "@/lib/datetime";
 
@@ -27,7 +29,10 @@ export default async function TripDetailPage({ params }: Props) {
   const trip = await getTrip(tripId);
   if (!trip) notFound();
 
-  const items = await listItems(tripId);
+  const [items, restaurantCandidates] = await Promise.all([
+    listItems(tripId),
+    listRestaurantCandidates(tripId),
+  ]);
   const days = tripDays(trip.startDate, trip.endDate);
   const editable = canEdit(trip.role);
 
@@ -64,6 +69,20 @@ export default async function TripDetailPage({ params }: Props) {
         dayIndex,
         order: index + 1,
       });
+    });
+  }
+  for (const [index, candidate] of restaurantCandidates.entries()) {
+    if (!candidate.coordinate) continue;
+    const rating = candidate.googleRating !== null ? ` · ★ ${candidate.googleRating.toFixed(1)}` : "";
+    mapPoints.push({
+      id: candidate.id,
+      title: candidate.title,
+      latitude: candidate.coordinate.latitude,
+      longitude: candidate.coordinate.longitude,
+      dayIndex: 0,
+      order: index + 1,
+      badgeLabel: `${candidate.cuisineType}${rating} · ${candidate.voteCount}표`,
+      warning: candidate.closedOnDate === true ? "쉬는 날입니다" : undefined,
     });
   }
 
@@ -104,6 +123,12 @@ export default async function TripDetailPage({ params }: Props) {
               timezone={trip.timezone}
             />
           ) : null}
+
+          <RestaurantPoll
+            tripId={trip.id}
+            candidates={restaurantCandidates}
+            editable={editable}
+          />
 
           {days.length > 1 ? (
             <nav
@@ -220,6 +245,7 @@ export default async function TripDetailPage({ params }: Props) {
         <details className="rounded-xl border border-border px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium">여행 관리</summary>
           <div className="mt-3 space-y-3">
+            <InviteLink tripId={trip.id} />
             <p className="text-sm text-muted-foreground">
               삭제해도 30일 동안 휴지통에 남아 복구할 수 있습니다.
             </p>

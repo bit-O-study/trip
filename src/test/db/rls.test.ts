@@ -607,3 +607,98 @@ describe("Trip 전용 프로필", () => {
     expect(updated.rows).toHaveLength(0);
   });
 });
+
+describe("음식점 후보 투표", () => {
+  async function seedCandidate(): Promise<{ tripId: string; itemId: string }> {
+    const tripId = await seedTrip();
+    await db.asUser(USER.owner);
+    const inserted = await db.pg.query<{ id: string }>(
+      `insert into trip.itinerary_items
+        (trip_id, created_by, type, status, title, start_at)
+       values ($1, $2, 'food', 'candidate', '제주 맛집', '2026-08-23T12:00:00Z')
+       returning id`,
+      [tripId, USER.owner],
+    );
+    return { tripId, itemId: inserted.rows[0].id };
+  }
+
+  it("여행 멤버는 후보에 한 표를 행사하고 취소할 수 있다", async () => {
+    const { itemId } = await seedCandidate();
+    await db.asUser(USER.viewer);
+    await db.pg.query("insert into trip.restaurant_votes (item_id, user_id) values ($1, $2)", [
+      itemId,
+      USER.viewer,
+    ]);
+    expect((await db.pg.query("select item_id from trip.restaurant_votes")).rows).toHaveLength(1);
+    await db.pg.query("delete from trip.restaurant_votes where item_id = $1", [itemId]);
+    expect((await db.pg.query("select item_id from trip.restaurant_votes")).rows).toHaveLength(0);
+  });
+
+  it("멤버가 아닌 사용자의 투표는 거부한다", async () => {
+    const { itemId } = await seedCandidate();
+    await db.asUser(USER.stranger);
+    const message = await expectDenied(() =>
+      db.pg.query("insert into trip.restaurant_votes (item_id, user_id) values ($1, $2)", [
+        itemId,
+        USER.stranger,
+      ]),
+    );
+    expect(message).toMatch(/row-level security/i);
+  });
+
+  it("다른 사람의 표는 취소할 수 없다", async () => {
+    const { itemId } = await seedCandidate();
+    await db.asUser(USER.editor);
+    await db.pg.query("insert into trip.restaurant_votes (item_id, user_id) values ($1, $2)", [
+      itemId,
+      USER.editor,
+    ]);
+    await db.asUser(USER.viewer);
+    const deleted = await db.pg.query(
+      "delete from trip.restaurant_votes where item_id = $1 and user_id = $2 returning item_id",
+      [itemId, USER.editor],
+    );
+    expect(deleted.rows).toHaveLength(0);
+  });
+});
+
+describe("투표 초대", () => {
+  it("유효한 초대를 수락하면 viewer 멤버가 된다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.owner);
+    await db.pg.query(
+      `insert into trip.trip_invites
+        (trip_id, created_by, token_hash, role, max_uses, expires_at)
+       values ($1, $2, 'test-hash', 'viewer', 1, now() + interval '1 day')`,
+      [tripId, USER.owner],
+    );
+
+    await db.asUser(USER.stranger);
+    const accepted = await db.pg.query<{ accept_invite: string }>(
+      "select trip.accept_invite('test-hash')",
+    );
+    expect(accepted.rows[0].accept_invite).toBe(tripId);
+
+    const membership = await db.pg.query(
+      "select role from trip.trip_members where trip_id = $1 and user_id = $2",
+      [tripId, USER.stranger],
+    );
+    expect(membership.rows).toEqual([{ role: "viewer" }]);
+  });
+
+  it("만료된 초대는 거부한다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.owner);
+    await db.pg.query(
+      `insert into trip.trip_invites
+        (trip_id, created_by, token_hash, role, expires_at)
+       values ($1, $2, 'expired-hash', 'viewer', now() - interval '1 day')`,
+      [tripId, USER.owner],
+    );
+    await db.asUser(USER.stranger);
+    const message = await expectDenied(() =>
+      db.pg.query("select trip.accept_invite('expired-hash')"),
+    );
+    expect(message).toMatch(/invalid or expired/i);
+  });
+});
