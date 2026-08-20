@@ -125,6 +125,23 @@ create trigger on_auth_user_created_trip_profile
   after insert on auth.users
   for each row execute function trip_private.handle_new_user();
 
+-- 마이그레이션 적용 전에 이미 가입한 사용자도 빠뜨리지 않는다.
+insert into trip.profiles (user_id, display_name, avatar_url)
+select
+  u.id,
+  coalesce(
+    nullif(btrim(u.raw_user_meta_data ->> 'full_name'), ''),
+    nullif(btrim(u.raw_user_meta_data ->> 'name'), ''),
+    nullif(btrim(u.raw_user_meta_data ->> 'user_name'), ''),
+    nullif(split_part(coalesce(u.email, ''), '@', 1), '')
+  ),
+  coalesce(
+    nullif(btrim(u.raw_user_meta_data ->> 'avatar_url'), ''),
+    nullif(btrim(u.raw_user_meta_data ->> 'picture'), '')
+  )
+from auth.users u
+on conflict (user_id) do nothing;
+
 -- ---------------------------------------------------------------------------
 -- updated_at 자동 갱신
 --
