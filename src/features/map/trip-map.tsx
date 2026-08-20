@@ -200,6 +200,15 @@ export function TripMap({ points, className, selectedId, recenter, onSelect }: P
   }, [selectedId, recenter, maps, points]);
 
   if (error) {
+    /*
+     * 스크립트 로드 실패는 원인이 대부분 하나다 — Kakao 콘솔에 지금 이 도메인이
+     * 등록돼 있지 않다. SDK 는 401 과 JSON 에러를 돌려주고 브라우저는 그걸
+     * 스크립트로 실행하지 못해 onerror 로만 알려 주므로, 코드가 원인을 구분할
+     * 방법이 없다. 그래서 등록해야 할 주소를 그대로 찍어 준다 — "도메인 등록을
+     * 확인하세요" 만으로는 어떤 문자열을 넣어야 하는지 알 수 없다.
+     */
+    const origin = typeof window === "undefined" ? null : window.location.origin;
+
     return (
       <div
         className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 py-10 text-center ${className ?? ""}`}
@@ -207,9 +216,14 @@ export function TripMap({ points, className, selectedId, recenter, onSelect }: P
         <p className="text-sm font-medium">지도를 표시할 수 없습니다</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {error.kind === "not_configured"
-            ? "지도 키가 설정되지 않았습니다."
-            : "네트워크나 Kakao 도메인 등록을 확인하세요."}
+            ? "지도 키(NEXT_PUBLIC_KAKAO_JS_KEY)가 설정되지 않았습니다."
+            : "네트워크 문제이거나, Kakao 개발자 콘솔에 이 사이트 도메인이 등록되지 않았습니다."}
         </p>
+        {error.kind !== "not_configured" && origin ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            등록할 주소: <code className="font-mono">{origin}</code>
+          </p>
+        ) : null}
         <p className="mt-2 text-xs text-muted-foreground">
           아래 목록으로 일정은 그대로 확인하고 편집할 수 있습니다.
         </p>

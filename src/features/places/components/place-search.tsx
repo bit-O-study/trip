@@ -5,6 +5,7 @@ import { useActionState, useState, type FormEvent } from "react";
 import { addPlaceToTripAction } from "@/features/places/actions";
 import { PLACE_CATEGORY_LABELS, type PlaceSearchResult } from "@/features/places/types";
 import { IDLE, type ActionState } from "@/features/trips/action-state";
+import { openDatePicker } from "@/lib/date-picker";
 
 const CATEGORY_FILTERS = [
   { code: "FD6", label: "맛집" },
@@ -193,6 +194,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone }: Props) {
             <input
               id="place-start"
               type="datetime-local"
+              onClick={openDatePicker}
               value={startLocal}
               onChange={(event) => setStartLocal(event.target.value)}
               required
