@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { IDLE, type ActionState } from "@/features/trips/action-state";
+import { openDatePicker } from "@/lib/date-picker";
 
 /**
  * 자주 쓰는 시간대. 목록에 없으면 직접 입력할 수 있게 datalist 로 둔다.
@@ -104,6 +105,7 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
             id="startDate"
             name="startDate"
             type="date"
+            onClick={openDatePicker}
             required
             defaultValue={defaults?.startDate}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
@@ -118,6 +120,7 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
             id="endDate"
             name="endDate"
             type="date"
+            onClick={openDatePicker}
             required
             defaultValue={defaults?.endDate}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"

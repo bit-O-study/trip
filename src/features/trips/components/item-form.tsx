@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { IDLE, type ActionState } from "@/features/trips/action-state";
 import { createItemAction } from "@/features/trips/actions";
 import { ITEM_TYPES, ITEM_TYPE_ICONS, ITEM_TYPE_LABELS } from "@/features/trips/types";
+import { openDatePicker } from "@/lib/date-picker";
 
 type Props = {
   tripId: string;
@@ -95,6 +96,7 @@ export function ItemForm({ tripId, defaultDate, timezone }: Props) {
             id="startLocal"
             name="startLocal"
             type="datetime-local"
+            onClick={openDatePicker}
             required
             defaultValue={`${defaultDate}T09:00`}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
@@ -109,6 +111,7 @@ export function ItemForm({ tripId, defaultDate, timezone }: Props) {
             id="endLocal"
             name="endLocal"
             type="datetime-local"
+            onClick={openDatePicker}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
           />
           <FieldError errors={errors.endLocal} />

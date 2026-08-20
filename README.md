@@ -52,5 +52,6 @@ npx playwright install chromium
 - 필요한 키 목록은 `.env.example`에 있습니다.
 - 참고 앱에서 가져온 Supabase 설정은 초기 개발용입니다. 운영 전 Trip 전용 Supabase 프로젝트로 교체해야 합니다.
 - Kakao 무료 쿼터는 개발자 계정에서 최초 활성화한 앱 1개에만 제공됩니다. 앱 생성 전략을 먼저 정하세요.
+- **Kakao 지도는 키만으로는 뜨지 않습니다.** 개발자 콘솔의 *내 애플리케이션 → 앱 설정 → 플랫폼 → Web* 에 사이트 도메인을 등록해야 합니다. 등록되지 않은 도메인에서는 SDK 가 `401 AccessDeniedError: domain mismatched!` 를 돌려주고, 브라우저는 그 JSON 을 스크립트로 실행하지 못해 `ERR_BLOCKED_BY_ORB` 로 막습니다. 로컬 개발에는 `http://localhost:3100` 을 등록하세요 (포트까지 정확히 일치해야 합니다). 배포 도메인도 각각 등록해야 합니다. 등록 전까지는 지도가 목록 전용으로 폴백하며, 화면에 등록할 주소를 표시합니다.
 - 항공편 공급자는 아직 확정되지 않았습니다. 후보와 검증 항목은 [docs/adr/0001-flight-data-provider.md](docs/adr/0001-flight-data-provider.md)에 있습니다. 공공데이터포털은 활용 신청 승인에 1~2일 걸립니다.
 - 네이버 검색 키는 v1.1의 후기·사진 보강용이며 MVP에는 필요하지 않습니다.
