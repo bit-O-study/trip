@@ -71,6 +71,7 @@ export type ItineraryItem = {
 
 export type RestaurantCandidate = {
   id: string;
+  pollId: string;
   title: string;
   locationText: string | null;
   cuisineType: string;
@@ -80,6 +81,16 @@ export type RestaurantCandidate = {
   coordinate: { latitude: number; longitude: number } | null;
   /** Google Places 영업시간이 없으면 null, 확인된 휴무면 true. */
   closedOnDate: boolean | null;
+};
+
+export type RestaurantPollView = {
+  id: string;
+  title: string;
+  scheduledAt: string;
+  closesAt: string;
+  status: "open" | "finalized" | "cancelled";
+  winnerItemId: string | null;
+  candidates: RestaurantCandidate[];
 };
 
 /** owner/editor 만 편집할 수 있다. RLS 와 같은 규칙을 화면에서도 쓴다. */

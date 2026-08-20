@@ -294,7 +294,7 @@ describe("감사 기록", () => {
 
   it("공유 링크 감사 기록에 token_hash 가 들어가지 않는다", async () => {
     const tripId = await seedTrip();
-    await db.asUser(USER.owner);
+    await db.asSuperuser();
     await db.pg.query(
       `insert into trip.trip_share_links (trip_id, created_by, token_hash, short_id)
        values ($1, $2, 'sha256:supersecret', 'abc12345')`,
@@ -609,23 +609,32 @@ describe("Trip 전용 프로필", () => {
 });
 
 describe("음식점 후보 투표", () => {
-  async function seedCandidate(): Promise<{ tripId: string; itemId: string }> {
+  async function seedCandidate(): Promise<{ tripId: string; pollId: string; itemId: string }> {
     const tripId = await seedTrip();
-    await db.asUser(USER.owner);
-    const inserted = await db.pg.query<{ id: string }>(
-      `insert into trip.itinerary_items
-        (trip_id, created_by, type, status, title, start_at)
-       values ($1, $2, 'food', 'candidate', '제주 맛집', '2026-08-23T12:00:00Z')
+    await db.asSuperuser();
+    const poll = await db.pg.query<{ id: string }>(
+      `insert into trip.restaurant_polls (trip_id, title, scheduled_at, closes_at, created_by)
+       values ($1, '첫째 날 점심 투표', now() + interval '2 days', now() + interval '1 day', $2)
        returning id`,
       [tripId, USER.owner],
     );
-    return { tripId, itemId: inserted.rows[0].id };
+    const pollId = poll.rows[0].id;
+    await db.asUser(USER.owner);
+    const inserted = await db.pg.query<{ id: string }>(
+      `insert into trip.itinerary_items
+        (trip_id, created_by, type, status, title, start_at, restaurant_poll_id)
+       values ($1, $2, 'food', 'candidate', '제주 맛집', now() + interval '2 days', $3)
+       returning id`,
+      [tripId, USER.owner, pollId],
+    );
+    return { tripId, pollId, itemId: inserted.rows[0].id };
   }
 
   it("여행 멤버는 후보에 한 표를 행사하고 취소할 수 있다", async () => {
-    const { itemId } = await seedCandidate();
+    const { pollId, itemId } = await seedCandidate();
     await db.asUser(USER.viewer);
-    await db.pg.query("insert into trip.restaurant_votes (item_id, user_id) values ($1, $2)", [
+    await db.pg.query("insert into trip.restaurant_votes (poll_id, item_id, user_id) values ($1, $2, $3)", [
+      pollId,
       itemId,
       USER.viewer,
     ]);
@@ -635,10 +644,11 @@ describe("음식점 후보 투표", () => {
   });
 
   it("멤버가 아닌 사용자의 투표는 거부한다", async () => {
-    const { itemId } = await seedCandidate();
+    const { pollId, itemId } = await seedCandidate();
     await db.asUser(USER.stranger);
     const message = await expectDenied(() =>
-      db.pg.query("insert into trip.restaurant_votes (item_id, user_id) values ($1, $2)", [
+      db.pg.query("insert into trip.restaurant_votes (poll_id, item_id, user_id) values ($1, $2, $3)", [
+        pollId,
         itemId,
         USER.stranger,
       ]),
@@ -647,9 +657,10 @@ describe("음식점 후보 투표", () => {
   });
 
   it("다른 사람의 표는 취소할 수 없다", async () => {
-    const { itemId } = await seedCandidate();
+    const { pollId, itemId } = await seedCandidate();
     await db.asUser(USER.editor);
-    await db.pg.query("insert into trip.restaurant_votes (item_id, user_id) values ($1, $2)", [
+    await db.pg.query("insert into trip.restaurant_votes (poll_id, item_id, user_id) values ($1, $2, $3)", [
+      pollId,
       itemId,
       USER.editor,
     ]);
@@ -659,6 +670,63 @@ describe("음식점 후보 투표", () => {
       [itemId, USER.editor],
     );
     expect(deleted.rows).toHaveLength(0);
+  });
+
+  it("한 사람은 같은 투표에서 한 후보만 선택할 수 있다", async () => {
+    const { tripId, pollId, itemId } = await seedCandidate();
+    await db.asUser(USER.owner);
+    const second = await db.pg.query<{ id: string }>(
+      `insert into trip.itinerary_items
+        (trip_id, created_by, type, status, title, start_at, restaurant_poll_id)
+       values ($1, $2, 'food', 'candidate', '두 번째 식당', now() + interval '2 days', $3)
+       returning id`,
+      [tripId, USER.owner, pollId],
+    );
+    await db.asUser(USER.viewer);
+    await db.pg.query(
+      "insert into trip.restaurant_votes (poll_id, item_id, user_id) values ($1, $2, $3)",
+      [pollId, itemId, USER.viewer],
+    );
+    await expect(
+      db.pg.query(
+        "insert into trip.restaurant_votes (poll_id, item_id, user_id) values ($1, $2, $3)",
+        [pollId, second.rows[0].id, USER.viewer],
+      ),
+    ).rejects.toThrow(/unique/i);
+  });
+
+  it("종료 시 최다 득표 후보를 일정으로 확정하고 나머지를 취소한다", async () => {
+    const { tripId, pollId, itemId } = await seedCandidate();
+    await db.asUser(USER.owner);
+    const second = await db.pg.query<{ id: string }>(
+      `insert into trip.itinerary_items
+        (trip_id, created_by, type, status, title, start_at, restaurant_poll_id)
+       values ($1, $2, 'food', 'candidate', '두 번째 식당', now() + interval '2 days', $3)
+       returning id`,
+      [tripId, USER.owner, pollId],
+    );
+    for (const userId of [USER.editor, USER.viewer]) {
+      await db.asUser(userId);
+      await db.pg.query(
+        "insert into trip.restaurant_votes (poll_id, item_id, user_id) values ($1, $2, $3)",
+        [pollId, second.rows[0].id, userId],
+      );
+    }
+    await db.asSuperuser();
+    await db.pg.query("update trip.restaurant_polls set closes_at = now() - interval '1 minute' where id = $1", [pollId]);
+    await db.asUser(USER.owner);
+    await db.pg.query("select trip.finalize_due_restaurant_polls()");
+    const items = await db.pg.query<{ id: string; status: string }>(
+      "select id, status::text from trip.itinerary_items where restaurant_poll_id = $1 order by id",
+      [pollId],
+    );
+    expect(items.rows.find((row) => row.id === second.rows[0].id)?.status).toBe("confirmed");
+    expect(items.rows.find((row) => row.id === itemId)?.status).toBe("cancelled");
+    const poll = await db.pg.query<{ winner_item_id: string; status: string }>(
+      "select winner_item_id, status from trip.restaurant_polls where id = $1",
+      [pollId],
+    );
+    expect(poll.rows[0]).toMatchObject({ winner_item_id: second.rows[0].id, status: "finalized" });
   });
 });
 

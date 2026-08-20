@@ -7,7 +7,7 @@ import { softDeleteTripAction } from "@/features/trips/actions";
 import { ItemForm } from "@/features/trips/components/item-form";
 import { ItemRow, type DayOption } from "@/features/trips/components/item-row";
 import { TripBoard } from "@/features/trips/components/trip-board";
-import { listItems, getTrip, listRestaurantCandidates } from "@/features/trips/queries";
+import { listItems, getTrip, listRestaurantPolls } from "@/features/trips/queries";
 import { canEdit, type ItineraryItem } from "@/features/trips/types";
 import { InviteLink } from "@/features/voting/invite-link";
 import { RestaurantPoll } from "@/features/voting/restaurant-poll";
@@ -29,10 +29,13 @@ export default async function TripDetailPage({ params }: Props) {
   const trip = await getTrip(tripId);
   if (!trip) notFound();
 
-  const [items, restaurantCandidates] = await Promise.all([
+  const [items, restaurantPolls] = await Promise.all([
     listItems(tripId),
-    listRestaurantCandidates(tripId),
+    listRestaurantPolls(tripId),
   ]);
+  const restaurantCandidates = restaurantPolls.flatMap((poll) =>
+    poll.status === "open" ? poll.candidates : [],
+  );
   const days = tripDays(trip.startDate, trip.endDate);
   const editable = canEdit(trip.role);
 
@@ -114,20 +117,27 @@ export default async function TripDetailPage({ params }: Props) {
         지도와 타임라인이 선택 상태를 공유한다. 타임라인은 서버 컴포넌트로 남기고
         children 으로 넘긴다 — 클라이언트 경계는 지도와 선택 상태에만 둔다.
       */}
-      <TripBoard points={mapPoints} mapClassName="h-64 md:h-80">
+      <TripBoard
+        points={mapPoints}
+        mapClassName="h-64 md:h-80"
+        initialCenter={trip.destinationName?.includes("제주") ? { latitude: 33.3617, longitude: 126.5292 } : undefined}
+      >
         <div className="space-y-6">
           {editable ? (
             <PlaceSearch
               tripId={trip.id}
               defaultDate={days[0]?.date ?? trip.startDate}
               timezone={trip.timezone}
+              polls={restaurantPolls}
             />
           ) : null}
 
           <RestaurantPoll
             tripId={trip.id}
-            candidates={restaurantCandidates}
+            polls={restaurantPolls}
             editable={editable}
+            defaultDate={days[0]?.date ?? trip.startDate}
+            timezone={trip.timezone}
           />
 
           {days.length > 1 ? (

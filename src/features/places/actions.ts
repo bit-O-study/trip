@@ -12,6 +12,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const placeItemSchema = z.object({
   tripId: z.uuid(),
+  pollId: z.uuid().nullable().optional(),
   provider: z.enum(["google", "kakao"]),
   providerPlaceId: z.string().trim().min(1),
   name: z.string().trim().min(1).max(200),
@@ -74,14 +75,26 @@ export async function addPlaceToTripAction(
   const trip = await getTrip(input.tripId);
   if (!trip) return fail("여행을 찾을 수 없습니다");
 
+  const supabase = await createSupabaseServerClient();
   let startAt: string;
   try {
     startAt = zonedLocalToUtc(input.startLocal, trip.timezone);
   } catch (caught) {
     return fail(caught instanceof Error ? caught.message : "시각을 해석할 수 없습니다");
   }
-
-  const supabase = await createSupabaseServerClient();
+  if (intent === "candidate") {
+    if (!input.pollId) return fail("후보를 넣을 투표를 선택하세요.");
+    const { data: poll, error: pollError } = await supabase
+      .from("restaurant_polls")
+      .select("scheduled_at, status, closes_at")
+      .eq("id", input.pollId)
+      .eq("trip_id", input.tripId)
+      .single();
+    if (pollError || poll.status !== "open" || new Date(poll.closes_at) <= new Date()) {
+      return fail("진행 중인 투표를 찾을 수 없습니다.");
+    }
+    startAt = poll.scheduled_at;
+  }
 
   /*
    * authenticated 에는 places 의 INSERT 만 있고 UPDATE 가 없다(공유 행을 한
@@ -157,6 +170,7 @@ export async function addPlaceToTripAction(
     sort_order: sortOrder,
     source: input.provider,
     status: intent === "candidate" ? "candidate" : "confirmed",
+    restaurant_poll_id: intent === "candidate" ? input.pollId : null,
   });
 
   if (error) return fail(`일정에 추가하지 못했습니다: ${error.message}`);
