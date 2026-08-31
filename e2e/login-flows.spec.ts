@@ -107,6 +107,8 @@ test.describe("로그인 후 핵심 흐름", () => {
     const trashRow = page.getByRole("listitem").filter({ hasText: title });
     await expect(trashRow).toBeVisible();
     await trashRow.getByRole("button", { name: "복구" }).click();
+    // 복구가 끝나기 전에 페이지를 옮기면 서버 액션 요청이 중단된다.
+    await expect(trashRow).toHaveCount(0);
 
     await page.goto("/");
     await expect(page.getByRole("link", { name: new RegExp(title) })).toBeVisible();

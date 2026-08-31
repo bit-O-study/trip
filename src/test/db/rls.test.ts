@@ -630,6 +630,46 @@ describe("음식점 후보 투표", () => {
     return { tripId, pollId, itemId: inserted.rows[0].id };
   }
 
+  /*
+   * seedCandidate 는 투표를 superuser 로 넣는다 — RLS 를 타지 않는다.
+   * 아래 두 테스트는 앱이 실제로 쓰는 경로, 즉 authenticated 역할로 INSERT 하고
+   * 같은 문장에서 id 를 돌려받는 경로를 덮는다.
+   *
+   * SELECT 정책이 자기 테이블을 id 로 되조회하면(STABLE 헬퍼) 방금 넣은 행이
+   * 스냅샷에 없어 `returning` 이 항상 42501 로 거부된다. 실제로 그렇게 깨졌다.
+   */
+  it("편집 권한이 있는 멤버는 투표를 만들고 같은 문장에서 id 를 돌려받는다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.editor);
+    const created = await db.pg.query<{ id: string }>(
+      `insert into trip.restaurant_polls (trip_id, title, scheduled_at, closes_at, created_by)
+       values ($1, '둘째 날 저녁 투표', now() + interval '2 days', now() + interval '1 day', $2)
+       returning id`,
+      [tripId, USER.editor],
+    );
+    expect(created.rows[0].id).toBeTruthy();
+  });
+
+  it("viewer 는 투표를 만들 수 없다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.viewer);
+    const message = await expectDenied(() =>
+      db.pg.query(
+        `insert into trip.restaurant_polls (trip_id, title, scheduled_at, closes_at, created_by)
+         values ($1, '몰래 만든 투표', now() + interval '2 days', now() + interval '1 day', $2)`,
+        [tripId, USER.viewer],
+      ),
+    );
+    expect(message).toMatch(/row-level security/i);
+  });
+
+  it("멤버가 아닌 사용자에게는 투표가 보이지 않는다", async () => {
+    const { pollId } = await seedCandidate();
+    await db.asUser(USER.stranger);
+    const rows = await db.pg.query("select id from trip.restaurant_polls where id = $1", [pollId]);
+    expect(rows.rows).toHaveLength(0);
+  });
+
   it("투표 생성자는 viewer 역할이어도 자신의 투표와 후보를 삭제할 수 있다", async () => {
     const { pollId, itemId } = await seedCandidate();
     await db.asSuperuser();
