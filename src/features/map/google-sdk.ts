@@ -35,7 +35,6 @@ export function loadGoogleMaps(apiKey: string | undefined): Promise<GoogleMapsLi
       v: "weekly",
       language: "ko",
       region: "KR",
-      authReferrerPolicy: "origin",
     });
     configuredKey = apiKey;
   }

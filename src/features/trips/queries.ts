@@ -197,7 +197,7 @@ export async function listRestaurantPolls(tripId: string): Promise<RestaurantPol
     supabase.auth.getUser(),
     supabase
       .from("restaurant_polls")
-      .select("id, title, scheduled_at, closes_at, status, winner_item_id")
+      .select("id, title, scheduled_at, closes_at, status, winner_item_id, created_by")
       .eq("trip_id", tripId)
       .order("scheduled_at", { ascending: true }),
     supabase
@@ -262,6 +262,7 @@ export async function listRestaurantPolls(tripId: string): Promise<RestaurantPol
     closesAt: poll.closes_at,
     status: poll.status as RestaurantPollView["status"],
     winnerItemId: poll.winner_item_id,
+    createdByMe: poll.created_by === auth.user?.id,
     candidates: candidates.filter((candidate) => candidate.pollId === poll.id),
   }));
 }

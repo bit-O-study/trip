@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { planMoveDown, planMoveToDay, planMoveUp } from "@/features/trips/reorder";
+import { planMoveAfter, planMoveDown, planMoveToDay, planMoveUp } from "@/features/trips/reorder";
 import type { ItineraryItem } from "@/features/trips/types";
 import { zonedDateKey } from "@/lib/datetime";
 
@@ -78,6 +78,14 @@ describe("planMoveDown", () => {
     const second = item("second", "2026-02-14T01:00:00+00:00", 2000);
     const plan = planMoveDown(timeline(first, second), "first", TZ);
     expect(plan).toEqual({ startAt: second.startAt, afterItemId: second.id });
+  });
+});
+
+describe("planMoveAfter", () => {
+  it("대상 바로 뒤로 옮기는 계획을 만든다", () => {
+    const a = item("a", "2026-02-14T01:00:00Z", 1000);
+    const b = item("b", "2026-02-15T02:00:00Z", 1000);
+    expect(planMoveAfter(timeline(a, b), "a", "b")).toEqual({ startAt: b.startAt, afterItemId: "b" });
   });
 });
 

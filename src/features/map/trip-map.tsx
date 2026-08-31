@@ -280,6 +280,7 @@ export function TripMap({ points, className, selectedId, recenter, onSelect, ini
     <div className={className}>
       <div
         ref={containerRef}
+        data-testid="trip-map"
         role="application"
         aria-label="여행 일정 지도"
         className="size-full min-h-64 rounded-xl border border-border bg-muted"

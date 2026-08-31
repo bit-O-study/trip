@@ -132,6 +132,15 @@ describe("next_sort_order", () => {
 });
 
 describe("move_item", () => {
+  it("종료 시각이 있는 항목은 기간을 유지하며 이동한다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.editor);
+    const itemId = await addItem(tripId, "회의", "2026-02-14T01:00:00Z");
+    await db.pg.query("update trip.itinerary_items set end_at = $1 where id = $2", ["2026-02-14T03:00:00Z", itemId]);
+    await db.pg.query("select trip.move_item($1, $2, null)", [itemId, "2026-02-15T05:00:00Z"]);
+    const moved = await db.pg.query<{ start_at: Date; end_at: Date }>("select start_at, end_at from trip.itinerary_items where id = $1", [itemId]);
+    expect(new Date(moved.rows[0].end_at).getTime() - new Date(moved.rows[0].start_at).getTime()).toBe(2 * 60 * 60 * 1000);
+  });
   it("맨 앞으로 옮기면 첫 항목보다 작은 값을 받는다", async () => {
     const tripId = await seedTrip();
     await db.asUser(USER.editor);

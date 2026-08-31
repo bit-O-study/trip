@@ -90,6 +90,7 @@ export type RestaurantPollView = {
   closesAt: string;
   status: "open" | "finalized" | "cancelled";
   winnerItemId: string | null;
+  createdByMe: boolean;
   candidates: RestaurantCandidate[];
 };
 

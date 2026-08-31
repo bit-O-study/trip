@@ -630,6 +630,29 @@ describe("음식점 후보 투표", () => {
     return { tripId, pollId, itemId: inserted.rows[0].id };
   }
 
+  it("투표 생성자는 viewer 역할이어도 자신의 투표와 후보를 삭제할 수 있다", async () => {
+    const { pollId, itemId } = await seedCandidate();
+    await db.asSuperuser();
+    await db.pg.query("update trip.restaurant_polls set created_by = $1 where id = $2", [USER.viewer, pollId]);
+    await db.asUser(USER.viewer);
+    const result = await db.pg.query<{ delete_own_restaurant_poll: boolean }>(
+      "select trip.delete_own_restaurant_poll($1)", [pollId],
+    );
+    expect(result.rows[0].delete_own_restaurant_poll).toBe(true);
+    await db.asSuperuser();
+    expect((await db.pg.query("select id from trip.restaurant_polls where id = $1", [pollId])).rows).toHaveLength(0);
+    expect((await db.pg.query("select deleted_at from trip.itinerary_items where id = $1 and deleted_at is not null", [itemId])).rows).toHaveLength(1);
+  });
+
+  it("투표 생성자가 아닌 사용자는 삭제할 수 없다", async () => {
+    const { pollId } = await seedCandidate();
+    await db.asUser(USER.viewer);
+    const result = await db.pg.query<{ delete_own_restaurant_poll: boolean }>(
+      "select trip.delete_own_restaurant_poll($1)", [pollId],
+    );
+    expect(result.rows[0].delete_own_restaurant_poll).toBe(false);
+  });
+
   it("여행 멤버는 후보에 한 표를 행사하고 취소할 수 있다", async () => {
     const { pollId, itemId } = await seedCandidate();
     await db.asUser(USER.viewer);

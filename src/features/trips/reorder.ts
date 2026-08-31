@@ -71,6 +71,18 @@ export function planMoveDown(
   return { startAt: next.startAt, afterItemId: next.id };
 }
 
+/** 드래그한 항목을 놓은 항목 바로 뒤로 옮긴다. 다른 날짜로도 이동할 수 있다. */
+export function planMoveAfter(
+  items: ItineraryItem[],
+  itemId: string,
+  targetId: string,
+): MovePlan | null {
+  if (itemId === targetId) return null;
+  const target = items.find((item) => item.id === targetId);
+  if (!target || !items.some((item) => item.id === itemId)) return null;
+  return { startAt: target.startAt, afterItemId: target.id };
+}
+
 /**
  * 다른 날짜로 옮긴다. 벽시계 시각은 유지한다 — "14:00 점심"은 날짜가 바뀌어도
  * 14:00 이어야 한다. UTC 오프셋을 그대로 더하면 시차가 있는 여행에서 시각이 밀린다.

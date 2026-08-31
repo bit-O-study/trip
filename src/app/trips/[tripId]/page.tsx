@@ -16,6 +16,7 @@ import { tripDays, tripDurationLabel, zonedDateKey } from "@/lib/datetime";
 
 type Props = {
   params: Promise<{ tripId: string }>;
+  searchParams: Promise<{ poll?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -24,8 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: trip?.title ?? "여행" };
 }
 
-export default async function TripDetailPage({ params }: Props) {
+export default async function TripDetailPage({ params, searchParams }: Props) {
   const { tripId } = await params;
+  const { poll: createdPollId } = await searchParams;
   const trip = await getTrip(tripId);
   if (!trip) notFound();
 
@@ -129,6 +131,7 @@ export default async function TripDetailPage({ params }: Props) {
               defaultDate={days[0]?.date ?? trip.startDate}
               timezone={trip.timezone}
               polls={restaurantPolls}
+              initialPollId={createdPollId}
             />
           ) : null}
 
@@ -146,6 +149,7 @@ export default async function TripDetailPage({ params }: Props) {
               className="sticky top-14 z-20 -mx-4 bg-background/90 px-4 py-2 backdrop-blur"
             >
               <ul className="flex gap-2 overflow-x-auto pb-1">
+                <li><a href="#all-events" className="flex shrink-0 items-center rounded-full border border-primary bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">모두</a></li>
                 {days.map((day) => (
                   <li key={day.date}>
                     <a
@@ -168,7 +172,7 @@ export default async function TripDetailPage({ params }: Props) {
             </nav>
           ) : null}
 
-          <div className="space-y-8">
+          <div id="all-events" className="scroll-mt-32 space-y-8">
             {days.map((day) => {
               const dayItems = byDay.get(day.date) ?? [];
               return (

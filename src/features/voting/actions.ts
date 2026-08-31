@@ -44,15 +44,29 @@ export async function createRestaurantPollAction(formData: FormData): Promise<vo
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error("로그인이 필요합니다.");
-  const { error } = await supabase.from("restaurant_polls").insert({
+  const { data, error } = await supabase.from("restaurant_polls").insert({
     trip_id: parsed.data.tripId,
     title: parsed.data.title,
     scheduled_at: scheduledAt,
     closes_at: closesAt,
     created_by: auth.user.id,
-  });
+  }).select("id").single();
   if (error) throw new Error(`투표를 만들지 못했습니다: ${error.message}`);
   revalidatePath(`/trips/${parsed.data.tripId}`);
+  redirect(`/trips/${parsed.data.tripId}?poll=${data.id}#place-search`);
+}
+
+export async function deleteRestaurantPollAction(formData: FormData): Promise<void> {
+  const tripId = value(formData, "tripId");
+  const pollId = value(formData, "pollId");
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("로그인이 필요합니다.");
+
+  const removed = await supabase.rpc("delete_own_restaurant_poll", { p_poll_id: pollId });
+  if (removed.error) throw new Error(`투표를 삭제하지 못했습니다: ${removed.error.message}`);
+  if (removed.data !== true) throw new Error("투표를 만든 사람만 삭제할 수 있습니다.");
+  revalidatePath(`/trips/${tripId}`);
 }
 
 export async function toggleRestaurantVoteAction(formData: FormData): Promise<void> {

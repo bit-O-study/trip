@@ -21,6 +21,7 @@ type Props = {
   defaultDate: string;
   timezone: string;
   polls: RestaurantPollView[];
+  initialPollId?: string;
 };
 
 type SearchState =
@@ -40,14 +41,14 @@ function dateInTimezone(iso: string, timezone: string): string {
   return `${read("year")}-${read("month")}-${read("day")}`;
 }
 
-export function PlaceSearch({ tripId, defaultDate, timezone, polls }: Props) {
+export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollId }: Props) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [search, setSearch] = useState<SearchState>({ status: "idle" });
   const [selected, setSelected] = useState<PlaceSearchResult | null>(null);
   const [startLocal, setStartLocal] = useState(`${defaultDate}T09:00`);
   const openPolls = polls.filter((poll) => poll.status === "open");
-  const [pollId, setPollId] = useState(openPolls[0]?.id ?? "");
+  const [pollId, setPollId] = useState(openPolls.some((poll) => poll.id === initialPollId) ? initialPollId! : openPolls[0]?.id ?? "");
 
   const [addState, addAction, adding] = useActionState<ActionState, FormData>(
     addPlaceToTripAction,
@@ -98,8 +99,8 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls }: Props) {
   }
 
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-card p-4">
-      <h2 className="text-base font-semibold">장소 검색</h2>
+    <section id="place-search" className="scroll-mt-24 space-y-4 rounded-xl border border-border bg-card p-4">
+      <div><h2 className="text-base font-semibold">장소 검색</h2>{initialPollId ? <p className="text-sm text-primary">투표가 만들어졌습니다. 장소를 검색해 후보로 등록하세요.</p> : null}</div>
 
       <form onSubmit={runSearch} className="space-y-3">
         <div className="flex gap-2">

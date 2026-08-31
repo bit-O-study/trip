@@ -15,6 +15,7 @@ vi.mock("@/features/trips/actions", () => ({
   deleteItemAction: vi.fn(),
   moveItemUpAction: vi.fn(),
   moveItemDownAction: vi.fn(),
+  moveItemAfterAction: vi.fn(),
   moveItemToDayAction: vi.fn(),
 }));
 

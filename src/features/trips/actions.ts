@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { IDLE, fail, type ActionState } from "@/features/trips/action-state";
 import { itemFormSchema, tripFormSchema } from "@/features/trips/schema";
 import { listItems, getTrip } from "@/features/trips/queries";
-import { planMoveDown, planMoveToDay, planMoveUp, type MovePlan } from "@/features/trips/reorder";
+import { planMoveAfter, planMoveDown, planMoveToDay, planMoveUp, type MovePlan } from "@/features/trips/reorder";
 import type { ItineraryItem } from "@/features/trips/types";
 import { zonedLocalToUtc } from "@/lib/datetime";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -117,16 +118,21 @@ export async function updateTripAction(
 
 export async function softDeleteTripAction(formData: FormData): Promise<void> {
   const tripId = text(formData, "tripId");
+  if (!z.uuid().safeParse(tripId).success) throw new Error("올바르지 않은 여행입니다.");
   const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("로그인이 필요합니다.");
 
   // 물리 삭제가 아니라 deleted_at 을 채운다. 30일 안에는 휴지통에서 복구할 수 있다.
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("trips")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", tripId)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .select("id");
 
   if (error) throw new Error(`삭제하지 못했습니다: ${error.message}`);
+  if (!data || data.length === 0) throw new Error("여행을 삭제할 권한이 없거나 이미 삭제되었습니다.");
 
   revalidatePath("/");
   revalidatePath("/trips/trash");
@@ -280,15 +286,23 @@ export async function updateItemAction(
 export async function deleteItemAction(formData: FormData): Promise<void> {
   const itemId = text(formData, "itemId");
   const tripId = text(formData, "tripId");
+  if (!z.uuid().safeParse(itemId).success || !z.uuid().safeParse(tripId).success) {
+    throw new Error("올바르지 않은 일정입니다.");
+  }
   const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("로그인이 필요합니다.");
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("itinerary_items")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", itemId)
-    .is("deleted_at", null);
+    .eq("trip_id", tripId)
+    .is("deleted_at", null)
+    .select("id");
 
   if (error) throw new Error(`일정을 삭제하지 못했습니다: ${error.message}`);
+  if (!data || data.length === 0) throw new Error("일정을 삭제할 권한이 없거나 이미 삭제되었습니다.");
   revalidatePath(`/trips/${tripId}`);
 }
 
@@ -339,6 +353,13 @@ export async function moveItemDownAction(formData: FormData): Promise<void> {
   const itemId = text(formData, "itemId");
   const tripId = text(formData, "tripId");
   await applyMove(tripId, itemId, (items, timezone) => planMoveDown(items, itemId, timezone));
+}
+
+export async function moveItemAfterAction(formData: FormData): Promise<void> {
+  const itemId = text(formData, "itemId");
+  const targetId = text(formData, "targetId");
+  const tripId = text(formData, "tripId");
+  await applyMove(tripId, itemId, (items) => planMoveAfter(items, itemId, targetId));
 }
 
 export async function moveItemToDayAction(formData: FormData): Promise<void> {

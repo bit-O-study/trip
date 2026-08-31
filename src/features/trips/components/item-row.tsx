@@ -1,8 +1,11 @@
 "use client";
 
+import { useState, useTransition, type DragEvent } from "react";
+
 import {
   deleteItemAction,
   moveItemDownAction,
+  moveItemAfterAction,
   moveItemToDayAction,
   moveItemUpAction,
 } from "@/features/trips/actions";
@@ -81,13 +84,35 @@ export function ItemRow({
   const { selectedId, select } = useItemSelection();
   const selected = selectedId === item.id;
   const mappable = item.coordinate !== null;
+  const [dropTarget, setDropTarget] = useState(false);
+  const [, startTransition] = useTransition();
+
+  function drop(event: DragEvent<HTMLLIElement>) {
+    event.preventDefault();
+    setDropTarget(false);
+    const itemId = event.dataTransfer.getData("text/trip-item-id");
+    if (!itemId || itemId === item.id) return;
+    const formData = new FormData();
+    formData.set("itemId", itemId);
+    formData.set("targetId", item.id);
+    formData.set("tripId", tripId);
+    startTransition(() => moveItemAfterAction(formData));
+  }
 
   return (
     <li
       id={timelineItemDomId(item.id)}
       aria-current={selected ? "true" : undefined}
+      draggable={editable}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/trip-item-id", item.id);
+      }}
+      onDragOver={(event) => { if (editable) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropTarget(true); } }}
+      onDragLeave={() => setDropTarget(false)}
+      onDrop={drop}
       className={`scroll-mt-32 rounded-lg border bg-card px-4 py-3 transition-colors ${
-        selected ? "border-primary bg-primary/5" : "border-border"
+        dropTarget ? "border-primary ring-2 ring-primary/30" : selected ? "border-primary bg-primary/5" : "border-border"
       }`}
     >
       <div className="flex items-start gap-3">
@@ -124,6 +149,7 @@ export function ItemRow({
 
       {editable ? (
         <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
+          <span className="mr-1 cursor-grab select-none text-xs text-muted-foreground" aria-hidden>⠿ 드래그</span>
           {/*
             드래그가 없어도 순서를 바꿀 수 있어야 한다. 드래그를 붙이더라도
             이 버튼들은 남는다 — 키보드·보조기술 사용자의 유일한 경로다.
@@ -191,6 +217,7 @@ export function ItemRow({
             <input type="hidden" name="tripId" value={tripId} />
             <button
               type="submit"
+              data-testid={`delete-item-${item.id}`}
               aria-label={`${item.title} 삭제`}
               className={`${CONTROL} text-muted-foreground hover:text-danger`}
             >
