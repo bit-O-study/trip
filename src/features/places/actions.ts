@@ -68,10 +68,6 @@ export async function addPlaceToTripAction(
     return fail(parsed.error.issues[0]?.message ?? "입력을 확인하세요");
   }
   const input = parsed.data;
-  if (intent === "candidate" && !["food", "cafe"].includes(input.categoryGroup)) {
-    return fail("음식점과 카페만 투표 후보로 등록할 수 있습니다");
-  }
-
   const trip = await getTrip(input.tripId);
   if (!trip) return fail("여행을 찾을 수 없습니다");
 

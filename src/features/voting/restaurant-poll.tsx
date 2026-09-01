@@ -1,15 +1,16 @@
 import type { RestaurantPollView } from "@/features/trips/types";
 import { createRestaurantPollAction, deleteRestaurantPollAction, toggleRestaurantVoteAction } from "@/features/voting/actions";
 import { PollSubmitButton } from "@/features/voting/poll-submit-button";
+import { dayColorVar } from "@/lib/day-color";
 
-export function RestaurantPoll({ tripId, polls, editable, defaultDate, timezone }: {
-  tripId: string; polls: RestaurantPollView[]; editable: boolean; defaultDate: string; timezone: string;
+export function RestaurantPoll({ tripId, polls, editable, defaultDate, timezone, colorOffset = 0, detailPollId }: {
+  tripId: string; polls: RestaurantPollView[]; editable: boolean; defaultDate: string; timezone: string; colorOffset?: number; detailPollId?: string;
 }) {
   return (
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">
       <div>
-        <h2 className="text-base font-semibold">음식점 투표</h2>
-        <p className="text-sm text-muted-foreground">종료되면 최다 득표 음식점이 설정한 시각의 일정으로 자동 확정됩니다.</p>
+        <h2 className="text-base font-semibold">일정 투표</h2>
+        <p className="text-sm text-muted-foreground">종료되면 최다 득표 일정이 설정한 시각의 일정으로 자동 확정됩니다.</p>
       </div>
       {editable ? (
         <details className="rounded-lg border border-border px-3 py-2">
@@ -17,6 +18,7 @@ export function RestaurantPoll({ tripId, polls, editable, defaultDate, timezone 
           <form action={createRestaurantPollAction} className="mt-3 grid gap-3 sm:grid-cols-2">
             <input type="hidden" name="tripId" value={tripId} />
             <label className="space-y-1 text-sm sm:col-span-2"><span className="font-medium">투표 제목</span><input name="title" required maxLength={120} placeholder="첫째 날 점심 투표" className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
+            <label className="space-y-1 text-sm sm:col-span-2"><span className="font-medium">후보를 찾을 위치</span><input name="location" required maxLength={120} placeholder="나주 혁신도시" className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
             <label className="space-y-1 text-sm"><span className="font-medium">일정 시각</span><input type="datetime-local" name="scheduledLocal" required defaultValue={`${defaultDate}T12:00`} className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
             <label className="space-y-1 text-sm"><span className="font-medium">투표 종료 시각</span><input type="datetime-local" name="closesLocal" required defaultValue={`${defaultDate}T10:00`} className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
             <p className="text-xs text-muted-foreground sm:col-span-2">시간대: {timezone} · 동률이면 먼저 등록한 후보를 선택합니다.</p>
@@ -25,9 +27,11 @@ export function RestaurantPoll({ tripId, polls, editable, defaultDate, timezone 
         </details>
       ) : null}
       {polls.length === 0 ? <p className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">아직 만든 투표가 없습니다.</p> : (
-        <div className="space-y-4">{polls.map((poll) => {
+        <div className="space-y-4">{polls.map((poll, pollIndex) => {
           const topVotes = Math.max(0, ...poll.candidates.map((candidate) => candidate.voteCount));
-          return <article key={poll.id} className="space-y-3 rounded-lg border border-border p-3">
+          return <article id={`poll-${poll.id}`} key={poll.id} className="scroll-mt-24 space-y-3 rounded-lg border p-3" style={{ borderColor: dayColorVar(colorOffset + pollIndex) }}>
+            <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span aria-hidden className="size-2.5 rounded-full" style={{ background: dayColorVar(colorOffset + pollIndex) }} />지도에서 이 투표 후보에 사용하는 색상</p>
+            <a href={`/trips/${tripId}?pollDetail=${poll.id}#poll-${poll.id}`} className="text-xs font-medium text-primary underline-offset-2 hover:underline">{detailPollId === poll.id ? "투표 상세 보는 중" : "투표 상세 및 지도 보기"}</a>
             <div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{poll.title}</h3><p className="text-xs text-muted-foreground">일정 {new Date(poll.scheduledAt).toLocaleString("ko-KR", { timeZone: timezone })} · 종료 {new Date(poll.closesAt).toLocaleString("ko-KR", { timeZone: timezone })}</p><p className="text-xs font-medium text-primary">{poll.status === "open" ? "투표 진행 중" : poll.winnerItemId ? "투표 종료 · 일정 자동 확정" : "투표 종료 · 후보 없음"}</p></div>{poll.createdByMe ? <form action={deleteRestaurantPollAction}><input type="hidden" name="tripId" value={tripId} /><input type="hidden" name="pollId" value={poll.id} /><button type="submit" aria-label={`${poll.title} 삭제`} className="shrink-0 rounded-lg border border-danger px-2.5 py-1 text-xs font-medium text-danger hover:bg-danger hover:text-primary-foreground">삭제</button></form> : null}</div>
             {poll.candidates.length === 0 ? <p className="text-sm text-muted-foreground">장소 검색에서 이 투표를 선택해 후보를 등록하세요.</p> : <ol className="space-y-2">{poll.candidates.map((candidate, index) => {
               const winner = poll.winnerItemId === candidate.id;

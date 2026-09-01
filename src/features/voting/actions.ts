@@ -22,6 +22,7 @@ function tokenHash(token: string): string {
 const createPollSchema = z.object({
   tripId: z.uuid(),
   title: z.string().trim().min(1).max(120),
+  location: z.string().trim().min(1).max(120),
   scheduledLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
   closesLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
 });
@@ -30,6 +31,7 @@ export async function createRestaurantPollAction(formData: FormData): Promise<vo
   const parsed = createPollSchema.safeParse({
     tripId: value(formData, "tripId"),
     title: value(formData, "title"),
+    location: value(formData, "location"),
     scheduledLocal: value(formData, "scheduledLocal"),
     closesLocal: value(formData, "closesLocal"),
   });
@@ -53,7 +55,8 @@ export async function createRestaurantPollAction(formData: FormData): Promise<vo
   }).select("id").single();
   if (error) throw new Error(`투표를 만들지 못했습니다: ${error.message}`);
   revalidatePath(`/trips/${parsed.data.tripId}`);
-  redirect(`/trips/${parsed.data.tripId}?poll=${data.id}#place-search`);
+  const params = new URLSearchParams({ poll: data.id, pollLocation: parsed.data.location });
+  redirect(`/trips/${parsed.data.tripId}?${params}#poll-candidate-add`);
 }
 
 export async function deleteRestaurantPollAction(formData: FormData): Promise<void> {
@@ -111,7 +114,6 @@ export async function confirmRestaurantCandidateAction(formData: FormData): Prom
     .update({ status: "confirmed" })
     .eq("id", itemId)
     .eq("trip_id", tripId)
-    .eq("type", "food")
     .eq("status", "candidate");
   if (error) throw new Error(`후보를 확정하지 못했습니다: ${error.message}`);
   revalidatePath(`/trips/${tripId}`);

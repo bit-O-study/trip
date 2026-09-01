@@ -200,6 +200,16 @@ export async function createItemAction(
    * 더해서 쓰는 사이에 다른 사람이 같은 날짜에 항목을 넣으면 값이 겹친다.
    * DB 함수 한 번으로 끝낸다.
    */
+  let placeSnapshot: Record<string, unknown>;
+  try {
+    const found = await searchPlaces({ query: parsed.data.locationText });
+    const place = found.results[0];
+    if (!place) return fail("주소를 지도에서 찾지 못했습니다. 더 구체적으로 입력하세요.");
+    placeSnapshot = { ...place, capturedAt: new Date().toISOString() };
+  } catch (error) {
+    return fail(error instanceof PlaceSearchError ? error.message : "주소의 위치를 확인하지 못했습니다.");
+  }
+
   const { data: sortOrder, error: sortError } = await supabase.rpc("next_sort_order", {
     p_trip_id: parsed.data.tripId,
     p_start_at: startAt,
@@ -213,6 +223,7 @@ export async function createItemAction(
     start_at: startAt,
     end_at: endAt,
     location_text: parsed.data.locationText || null,
+    place_snapshot: placeSnapshot,
     note: parsed.data.note || null,
     sort_order: sortOrder,
     source: "manual",

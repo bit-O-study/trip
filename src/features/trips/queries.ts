@@ -204,7 +204,6 @@ export async function listRestaurantPolls(tripId: string): Promise<RestaurantPol
       .from("itinerary_items")
       .select("id, restaurant_poll_id, title, location_text, place_snapshot")
       .eq("trip_id", tripId)
-      .eq("type", "food")
       .not("restaurant_poll_id", "is", null)
       .in("status", ["candidate", "confirmed", "cancelled"])
       .is("deleted_at", null)

@@ -59,7 +59,7 @@ export const itemFormSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
       .optional()
       .or(z.literal("")),
-    locationText: z.string().trim().max(200).optional().or(z.literal("")),
+    locationText: z.string().trim().min(1, "주소를 입력하세요.").max(200),
     note: z.string().trim().max(2000).optional().or(z.literal("")),
   })
   .refine((value) => !value.endLocal || value.endLocal >= value.startLocal, {

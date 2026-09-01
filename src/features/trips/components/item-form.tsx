@@ -128,6 +128,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
         <input
           id="locationText"
           name="locationText"
+          required
           maxLength={200}
           placeholder="신주쿠 3초메"
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"

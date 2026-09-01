@@ -8,6 +8,9 @@ import { DeleteSubmitButton } from "@/features/trips/components/delete-submit-bu
 type SelectionContextValue = {
   selected: ReadonlySet<string>;
   toggle: (id: string) => void;
+  tripId: string;
+  itemIds: string[];
+  setSelected: (ids: Set<string>) => void;
 };
 
 const SelectionContext = createContext<SelectionContextValue | null>(null);
@@ -39,26 +42,38 @@ export function BulkDeleteProvider({ tripId, itemIds, children }: Props) {
           return next;
         });
       },
+      tripId,
+      itemIds,
+      setSelected,
     }),
-    [activeSelected],
+    [activeSelected, itemIds, tripId],
   );
-
-  const allSelected = itemIds.length > 0 && activeSelected.size === itemIds.length;
 
   return (
     <SelectionContext.Provider value={value}>
-      {itemIds.length > 0 ? (
+      {children}
+    </SelectionContext.Provider>
+  );
+}
+
+export function BulkDeleteToolbar() {
+  const context = useBulkItemSelection();
+  if (!context || context.itemIds.length === 0) return null;
+  const { tripId, itemIds, selected, setSelected } = context;
+  const allSelected = selected.size === itemIds.length;
+
+  return (
         <form
           action={deleteItemsAction}
           onSubmit={(event) => {
-            if (!window.confirm(`선택한 일정 ${activeSelected.size}개를 삭제하시겠습니까?`)) {
+            if (!window.confirm(`선택한 일정 ${selected.size}개를 삭제하시겠습니까?`)) {
               event.preventDefault();
             }
           }}
           className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2"
         >
           <input type="hidden" name="tripId" value={tripId} />
-          {[...activeSelected].map((id) => <input key={id} type="hidden" name="itemId" value={id} />)}
+          {[...selected].map((id) => <input key={id} type="hidden" name="itemId" value={id} />)}
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -67,16 +82,13 @@ export function BulkDeleteProvider({ tripId, itemIds, children }: Props) {
             />
             전체 선택
           </label>
-          <span className="text-sm text-muted-foreground">{activeSelected.size}개 선택</span>
+          <span className="text-sm text-muted-foreground">{selected.size}개 선택</span>
           <DeleteSubmitButton
             idleLabel="선택 일정 삭제"
             pendingLabel="일괄 삭제 중…"
-            disabled={activeSelected.size === 0}
+            disabled={selected.size === 0}
             className="ml-auto rounded-lg border border-danger px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40"
           />
         </form>
-      ) : null}
-      {children}
-    </SelectionContext.Provider>
   );
 }

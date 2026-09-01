@@ -22,6 +22,7 @@ type Props = {
   timezone: string;
   polls: RestaurantPollView[];
   initialPollId?: string;
+  initialQuery?: string;
 };
 
 type SearchState =
@@ -41,8 +42,8 @@ function dateInTimezone(iso: string, timezone: string): string {
   return `${read("year")}-${read("month")}-${read("day")}`;
 }
 
-export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollId }: Props) {
-  const [query, setQuery] = useState("");
+export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollId, initialQuery = "" }: Props) {
+  const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState<string | null>(null);
   const [search, setSearch] = useState<SearchState>({ status: "idle" });
   const [selected, setSelected] = useState<PlaceSearchResult | null>(null);
@@ -227,7 +228,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
             value={JSON.stringify({ ...selected, tripId, startLocal, pollId: pollId || null })}
           />
 
-          {selected.categoryGroup === "food" || selected.categoryGroup === "cafe" ? (
+          {openPolls.length > 0 ? (
             <label className="block space-y-1 text-sm">
               <span className="font-medium">투표 후보로 넣기</span>
               <select value={pollId} onChange={(event) => setPollId(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2">
@@ -253,7 +254,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
             >
               일정에 추가
             </button>
-            {selected.categoryGroup === "food" || selected.categoryGroup === "cafe" ? (
+            {openPolls.length > 0 ? (
               <button
                 type="submit"
                 name="intent"

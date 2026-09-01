@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import type { MapPoint } from "@/features/map/trip-map";
 import { softDeleteTripAction } from "@/features/trips/actions";
-import { BulkDeleteProvider } from "@/features/trips/components/bulk-delete";
+import { BulkDeleteProvider, BulkDeleteToolbar } from "@/features/trips/components/bulk-delete";
 import { DayItemAdd } from "@/features/trips/components/day-item-add";
 import { ItemRow } from "@/features/trips/components/item-row";
 import { TripBoard } from "@/features/trips/components/trip-board";
@@ -16,7 +16,7 @@ import { tripDays, tripDurationLabel, zonedDateKey } from "@/lib/datetime";
 
 type Props = {
   params: Promise<{ tripId: string }>;
-  searchParams: Promise<{ poll?: string }>;
+  searchParams: Promise<{ poll?: string; pollLocation?: string; pollDetail?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function TripDetailPage({ params, searchParams }: Props) {
   const { tripId } = await params;
-  const { poll: createdPollId } = await searchParams;
+  const { poll: createdPollId, pollLocation, pollDetail } = await searchParams;
   const trip = await getTrip(tripId);
   if (!trip) notFound();
 
@@ -35,11 +35,12 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
     listItems(tripId),
     listRestaurantPolls(tripId),
   ]);
-  const restaurantCandidates = restaurantPolls.flatMap((poll) =>
-    poll.status === "open" ? poll.candidates : [],
-  );
   const days = tripDays(trip.startDate, trip.endDate);
   const editable = canEdit(trip.role);
+  const createdPoll = restaurantPolls.find((poll) => poll.id === createdPollId);
+  const createdPollDate = createdPoll
+    ? zonedDateKey(createdPoll.scheduledAt, trip.timezone)
+    : null;
 
   // 여행 시간대 기준으로 묶는다. DB 의 trip_private.item_day() 와 같은 규칙이라
   // 화면의 Day 구분과 저장된 순서가 어긋나지 않는다.
@@ -76,19 +77,23 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
       });
     });
   }
-  for (const [index, candidate] of restaurantCandidates.entries()) {
-    if (!candidate.coordinate) continue;
-    const rating = candidate.googleRating !== null ? ` · ★ ${candidate.googleRating.toFixed(1)}` : "";
-    mapPoints.push({
-      id: candidate.id,
-      title: candidate.title,
-      latitude: candidate.coordinate.latitude,
-      longitude: candidate.coordinate.longitude,
-      dayIndex: 0,
-      order: index + 1,
-      badgeLabel: `${candidate.cuisineType}${rating} · ${candidate.voteCount}표`,
-      warning: candidate.closedOnDate === true ? "쉬는 날입니다" : undefined,
-    });
+  for (const [pollIndex, poll] of restaurantPolls.entries()) {
+    if (poll.status !== "open") continue;
+    if (pollDetail && poll.id !== pollDetail) continue;
+    for (const [index, candidate] of poll.candidates.entries()) {
+      if (!candidate.coordinate) continue;
+      const rating = candidate.googleRating !== null ? ` · ★ ${candidate.googleRating.toFixed(1)}` : "";
+      mapPoints.push({
+        id: candidate.id,
+        title: candidate.title,
+        latitude: candidate.coordinate.latitude,
+        longitude: candidate.coordinate.longitude,
+        dayIndex: days.length + pollIndex,
+        order: index + 1,
+        badgeLabel: `${poll.title} · ${candidate.cuisineType}${rating} · ${candidate.voteCount}표`,
+        warning: candidate.closedOnDate === true ? "쉬는 날입니다" : undefined,
+      });
+    }
   }
 
   return (
@@ -128,7 +133,11 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
             editable={editable}
             defaultDate={days[0]?.date ?? trip.startDate}
             timezone={trip.timezone}
+            colorOffset={days.length}
+            detailPollId={pollDetail}
           />
+
+          <BulkDeleteToolbar />
 
           {days.length > 1 ? (
             <nav
@@ -202,7 +211,8 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                       date={day.date}
                       timezone={trip.timezone}
                       polls={restaurantPolls}
-                      initialPollId={createdPollId}
+                      initialPollId={createdPollDate === day.date ? createdPollId : undefined}
+                      initialQuery={createdPollDate === day.date ? pollLocation : undefined}
                     />
                   ) : null}
                 </section>

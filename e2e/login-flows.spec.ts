@@ -73,6 +73,7 @@ test.describe("로그인 후 핵심 흐름", () => {
     await page.getByText("새 투표 만들기").click();
     const pollForm = page.locator('form:has(input[name="scheduledLocal"])');
     await pollForm.locator('input[name="title"]').fill(pollTitle);
+    await pollForm.locator('input[name="location"]').fill("나주 혁신도시");
     await pollForm.getByRole("button", { name: "투표 만들기" }).click();
 
     // 투표를 만든 뒤 후보를 등록할 곳으로 데려가야 한다.

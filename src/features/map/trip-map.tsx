@@ -116,7 +116,7 @@ export function TripMap({ timezone, ...props }: Props) {
             등록할 주소: <code className="font-mono">{origin}</code>
           </p>
         ) : null}
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="hidden">
           아래 목록으로 일정은 그대로 확인하고 편집할 수 있습니다.
         </p>
       </div>

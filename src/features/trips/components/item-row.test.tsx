@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { BulkDeleteProvider } from "@/features/trips/components/bulk-delete";
+import { BulkDeleteProvider, BulkDeleteToolbar } from "@/features/trips/components/bulk-delete";
 import { ItemRow } from "@/features/trips/components/item-row";
 import { TripBoard } from "@/features/trips/components/trip-board";
 import type { ItineraryItem } from "@/features/trips/types";
@@ -30,7 +30,7 @@ describe("ItemRow", () => {
   it("삭제 전에 확인한다", async () => { const confirm = vi.spyOn(window, "confirm").mockReturnValue(false); const user = userEvent.setup(); renderRow(); await user.click(screen.getByRole("button", { name: "이치란 신주쿠 삭제" })); expect(confirm).toHaveBeenCalledWith("'이치란 신주쿠' 일정을 삭제하시겠습니까?"); confirm.mockRestore(); });
   it("읽기 전용이면 편집 조작이 없다", () => { renderRow({}, { editable: false }); expect(screen.queryByRole("button", { name: "수정" })).not.toBeInTheDocument(); expect(screen.queryByRole("button", { name: /삭제/ })).not.toBeInTheDocument(); });
   it("좌표가 없으면 지도 연결 버튼이 없다", () => { renderRow({ coordinate: null }); expect(screen.queryByRole("button", { name: /지도에서 보기/ })).not.toBeInTheDocument(); });
-  it("다중 선택 체크박스를 제공한다", async () => { const user = userEvent.setup(); render(<BulkDeleteProvider tripId="trip-1" itemIds={["item-1"]}><ol><ItemRow item={item()} order={1} dayIndex={0} timezone={TZ} tripId="trip-1" editable /></ol></BulkDeleteProvider>); await user.click(screen.getByRole("checkbox", { name: "이치란 신주쿠 선택" })); expect(screen.getByText("1개 선택")).toBeInTheDocument(); expect(screen.getByRole("button", { name: "선택 일정 삭제" })).toBeEnabled(); });
+  it("다중 선택 체크박스를 제공한다", async () => { const user = userEvent.setup(); render(<BulkDeleteProvider tripId="trip-1" itemIds={["item-1"]}><BulkDeleteToolbar /><ol><ItemRow item={item()} order={1} dayIndex={0} timezone={TZ} tripId="trip-1" editable /></ol></BulkDeleteProvider>); await user.click(screen.getByRole("checkbox", { name: "이치란 신주쿠 선택" })); expect(screen.getByText("1개 선택")).toBeInTheDocument(); expect(screen.getByRole("button", { name: "선택 일정 삭제" })).toBeEnabled(); });
 });
 
 describe("타임라인과 지도 선택", () => {
