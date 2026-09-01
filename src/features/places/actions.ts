@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { IDLE, fail, type ActionState } from "@/features/trips/action-state";
+import { fail, type ActionState } from "@/features/trips/action-state";
 import { getTrip } from "@/features/trips/queries";
 import { PLACE_CATEGORY_GROUPS, type PlaceCategoryGroup } from "@/features/places/types";
 import type { ItemType } from "@/features/trips/types";
@@ -172,5 +172,8 @@ export async function addPlaceToTripAction(
   if (error) return fail(`일정에 추가하지 못했습니다: ${error.message}`);
 
   revalidatePath(`/trips/${input.tripId}`);
-  return IDLE;
+  return {
+    status: "success",
+    message: intent === "candidate" ? "투표 후보에 장소를 추가했습니다." : "일정에 장소를 추가했습니다.",
+  };
 }

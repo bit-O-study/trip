@@ -101,7 +101,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
 
   return (
     <section id="place-search" className="scroll-mt-24 space-y-4 rounded-xl border border-border bg-card p-4">
-      <div><h2 className="text-base font-semibold">장소 검색</h2>{initialPollId ? <p className="text-sm text-primary">투표가 만들어졌습니다. 장소를 검색해 후보로 등록하세요.</p> : null}</div>
+      <h2 className="text-base font-semibold">장소 검색</h2>
 
       <form onSubmit={runSearch} className="space-y-3">
         <div className="flex gap-2">
@@ -161,6 +161,12 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
               : "아래 '일정 추가'로 직접 입력할 수 있습니다."}
           </p>
         </div>
+      ) : null}
+
+      {addState.status === "success" && addState.message ? (
+        <p role="status" className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm text-primary">
+          {addState.message}
+        </p>
       ) : null}
 
       {search.status === "done" ? (
@@ -252,7 +258,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
               disabled={adding}
               className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              일정에 추가
+              {adding ? "추가 중…" : "일정에 추가"}
             </button>
             {openPolls.length > 0 ? (
               <button
@@ -262,7 +268,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
                 disabled={adding || !pollId}
                 className="flex-1 rounded-lg border border-primary px-4 py-2 text-sm font-medium text-primary transition-opacity hover:bg-primary/10 disabled:opacity-50"
               >
-                투표 후보로 등록
+                {adding ? "등록 중…" : "투표 후보로 등록"}
               </button>
             ) : null}
             <button

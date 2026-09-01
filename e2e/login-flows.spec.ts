@@ -76,9 +76,9 @@ test.describe("로그인 후 핵심 흐름", () => {
     await pollForm.locator('input[name="location"]').fill("나주 혁신도시");
     await pollForm.getByRole("button", { name: "투표 만들기" }).click();
 
-    // 투표를 만든 뒤 후보를 등록할 곳으로 데려가야 한다.
-    await expect(page).toHaveURL(/[?&]poll=[0-9a-f-]{36}/);
-    await expect(page.getByText("투표가 만들어졌습니다. 장소를 검색해 후보로 등록하세요.")).toBeVisible();
+    // 투표를 만든 뒤 해당 투표의 상세 페이지로 이동한다.
+    await expect(page).toHaveURL(/\/trips\/[0-9a-f-]{36}\/polls\/[0-9a-f-]{36}/);
+    await expect(page.getByRole("heading", { name: "장소 검색" })).toBeVisible();
     await expect(page.getByRole("heading", { name: pollTitle })).toBeVisible();
 
     await page.getByRole("button", { name: `${pollTitle} 삭제` }).click();

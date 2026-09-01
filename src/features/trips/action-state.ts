@@ -5,7 +5,7 @@
  * 상수와 헬퍼는 여기에 둔다.
  */
 export type ActionState = {
-  status: "idle" | "error";
+  status: "idle" | "success" | "error";
   message?: string;
   /** 필드별 오류. 폼이 각 입력 아래에 표시한다. */
   fieldErrors?: Record<string, string[]>;
