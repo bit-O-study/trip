@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { IDLE, fail, type ActionState } from "@/features/trips/action-state";
+import { PlaceSearchError, searchPlaces } from "@/features/places/kakao";
 import { itemFormSchema, tripFormSchema } from "@/features/trips/schema";
 import { listItems, getTrip } from "@/features/trips/queries";
 import { planMoveAfter, planMoveDown, planMoveToDay, planMoveUp, type MovePlan } from "@/features/trips/reorder";
@@ -259,17 +260,55 @@ export async function updateItemAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  const current = await supabase
+    .from("itinerary_items")
+    .select("location_text, place_snapshot")
+    .eq("id", itemId)
+    .eq("trip_id", parsed.data.tripId)
+    .eq("updated_at", expectedUpdatedAt)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (current.error) return fail(`일정을 불러오지 못했습니다: ${current.error.message}`);
+  if (!current.data) return fail("다른 사람이 먼저 수정했습니다. 새로고침 후 다시 시도하세요.");
+
+  const nextLocation = parsed.data.locationText || null;
+  let nextSnapshot = current.data.place_snapshot;
+  let clearPlaceId = false;
+  if (nextLocation !== current.data.location_text) {
+    clearPlaceId = true;
+    if (!nextLocation) {
+      nextSnapshot = null;
+    } else {
+      try {
+        const found = await searchPlaces({ query: nextLocation });
+        const place = found.results[0];
+        if (!place) return fail("수정한 장소를 지도에서 찾지 못했습니다. 장소명을 더 구체적으로 입력하세요.");
+        nextSnapshot = { ...place, capturedAt: new Date().toISOString() };
+      } catch (error) {
+        return fail(
+          error instanceof PlaceSearchError
+            ? error.message
+            : "수정한 장소의 위치를 확인하지 못했습니다.",
+        );
+      }
+    }
+  }
+
+  const updates: Record<string, unknown> = {
+    type: parsed.data.type,
+    title: parsed.data.title,
+    start_at: startAt,
+    end_at: endAt,
+    location_text: nextLocation,
+    note: parsed.data.note || null,
+    place_snapshot: nextSnapshot,
+  };
+  if (clearPlaceId) updates.place_id = null;
   const { data, error } = await supabase
     .from("itinerary_items")
-    .update({
-      type: parsed.data.type,
-      title: parsed.data.title,
-      start_at: startAt,
-      end_at: endAt,
-      location_text: parsed.data.locationText || null,
-      note: parsed.data.note || null,
-    })
+    .update(updates)
     .eq("id", itemId)
+    .eq("trip_id", parsed.data.tripId)
     .eq("updated_at", expectedUpdatedAt)
     .is("deleted_at", null)
     .select("id");
@@ -303,6 +342,37 @@ export async function deleteItemAction(formData: FormData): Promise<void> {
 
   if (error) throw new Error(`일정을 삭제하지 못했습니다: ${error.message}`);
   if (!data || data.length === 0) throw new Error("일정을 삭제할 권한이 없거나 이미 삭제되었습니다.");
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function deleteItemsAction(formData: FormData): Promise<void> {
+  const tripId = text(formData, "tripId");
+  const parsed = z
+    .array(z.uuid())
+    .min(1, "삭제할 일정을 선택하세요.")
+    .max(100, "한 번에 최대 100개까지 삭제할 수 있습니다.")
+    .safeParse(formData.getAll("itemId"));
+  if (!z.uuid().safeParse(tripId).success || !parsed.success) {
+    throw new Error(parsed.success ? "올바르지 않은 여행입니다." : parsed.error.issues[0]?.message);
+  }
+
+  const itemIds = [...new Set(parsed.data)];
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("로그인이 필요합니다.");
+
+  const { data, error } = await supabase
+    .from("itinerary_items")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("trip_id", tripId)
+    .in("id", itemIds)
+    .is("deleted_at", null)
+    .select("id");
+
+  if (error) throw new Error(`일정을 삭제하지 못했습니다: ${error.message}`);
+  if (!data || data.length !== itemIds.length) {
+    throw new Error("일부 일정을 삭제할 권한이 없거나 이미 삭제되었습니다.");
+  }
   revalidatePath(`/trips/${tripId}`);
 }
 

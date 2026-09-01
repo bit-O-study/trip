@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import type { MapPoint } from "@/features/map/trip-map";
-import { PlaceSearch } from "@/features/places/components/place-search";
 import { softDeleteTripAction } from "@/features/trips/actions";
-import { ItemForm } from "@/features/trips/components/item-form";
-import { ItemRow, type DayOption } from "@/features/trips/components/item-row";
+import { BulkDeleteProvider } from "@/features/trips/components/bulk-delete";
+import { DayItemAdd } from "@/features/trips/components/day-item-add";
+import { ItemRow } from "@/features/trips/components/item-row";
 import { TripBoard } from "@/features/trips/components/trip-board";
 import { listItems, getTrip, listRestaurantPolls } from "@/features/trips/queries";
 import { canEdit, type ItineraryItem } from "@/features/trips/types";
@@ -91,11 +91,6 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
     });
   }
 
-  const dayOptions: DayOption[] = days.map((day) => ({
-    date: day.date,
-    label: `Day ${day.index + 1} · ${day.shortLabel}(${day.weekday})`,
-  }));
-
   return (
     <div className="space-y-6">
       <header className="space-y-1">
@@ -123,18 +118,10 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
         points={mapPoints}
         mapClassName="h-64 md:h-80"
         initialCenter={trip.destinationName?.includes("제주") ? { latitude: 33.3617, longitude: 126.5292 } : undefined}
+        timezone={trip.timezone}
       >
+        <BulkDeleteProvider tripId={trip.id} itemIds={editable ? items.map((item) => item.id) : []}>
         <div className="space-y-6">
-          {editable ? (
-            <PlaceSearch
-              tripId={trip.id}
-              defaultDate={days[0]?.date ?? trip.startDate}
-              timezone={trip.timezone}
-              polls={restaurantPolls}
-              initialPollId={createdPollId}
-            />
-          ) : null}
-
           <RestaurantPoll
             tripId={trip.id}
             polls={restaurantPolls}
@@ -204,17 +191,19 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                           timezone={trip.timezone}
                           tripId={trip.id}
                           editable={editable}
-                          canMoveUp={index > 0}
-                          canMoveDown={index < dayItems.length - 1}
-                          dayOptions={dayOptions}
-                          currentDate={day.date}
                         />
                       ))}
                     </ol>
                   )}
 
                   {editable ? (
-                    <ItemForm tripId={trip.id} defaultDate={day.date} timezone={trip.timezone} />
+                    <DayItemAdd
+                      tripId={trip.id}
+                      date={day.date}
+                      timezone={trip.timezone}
+                      polls={restaurantPolls}
+                      initialPollId={createdPollId}
+                    />
                   ) : null}
                 </section>
               );
@@ -241,10 +230,6 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                         timezone={trip.timezone}
                         tripId={trip.id}
                         editable={editable}
-                        canMoveUp={index > 0}
-                        canMoveDown={index < dayItems.length - 1}
-                        dayOptions={dayOptions}
-                        currentDate={date}
                       />
                     ))}
                   </ol>
@@ -253,6 +238,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
             </section>
           ) : null}
         </div>
+        </BulkDeleteProvider>
       </TripBoard>
 
       {trip.role === "owner" ? (

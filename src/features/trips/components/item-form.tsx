@@ -12,6 +12,8 @@ type Props = {
   /** 기본 날짜 ("2026-02-14"). 지금 보고 있는 Day 를 넣는다. */
   defaultDate: string;
   timezone: string;
+  defaultOpen?: boolean;
+  onCancel?: () => void;
 };
 
 function FieldError({ errors }: { errors?: string[] }) {
@@ -23,8 +25,8 @@ function FieldError({ errors }: { errors?: string[] }) {
   );
 }
 
-export function ItemForm({ tripId, defaultDate, timezone }: Props) {
-  const [open, setOpen] = useState(false);
+export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, onCancel }: Props) {
+  const [open, setOpen] = useState(defaultOpen);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     createItemAction,
     IDLE,
@@ -153,7 +155,10 @@ export function ItemForm({ tripId, defaultDate, timezone }: Props) {
         </button>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            setOpen(false);
+            onCancel?.();
+          }}
           className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
         >
           취소

@@ -45,9 +45,11 @@ type Props = {
   mapClassName?: string;
   children: React.ReactNode;
   initialCenter?: { latitude: number; longitude: number };
+  /** 여행의 기준 시간대. 좌표가 없는 여행의 국내/해외 지도 판정에 쓴다. */
+  timezone?: string | null;
 };
 
-export function TripBoard({ points, mapClassName, children, initialCenter }: Props) {
+export function TripBoard({ points, mapClassName, children, initialCenter, timezone }: Props) {
   const [selected, setSelected] = useState<{ id: string; origin: Origin } | null>(null);
 
   const select = useCallback((id: string | null, origin: Origin) => {
@@ -99,6 +101,7 @@ export function TripBoard({ points, mapClassName, children, initialCenter }: Pro
         recenter={selected?.origin === "timeline"}
         onSelect={(id) => select(id, "map")}
         initialCenter={initialCenter}
+        timezone={timezone}
       />
       {children}
     </SelectionContext.Provider>

@@ -52,9 +52,23 @@
 | UI | Next.js App Router, React, TypeScript, Tailwind CSS |
 | 인증·DB·실시간 | Supabase Auth, PostgreSQL, Row Level Security |
 | 배포 | Vercel |
-| 장소 | Kakao Maps JavaScript SDK + Kakao Local REST API |
+| 지도 | 국내 Kakao Maps JavaScript SDK / 해외 Google Maps JavaScript API |
+| 장소 | Kakao Local REST API |
 | 로그인 | Supabase OAuth를 통한 Google·Kakao |
 | 항공편 | 서버 측 provider adapter 뒤에 공급자 연결 (→ [ADR-0001](adr/0001-flight-data-provider.md)) |
+
+### 지도는 국내 Kakao, 해외 Google 로 가른다
+
+두 공급자를 함께 두는 이유는 하나가 다른 하나를 대체하지 못하기 때문이다.
+
+- **Kakao** 는 무료 쿼터가 넉넉하고 국내 지도 품질이 가장 좋지만, 한국 밖은 지도가 사실상 비어 있다.
+- **Google** 은 어디든 나오지만 **결제 계정이 연결돼야 한다.** 무료 크레딧도 결제 계정 없이는 적용되지 않는다. 카드 없이 쓰는 방법은 없다.
+
+그래서 국내 여행은 Kakao 로 그려 과금을 0 으로 두고, Kakao 로 그릴 수 없는 해외 여행만 Google 로 보낸다. 과금 대상이 실제로 필요한 경우로 좁혀진다.
+
+**판정은 좌표가 한다** (`src/features/map/region.ts`). 목적지 이름은 자유 입력이라 믿을 수 없고, 지도가 감당해야 하는 것은 화면에 찍히는 좌표다. 한 점이라도 한국 밖이면 Kakao 로 그 점을 보여 줄 수 없으므로 해외로 본다. 좌표가 아직 없는 새 여행만 여행의 `timezone` 으로 정한다.
+
+경계는 사각형이 아니라 다각형이다. 위경도 범위만 자르면 **쓰시마(34.4N/129.3E)와 후쿠오카(33.6N/130.4E)가 국내로 들어온다** — 규슈는 제주보다 북쪽까지 올라오고 쓰시마는 부산 남서쪽에 있다. 본토는 다각형, 제주·울릉/독도·서해 5도·서남해 도서는 별도 상자로 둔다.
 
 ### 장소 검색을 Kakao로 단일화하는 근거
 
@@ -92,6 +106,7 @@ DB 저장 표준     → WGS84 (latitude, longitude) numeric
 |---|---|---|---|
 | Kakao Maps Web SDK | 300,000 | 60% (180,000) | — |
 | Kakao Local 키워드 검색 | 100,000 | 60% (60,000) | 90% 도달 시 검색 degraded mode |
+| Google Maps JavaScript API | 없음 (결제 계정 필수) | — | 해외 여행에서만 호출된다 |
 
 > **주의: Kakao 무료 쿼터는 개발자 계정에서 최초로 활성화한 앱 1개에만 제공된다.** 개발용·운영용 앱을 따로 만들면 뒤에 만든 앱에는 무료 쿼터가 붙지 않는다. 앱 생성 전략을 먼저 정하고 시작할 것.
 

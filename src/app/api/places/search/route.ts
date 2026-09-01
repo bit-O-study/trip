@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { GooglePlaceSearchError, searchGooglePlaces } from "@/features/places/google";
+import {
+  CATEGORY_FILTERS,
+  PlaceSearchError,
+  searchPlaces,
+} from "@/features/places/kakao";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -62,14 +66,15 @@ export async function GET(request: Request) {
     );
   }
 
-  const { q, category, date, lat, lng } = parsed.data;
+  const { q, page, category, lat, lng } = parsed.data;
 
   try {
-    const result = await searchGooglePlaces({
+    const result = await searchPlaces({
       query: q,
-      category,
-      date,
+      page,
+      categoryGroupCode: CATEGORY_FILTERS.find((filter) => filter.group === category)?.code,
       center: lat !== undefined && lng !== undefined ? { latitude: lat, longitude: lng } : undefined,
+      radiusMeters: lat !== undefined && lng !== undefined ? 50_000 : undefined,
     });
 
     return NextResponse.json(result, {
@@ -78,14 +83,17 @@ export async function GET(request: Request) {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
-    if (error instanceof GooglePlaceSearchError) {
+    if (error instanceof PlaceSearchError) {
       /*
        * degraded mode — 검색만 막히고 저장된 일정 조회와 수동 입력은 계속
        * 동작해야 한다. 그래서 500 이 아니라 상황에 맞는 코드를 돌려주고
        * 화면이 "직접 입력" 으로 안내하게 한다.
        */
-      const status =
-        error.kind === "not_configured" ? 503 : error.kind === "quota" ? 429 : 502;
+      const status = error.kind === "not_configured"
+        ? 503
+        : error.kind === "quota" || error.kind === "rate_limited"
+          ? 429
+          : 502;
       return NextResponse.json({ error: error.message, kind: error.kind }, { status });
     }
     throw error;

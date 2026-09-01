@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
 const TRIP_ID = "00000000-0000-4000-8000-000000000010";
 const ITEM_ID = "00000000-0000-4000-8000-000000000020";
+const ITEM_ID_2 = "00000000-0000-4000-8000-000000000021";
 
 function deleteClient(result: { data: Array<{ id: string }> | null; error: { message: string } | null }) {
   const select = vi.fn().mockResolvedValue(result);
@@ -72,5 +73,29 @@ describe("삭제 Server Actions", () => {
 
     await expect(deleteItemAction(form)).rejects.toThrow("올바르지 않은 일정");
     expect(mocks.createClient).not.toHaveBeenCalled();
+  });
+
+  it("선택한 여러 일정을 한 요청으로 삭제한다", async () => {
+    const select = vi.fn().mockResolvedValue({ data: [{ id: ITEM_ID }, { id: ITEM_ID_2 }], error: null });
+    const query = { update: vi.fn(), eq: vi.fn(), in: vi.fn(), is: vi.fn(), select };
+    query.update.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.in.mockReturnValue(query);
+    query.is.mockReturnValue(query);
+    mocks.createClient.mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } }) },
+      from: vi.fn().mockReturnValue(query),
+    });
+    const { deleteItemsAction } = await import("@/features/trips/actions");
+    const form = new FormData();
+    form.set("tripId", TRIP_ID);
+    form.append("itemId", ITEM_ID);
+    form.append("itemId", ITEM_ID_2);
+
+    await deleteItemsAction(form);
+
+    expect(query.eq).toHaveBeenCalledWith("trip_id", TRIP_ID);
+    expect(query.in).toHaveBeenCalledWith("id", [ITEM_ID, ITEM_ID_2]);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith(`/trips/${TRIP_ID}`);
   });
 });
