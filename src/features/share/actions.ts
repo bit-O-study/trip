@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import type { ShareActionState } from "@/features/share/types";
+import { isShareReadable } from "@/features/share/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /*
@@ -39,6 +40,9 @@ function newShortId(): string {
 }
 
 async function issue(tripId: string): Promise<ShareActionState> {
+  if (!isShareReadable()) {
+    return { status: "error", message: "공개 공유를 준비 중입니다. 참여 초대 링크를 이용해 주세요." };
+  }
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { status: "error", message: "로그인이 필요합니다" };
@@ -84,6 +88,11 @@ export async function rotateShareLinkAction(
   const tripId = value(formData, "tripId");
   if (!z.uuid().safeParse(tripId).success) {
     return { status: "error", message: "올바르지 않은 여행입니다" };
+  }
+
+  // 새 링크를 열 수 없는 상태에서는 기존 링크도 폐기하지 않는다.
+  if (!isShareReadable()) {
+    return { status: "error", message: "공개 공유를 준비 중입니다. 참여 초대 링크를 이용해 주세요." };
   }
 
   const supabase = await createSupabaseServerClient();

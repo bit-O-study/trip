@@ -59,8 +59,7 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
       */}
       {readable ? null : (
         <p role="alert" className="rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-sm text-danger">
-          서버에 SUPABASE_SERVICE_ROLE_KEY 가 없어 지금 만든 링크는 열리지 않습니다.
-          환경변수를 설정한 뒤 사용하세요.
+          공개 공유를 준비 중입니다. 아래의 참여 초대 링크로 여행을 공유해 주세요.
         </p>
       )}
 
@@ -69,7 +68,7 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
           <input type="hidden" name="tripId" value={tripId} />
           <button
             type="submit"
-            disabled={creating || rotating}
+            disabled={!readable || creating || rotating}
             className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
           >
             {creating ? "만드는 중…" : "공유 링크 만들기"}
@@ -80,7 +79,7 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
             <input type="hidden" name="tripId" value={tripId} />
             <button
               type="submit"
-              disabled={creating || rotating}
+              disabled={!readable || creating || rotating}
               className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
             >
               {rotating ? "교체 중…" : "링크 새로 발급(기존 폐기)"}

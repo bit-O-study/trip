@@ -3,61 +3,38 @@
 import { useActionState, useState } from "react";
 
 import { createVoteInviteAction } from "@/features/voting/actions";
+import { shareInvite } from "@/features/voting/share-invite";
 import { INVITE_IDLE } from "@/features/voting/types";
-
-type KakaoSdk = {
-  isInitialized(): boolean;
-  init(key: string): void;
-  Share: { sendDefault(options: Record<string, unknown>): void };
-};
-
-declare global {
-  interface Window { Kakao?: KakaoSdk }
-}
-
-async function loadKakaoSdk(): Promise<KakaoSdk> {
-  if (!window.Kakao) {
-    await new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector<HTMLScriptElement>('script[data-kakao-sdk="share"]');
-      if (existing) {
-        existing.addEventListener("load", () => resolve(), { once: true });
-        existing.addEventListener("error", () => reject(new Error("카카오 SDK를 불러오지 못했습니다.")), { once: true });
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js";
-      script.dataset.kakaoSdk = "share";
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("카카오 SDK를 불러오지 못했습니다."));
-      document.head.appendChild(script);
-    });
-  }
-  if (!window.Kakao) throw new Error("카카오 SDK를 사용할 수 없습니다.");
-  const key = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
-  if (!key) throw new Error("카카오 JavaScript 키가 설정되지 않았습니다.");
-  if (!window.Kakao.isInitialized()) window.Kakao.init(key);
-  return window.Kakao;
-}
 
 export function InviteLink({ tripId, tripTitle }: { tripId: string; tripTitle: string }) {
   const [state, action, pending] = useActionState(createVoteInviteAction, INVITE_IDLE);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
   const url = state.invitePath;
 
-  async function shareToKakao() {
+  async function copyInvite() {
     if (!url) return;
-    const inviteUrl = new URL(url, window.location.origin).toString();
     setShareError(null);
+    setShareNotice(null);
     try {
-      const kakao = await loadKakaoSdk();
-      kakao.Share.sendDefault({
-        objectType: "text",
-        text: `${tripTitle} 여행에 초대합니다. 함께 일정을 확인하고 음식점 투표에 참여해 보세요.`,
-        link: { mobileWebUrl: inviteUrl, webUrl: inviteUrl },
-        buttonTitle: "초대 수락하기",
-      });
+      await navigator.clipboard.writeText(new URL(url, window.location.origin).toString());
+      setShareNotice("초대 링크를 복사했습니다. 카카오톡 대화창에 붙여 넣으세요.");
+    } catch {
+      setShareError("복사하지 못했습니다. 위의 초대 링크를 선택해 직접 복사해 주세요.");
+    }
+  }
+
+  async function shareInvitation() {
+    if (!url) return;
+    setShareError(null);
+    setShareNotice(null);
+    try {
+      const result = await shareInvite(url, tripTitle);
+      if (result === "copied") {
+        setShareNotice("초대 링크를 복사했습니다. 카카오톡 대화창에 붙여 넣으세요.");
+      }
     } catch (error) {
-      setShareError(error instanceof Error ? error.message : "카카오톡 공유를 시작하지 못했습니다.");
+      setShareError(error instanceof Error ? error.message : "공유하지 못했습니다. 링크를 복사해 전달해 주세요.");
     }
   }
 
@@ -90,25 +67,27 @@ export function InviteLink({ tripId, tripTitle }: { tripId: string; tripTitle: s
           <p className="text-xs text-muted-foreground">7일 동안 최대 20명이 참여할 수 있습니다. 역할은 나중에 참여자 목록에서 바꿀 수 있습니다.</p>
           <input
             readOnly
-            value={url}
+            value={typeof window === "undefined" ? url : new URL(url, window.location.origin).toString()}
             aria-label="참여 초대 링크"
             onFocus={(event) => event.currentTarget.select()}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
           />
           <button
             type="button"
-            onClick={() => navigator.clipboard.writeText(new URL(url, window.location.origin).toString())}
+            onClick={copyInvite}
             className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
           >
             링크 복사
           </button>
           <button
             type="button"
-            onClick={shareToKakao}
+            onClick={shareInvitation}
             className="ml-2 rounded-lg bg-[#FEE500] px-3 py-2 text-sm font-medium text-[#191919] hover:brightness-95"
           >
-            카카오톡으로 초대
+            카카오톡 등으로 초대
           </button>
+          <p className="text-xs text-muted-foreground">공유 창에서 카카오톡을 선택하세요. 공유 창이 지원되지 않으면 링크가 복사됩니다.</p>
+          {shareNotice ? <p role="status" className="text-sm text-muted-foreground">{shareNotice}</p> : null}
           {shareError ? <p role="alert" className="text-sm text-danger">{shareError}</p> : null}
         </div>
       ) : null}
