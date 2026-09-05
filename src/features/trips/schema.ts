@@ -59,7 +59,14 @@ export const itemFormSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
       .optional()
       .or(z.literal("")),
-    locationText: z.string().trim().min(1, "주소를 입력하세요.").max(200),
+    /*
+     * 장소는 선택 입력이다.
+     *
+     * 필수로 두면 "공항 3층 만남의 광장" 처럼 지도에 없는 약속이나 메모성
+     * 일정을 아예 못 만든다. 좌표는 붙으면 좋은 것이지 저장의 조건이 아니다
+     * (docs/architecture.md 의 degraded mode 정책).
+     */
+    locationText: z.string().trim().max(200).optional().or(z.literal("")),
     note: z.string().trim().max(2000).optional().or(z.literal("")),
   })
   .refine((value) => !value.endLocal || value.endLocal >= value.startLocal, {

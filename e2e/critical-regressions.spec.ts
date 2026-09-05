@@ -15,6 +15,20 @@ test.describe("배포 전 핵심 회귀", () => {
     await expect(page).not.toHaveURL(/\/login(?:\?|$)/);
   });
 
+  test("지정한 기존 여행을 목록에서 열고 새로고침할 수 있다", async ({ page }) => {
+    const tripId = process.env.E2E_TRIP_ID;
+    test.skip(!tripId, "E2E_TRIP_ID가 있어야 기존 여행 진입 회귀를 검증합니다.");
+    const tripLink = page.locator(`main a[href="/trips/${tripId}"]`);
+    await expect(tripLink).toBeVisible();
+    await tripLink.click();
+    await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`));
+    await expect(page.locator("main h1")).toBeVisible();
+    await expect(page.getByRole("button", { name: /함께하는 사람 \d+명 보기/ })).toBeVisible();
+    await page.reload();
+    await expect(page.locator("main h1")).toBeVisible();
+    await expect(page.getByRole("button", { name: /함께하는 사람 \d+명 보기/ })).toBeVisible();
+  });
+
   test("기존 여행 상세에서 Google 지도가 실제로 표시된다", async ({ page }) => {
     const firstTrip = page.locator('main a[href^="/trips/"]:not([href="/trips/new"]):not([href="/trips/trash"])').first();
     test.skip((await firstTrip.count()) === 0, "계정에 지도 확인용 여행이 없습니다.");

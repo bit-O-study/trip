@@ -171,6 +171,11 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
           {state.message}
         </p>
       ) : null}
+      {state.status === "success" && state.message ? (
+        <p role="status" className="text-sm text-primary">
+          {state.message}
+        </p>
+      ) : null}
 
       <button
         type="submit"

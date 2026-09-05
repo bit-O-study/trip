@@ -18,6 +18,30 @@ function text(formData: FormData, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
+/**
+ * 직접 입력한 장소 문자열에 좌표를 붙여 본다.
+ *
+ * **실패해도 저장을 막지 않는다.** 좌표는 지도에 점을 찍기 위한 덤이고, 일정
+ * 자체는 "공항 3층 만남의 광장" 처럼 지도에 없는 곳으로도 만들 수 있어야 한다.
+ * 검색이 막혔다고 일정 추가 경로까지 함께 죽으면 degraded mode 가 아니라
+ * 그냥 장애다 (docs/architecture.md §1 의 외부 API 장애 정책).
+ *
+ * 결과가 없거나 검색이 실패하면 null 을 돌려주고, 항목은 글자로만 남는다.
+ */
+async function lookupSnapshot(
+  locationText: string | undefined,
+): Promise<Record<string, unknown> | null> {
+  if (!locationText) return null;
+  try {
+    const found = await searchPlaces({ query: locationText });
+    const place = found.results[0];
+    return place ? { ...place, capturedAt: new Date().toISOString() } : null;
+  } catch (error) {
+    if (error instanceof PlaceSearchError) return null;
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 여행
 // ---------------------------------------------------------------------------
@@ -114,7 +138,12 @@ export async function updateTripAction(
 
   revalidatePath("/");
   revalidatePath(`/trips/${tripId}`);
-  return IDLE;
+  /*
+   * 성공을 명시적으로 알린다. IDLE 로 돌려주면 화면이 아무 반응도 하지 않아
+   * 저장이 됐는지 알 수 없다. 재검증으로 폼의 expectedUpdatedAt 도 새 값으로
+   * 갈아 끼워지므로 연달아 저장해도 충돌로 잡히지 않는다.
+   */
+  return { status: "success", message: "여행 정보를 저장했습니다." };
 }
 
 export async function softDeleteTripAction(formData: FormData): Promise<void> {
@@ -142,15 +171,29 @@ export async function softDeleteTripAction(formData: FormData): Promise<void> {
 
 export async function restoreTripAction(formData: FormData): Promise<void> {
   const tripId = text(formData, "tripId");
+  if (!z.uuid().safeParse(tripId).success) throw new Error("올바르지 않은 여행입니다.");
   const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("로그인이 필요합니다.");
 
-  const { error } = await supabase
+  /*
+   * 삭제와 같은 방식으로 영향받은 행을 확인한다.
+   *
+   * 확인하지 않으면 RLS 가 막았을 때(편집 권한이 없는 참여자)에도 오류가 없다.
+   * 화면은 재검증으로 새로 그려지고 여행은 휴지통에 그대로 남으므로, 사용자는
+   * "복구를 눌렀는데 아무 일도 일어나지 않는" 상태를 반복하게 된다.
+   */
+  const { data, error } = await supabase
     .from("trips")
     .update({ deleted_at: null })
     .eq("id", tripId)
-    .not("deleted_at", "is", null);
+    .not("deleted_at", "is", null)
+    .select("id");
 
   if (error) throw new Error(`복구하지 못했습니다: ${error.message}`);
+  if (!data || data.length === 0) {
+    throw new Error("여행을 복구할 권한이 없거나 이미 복구되었습니다.");
+  }
 
   revalidatePath("/");
   revalidatePath("/trips/trash");
@@ -200,15 +243,7 @@ export async function createItemAction(
    * 더해서 쓰는 사이에 다른 사람이 같은 날짜에 항목을 넣으면 값이 겹친다.
    * DB 함수 한 번으로 끝낸다.
    */
-  let placeSnapshot: Record<string, unknown>;
-  try {
-    const found = await searchPlaces({ query: parsed.data.locationText });
-    const place = found.results[0];
-    if (!place) return fail("주소를 지도에서 찾지 못했습니다. 더 구체적으로 입력하세요.");
-    placeSnapshot = { ...place, capturedAt: new Date().toISOString() };
-  } catch (error) {
-    return fail(error instanceof PlaceSearchError ? error.message : "주소의 위치를 확인하지 못했습니다.");
-  }
+  const placeSnapshot = await lookupSnapshot(parsed.data.locationText);
 
   const { data: sortOrder, error: sortError } = await supabase.rpc("next_sort_order", {
     p_trip_id: parsed.data.tripId,
@@ -286,23 +321,10 @@ export async function updateItemAction(
   let nextSnapshot = current.data.place_snapshot;
   let clearPlaceId = false;
   if (nextLocation !== current.data.location_text) {
+    // 장소 문자열이 바뀌면 옛 스냅샷은 더 이상 이 항목의 위치가 아니다.
+    // 비웠으면 좌표도 함께 지운다 — 지울 방법이 없으면 잘못 붙은 핀이 영원히 남는다.
     clearPlaceId = true;
-    if (!nextLocation) {
-      nextSnapshot = null;
-    } else {
-      try {
-        const found = await searchPlaces({ query: nextLocation });
-        const place = found.results[0];
-        if (!place) return fail("수정한 장소를 지도에서 찾지 못했습니다. 장소명을 더 구체적으로 입력하세요.");
-        nextSnapshot = { ...place, capturedAt: new Date().toISOString() };
-      } catch (error) {
-        return fail(
-          error instanceof PlaceSearchError
-            ? error.message
-            : "수정한 장소의 위치를 확인하지 못했습니다.",
-        );
-      }
-    }
+    nextSnapshot = await lookupSnapshot(nextLocation ?? undefined);
   }
 
   const updates: Record<string, unknown> = {
@@ -364,7 +386,13 @@ export async function deleteItemsAction(formData: FormData): Promise<void> {
     .max(100, "한 번에 최대 100개까지 삭제할 수 있습니다.")
     .safeParse(formData.getAll("itemId"));
   if (!z.uuid().safeParse(tripId).success || !parsed.success) {
-    throw new Error(parsed.success ? "올바르지 않은 여행입니다." : parsed.error.issues[0]?.message);
+    throw new Error(
+      parsed.success
+        ? "올바르지 않은 여행입니다."
+        : // issues 가 비는 경우는 없어야 하지만, 비면 `new Error(undefined)` 가
+          // 되어 화면에 빈 오류가 뜬다.
+          (parsed.error.issues[0]?.message ?? "삭제할 일정을 확인하세요."),
+    );
   }
 
   const itemIds = [...new Set(parsed.data)];

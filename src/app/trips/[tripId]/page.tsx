@@ -2,16 +2,22 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import type { MapPoint } from "@/features/map/trip-map";
-import { softDeleteTripAction } from "@/features/trips/actions";
+import { listShareLinks } from "@/features/share/queries";
+import { isShareReadable } from "@/features/share/server";
+import { ShareLinkManager } from "@/features/share/share-link-manager";
+import { softDeleteTripAction, updateTripAction } from "@/features/trips/actions";
 import { BulkDeleteProvider, BulkDeleteToolbar } from "@/features/trips/components/bulk-delete";
 import { DayItemAdd } from "@/features/trips/components/day-item-add";
 import { ItemRow } from "@/features/trips/components/item-row";
 import { TripBoard } from "@/features/trips/components/trip-board";
-import { listItems, getTrip, listRestaurantPolls } from "@/features/trips/queries";
+import { TripForm } from "@/features/trips/components/trip-form";
+import { TripMembers } from "@/features/trips/components/trip-members";
+import { listItems, getTrip, listRestaurantPolls, listTripMembers } from "@/features/trips/queries";
 import { canEdit, type ItineraryItem } from "@/features/trips/types";
 import { InviteLink } from "@/features/voting/invite-link";
 import { RestaurantPoll } from "@/features/voting/restaurant-poll";
 import { dayColorVar } from "@/lib/day-color";
+import { getCurrentUser } from "@/lib/supabase/user";
 import { tripDays, tripDurationLabel, zonedDateKey } from "@/lib/datetime";
 
 type Props = {
@@ -31,12 +37,28 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
   const trip = await getTrip(tripId);
   if (!trip) notFound();
 
-  const [items, restaurantPolls] = await Promise.all([
+  const [items, restaurantPolls, members, shareLinks, viewer] = await Promise.all([
     listItems(tripId),
     listRestaurantPolls(tripId),
+    listTripMembers(tripId),
+    // owner 가 아니면 RLS 가 빈 목록을 준다. 화면에서 다시 판정하지 않는다.
+    listShareLinks(tripId),
+    // 화면 표시용이다. 권한 판정은 trip.role 과 RLS 가 한다.
+    getCurrentUser(),
   ]);
   const days = tripDays(trip.startDate, trip.endDate);
   const editable = canEdit(trip.role);
+
+  /*
+   * 새 투표의 기본 날짜.
+   *
+   * 무조건 첫날을 쓰면 이미 시작한 여행에서 지난 날짜가 기본값이 된다.
+   * 투표 종료 시각이 과거면 만들자마자 확정돼 "후보 없음" 으로 끝나므로,
+   * 아직 오지 않은 첫 날을 고른다.
+   */
+  const todayKey = zonedDateKey(new Date(), trip.timezone);
+  const pollDefaultDate =
+    days.find((day) => day.date >= todayKey)?.date ?? days.at(-1)?.date ?? trip.startDate;
 
   // 여행 시간대 기준으로 묶는다. DB 의 trip_private.item_day() 와 같은 규칙이라
   // 화면의 Day 구분과 저장된 순서가 어긋나지 않는다.
@@ -85,6 +107,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
         longitude: candidate.coordinate.longitude,
         dayIndex: days.length + pollIndex,
         order: index + 1,
+        kind: "candidate",
         badgeLabel: `${poll.title} · ${candidate.cuisineType}${rating} · ${candidate.voteCount}표`,
         warning: candidate.closedOnDate === true ? "쉬는 날입니다" : undefined,
       });
@@ -93,8 +116,9 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{trip.title}</h1>
+      <header className="flex items-start justify-between gap-4">
+        <div className="min-w-0 space-y-1">
+        <h1 className="truncate text-2xl font-semibold tracking-tight">{trip.title}</h1>
         <p className="text-sm text-muted-foreground">
           {trip.destinationName ? `${trip.destinationName} · ` : ""}
           {trip.startDate} ~ {trip.endDate}
@@ -108,6 +132,13 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
         {!editable ? (
           <p className="text-sm text-muted-foreground">읽기 전용으로 참여 중입니다.</p>
         ) : null}
+        </div>
+        <TripMembers
+          members={members}
+          manageable={trip.role === "owner"}
+          tripId={trip.id}
+          currentUserId={viewer?.id ?? null}
+        />
       </header>
 
       {/*
@@ -117,7 +148,13 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
       <TripBoard
         points={mapPoints}
         mapClassName="h-64 md:h-80"
-        initialCenter={trip.destinationName?.includes("제주") ? { latitude: 33.3617, longitude: 126.5292 } : undefined}
+        /*
+         * 첫 점을 초기 중심으로 준다. 점이 여럿이면 지도가 곧바로 bounds 로
+         * 다시 잡으므로 실제로는 "아직 점이 하나뿐일 때" 를 위한 값이다.
+         * (목적지 이름을 문자열로 비교해 좌표를 박아 넣던 자리다 — 제주만
+         *  맞고 나머지 목적지는 전부 틀렸다.)
+         */
+        initialCenter={mapPoints[0] ? { latitude: mapPoints[0].latitude, longitude: mapPoints[0].longitude } : undefined}
         timezone={trip.timezone}
       >
         <BulkDeleteProvider tripId={trip.id} itemIds={editable ? items.map((item) => item.id) : []}>
@@ -126,7 +163,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
             tripId={trip.id}
             polls={restaurantPolls}
             editable={editable}
-            defaultDate={days[0]?.date ?? trip.startDate}
+            defaultDate={pollDefaultDate}
             timezone={trip.timezone}
           />
 
@@ -193,6 +230,10 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                           timezone={trip.timezone}
                           tripId={trip.id}
                           editable={editable}
+                          days={days}
+                          isFirst={index === 0}
+                          isLast={index === dayItems.length - 1}
+                          dateKey={day.date}
                         />
                       ))}
                     </ol>
@@ -231,6 +272,10 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                         timezone={trip.timezone}
                         tripId={trip.id}
                         editable={editable}
+                        days={days}
+                        isFirst={index === 0}
+                        isLast={index === dayItems.length - 1}
+                        dateKey={date}
                       />
                     ))}
                   </ol>
@@ -242,23 +287,69 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
         </BulkDeleteProvider>
       </TripBoard>
 
-      {trip.role === "owner" ? (
+      {editable ? (
         <details className="rounded-xl border border-border px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium">여행 관리</summary>
-          <div className="mt-3 space-y-3">
-            <InviteLink tripId={trip.id} />
-            <p className="text-sm text-muted-foreground">
-              삭제해도 30일 동안 휴지통에 남아 복구할 수 있습니다.
-            </p>
-            <form action={softDeleteTripAction}>
-              <input type="hidden" name="tripId" value={trip.id} />
-              <button
-                type="submit"
-                className="rounded-lg border border-danger px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger hover:text-primary-foreground"
+          <div className="mt-4 space-y-6">
+            <section className="space-y-2">
+              <h2 className="text-sm font-medium">데이터 내보내기</h2>
+              <p className="text-xs text-muted-foreground">
+                일정·참여자·투표를 JSON 파일로 내려받습니다. 서비스를 떠나더라도 기록은
+                가져갈 수 있어야 합니다.
+              </p>
+              <a
+                href={`/api/trips/${trip.id}/export`}
+                download
+                className="inline-block rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
               >
-                여행 삭제
-              </button>
-            </form>
+                여행 JSON 내려받기
+              </a>
+            </section>
+
+            <section className="space-y-3 border-t border-border pt-5">
+              <h2 className="text-sm font-medium">여행 정보 수정</h2>
+              {/*
+                제목·기간·시간대를 고칠 수 있는 유일한 경로다. 낙관적 잠금에 쓰는
+                expectedUpdatedAt 을 함께 넘겨, 다른 사람이 먼저 저장했으면
+                덮어쓰지 않고 충돌로 잡는다.
+              */}
+              <TripForm
+                action={updateTripAction}
+                submitLabel="여행 정보 저장"
+                defaults={{
+                  tripId: trip.id,
+                  expectedUpdatedAt: trip.updatedAt,
+                  title: trip.title,
+                  destinationName: trip.destinationName ?? "",
+                  startDate: trip.startDate,
+                  endDate: trip.endDate,
+                  timezone: trip.timezone,
+                  baseCurrency: trip.baseCurrency,
+                }}
+              />
+            </section>
+
+            {trip.role === "owner" ? (
+              <section className="space-y-3 border-t border-border pt-5">
+                <h2 className="text-sm font-medium">공유와 삭제</h2>
+                <ShareLinkManager tripId={trip.id} links={shareLinks} readable={isShareReadable()} />
+                <div className="border-t border-border pt-3">
+                  <InviteLink tripId={trip.id} tripTitle={trip.title} />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  삭제해도 30일 동안 휴지통에 남아 복구할 수 있습니다.
+                </p>
+                <form action={softDeleteTripAction}>
+                  <input type="hidden" name="tripId" value={trip.id} />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-danger px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger hover:text-primary-foreground"
+                  >
+                    여행 삭제
+                  </button>
+                </form>
+              </section>
+            ) : null}
           </div>
         </details>
       ) : null}

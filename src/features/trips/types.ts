@@ -52,6 +52,14 @@ export type TripDetail = TripSummary & {
   role: TripRole;
 };
 
+export type TripMember = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: TripRole;
+  joinedAt: string;
+};
+
 export type ItineraryItem = {
   id: string;
   tripId: string;

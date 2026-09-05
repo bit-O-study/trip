@@ -1,6 +1,6 @@
 import type { PlaceCategoryGroup, PlaceSearchResponse, PlaceSearchResult } from "./types";
 
-type GooglePeriod = { open?: { day?: number } };
+type GooglePeriod = { open?: { day?: number }; close?: { day?: number } };
 type GooglePlace = {
   id?: string;
   displayName?: { text?: string };
@@ -33,10 +33,27 @@ function toCategoryGroup(place: GooglePlace): PlaceCategoryGroup {
   return "etc";
 }
 
+/**
+ * 그 날짜에 정기 휴무인지. 판단할 근거가 없으면 null.
+ *
+ * ⚠ periods 는 "요일마다 한 칸" 이 아니다. 24시간 영업하는 곳은 close 가 없는
+ * **한 칸만** 돌아오고(문서상 open.day=0 의 단일 period), 자정을 넘겨 여는 곳은
+ * 전날 요일 한 칸이 다음 날까지 걸친다. 그래서 "그 요일로 시작하는 period 가
+ * 없으면 휴무" 로 보면 24시간 영업하는 식당이 일주일 중 엿새 동안 "쉬는 날"
+ * 로 표시된다 — 후보 목록과 지도 마커에 그대로 빨간 경고가 붙는다.
+ *
+ * close 없는 period 가 하나라도 있으면 상시 영업으로 보고, 그 밖에는 시작
+ * 요일과 종료 요일 양쪽을 훑는다.
+ */
 function isClosedOnDate(periods: GooglePeriod[] | undefined, date: string | undefined) {
   if (!periods || !date) return null;
+  if (periods.length === 0) return null;
+  // close 가 없는 칸 = 연중무휴. 요일을 따질 것이 없다.
+  if (periods.some((period) => period.open && !period.close)) return false;
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
-  return !periods.some((period) => period.open?.day === weekday);
+  return !periods.some(
+    (period) => period.open?.day === weekday || period.close?.day === weekday,
+  );
 }
 
 export class GooglePlaceSearchError extends Error {

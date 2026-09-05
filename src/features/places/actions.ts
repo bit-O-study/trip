@@ -140,7 +140,15 @@ export async function addPlaceToTripAction(
 
   const { error } = await supabase.from("itinerary_items").insert({
     trip_id: input.tripId,
-    type: ITEM_TYPE_BY_GROUP[input.categoryGroup],
+    /*
+     * 투표 후보는 반드시 'food' 다.
+     *
+     * `trip_private.can_vote_for_item()` 이 `i.type = 'food'` 를 요구한다.
+     * 분류를 그대로 옮기면 명소·숙소·편의점을 후보로 넣었을 때 항목은 만들어
+     * 지지만 아무도 투표할 수 없다 — 투표 버튼을 누르면 RLS 위반 오류 화면이
+     * 뜨고, 후보를 넣은 사람은 왜 막혔는지 알 길이 없다.
+     */
+    type: intent === "candidate" ? "food" : ITEM_TYPE_BY_GROUP[input.categoryGroup],
     title: input.name,
     start_at: startAt,
     location_text: input.roadAddress ?? input.address,

@@ -41,7 +41,9 @@ export async function proxy(request: NextRequest) {
       );
     }
     // 개발 중 미설정 상태: 항상 로그아웃으로 취급한다.
-    return requiresAuth(pathname) ? redirectToLogin(request) : NextResponse.next();
+    return requiresAuth(pathname)
+      ? redirectToLogin(request)
+      : withShareHeaders(pathname, NextResponse.next());
   }
 
   let response = NextResponse.next({ request });
@@ -86,6 +88,23 @@ export async function proxy(request: NextRequest) {
     return redirectWithCookies(new URL("/", request.url), response);
   }
 
+  return withShareHeaders(pathname, response);
+}
+
+/**
+ * 공유 뷰는 어디에도 저장되면 안 된다.
+ *
+ * `next.config.ts` 의 headers() 로도 걸지만, 동적 페이지에는 Next 가 자체
+ * `Cache-Control` 을 붙여 그 값을 덮는다(`no-cache, must-revalidate`). 공유
+ * 링크는 공용 PC 의 브라우저 캐시에 남아서는 안 되므로 여기서 `no-store` 로
+ * 다시 못 박는다 (docs/architecture.md §6).
+ */
+function withShareHeaders(pathname: string, response: NextResponse) {
+  if (pathname === "/s" || pathname.startsWith("/s/") || pathname.startsWith("/share/")) {
+    response.headers.set("Cache-Control", "private, no-store");
+    response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
   return response;
 }
 

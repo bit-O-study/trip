@@ -125,19 +125,33 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
         <label htmlFor="locationText" className="text-sm font-medium">
           장소 <span className="text-muted-foreground">(선택)</span>
         </label>
+        {/* 이 라벨은 실제로 선택 입력이어야 한다. 서버 스키마도 같은 규칙이다. */}
         <input
           id="locationText"
           name="locationText"
-          required
           maxLength={200}
           placeholder="신주쿠 3초메"
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
         />
         <p className="text-xs text-muted-foreground">
-          좌표를 붙여 지도에 표시하려면 위의 장소 검색을 쓰세요. 여기서 직접 입력한
-          장소는 글자로만 남습니다.
+          지도에서 찾히면 위치가 자동으로 붙고, 못 찾아도 글자로 그대로 저장됩니다.
+          정확한 좌표가 필요하면 위의 장소 검색을 쓰세요.
         </p>
         <FieldError errors={errors.locationText} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="item-note" className="text-sm font-medium">
+          메모 <span className="text-muted-foreground">(선택)</span>
+        </label>
+        <textarea
+          id="item-note"
+          name="note"
+          maxLength={2000}
+          placeholder="예약번호, 준비물, 가는 길 안내…"
+          className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+        />
+        <FieldError errors={errors.note} />
       </div>
 
       {state.status === "error" && state.message ? (

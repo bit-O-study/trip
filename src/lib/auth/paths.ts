@@ -12,6 +12,8 @@ const PUBLIC_PREFIXES = [
   "/share",
   // 토큰 없는 읽기 전용 공유 뷰
   "/s",
+  // 개인정보처리방침·위치정보 이용 고지. 가입 전에 읽을 수 있어야 한다.
+  "/legal",
 ] as const;
 
 export function isPublicPath(pathname: string): boolean {

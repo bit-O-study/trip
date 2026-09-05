@@ -1,22 +1,25 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import {
-  CATEGORY_FILTERS,
-  PlaceSearchError,
-  searchPlaces,
-} from "@/features/places/kakao";
+import { PlaceSearchError } from "@/features/places/kakao";
+import { pickPlaceProvider, searchPlacesWith } from "@/features/places/search";
+import { getTrip, listItems } from "@/features/trips/queries";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
  * 장소 검색.
  *
- * 브라우저가 Kakao 를 직접 부르지 않는다. REST 키는 서버 전용이고,
+ * 브라우저가 Kakao·Google 을 직접 부르지 않는다. API 키는 서버 전용이고,
  * 응답 캐싱과 속도 제한도 여기서 한다.
+ *
+ * 공급자는 클라이언트가 고르지 않는다 — `tripId` 로 여행을 읽어 지도와 같은
+ * 규칙(`region.ts`)으로 서버가 정한다. 클라이언트가 지정하게 두면 과금되는
+ * Google 검색을 임의로 부를 수 있다.
  */
 
 const searchParamsSchema = z.object({
+  tripId: z.uuid("여행을 찾을 수 없습니다"),
   q: z.string().trim().min(1, "검색어를 입력하세요").max(80),
   page: z.coerce.number().int().min(1).max(3).default(1),
   category: z.enum(["food", "cafe", "lodging", "attraction"]).optional(),
@@ -26,7 +29,7 @@ const searchParamsSchema = z.object({
 });
 
 /*
- * 사용자 한 명이 Kakao 일일 쿼터를 태우지 못하게 한다.
+ * 사용자 한 명이 일일 쿼터를 태우지 못하게 한다.
  * 쿼터가 소진되면 그 순간부터 모든 사용자의 검색이 죽는다.
  */
 const limiter = createRateLimiter({ limit: 30, windowMs: 60_000 });
@@ -51,6 +54,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const parsed = searchParamsSchema.safeParse({
+    tripId: url.searchParams.get("tripId") ?? "",
     q: url.searchParams.get("q") ?? "",
     page: url.searchParams.get("page") ?? undefined,
     category: url.searchParams.get("category") ?? undefined,
@@ -66,22 +70,39 @@ export async function GET(request: Request) {
     );
   }
 
-  const { q, page, category, lat, lng } = parsed.data;
+  const { tripId, q, page, category, date, lat, lng } = parsed.data;
+
+  // RLS 가 이미 걸러 준다. 볼 수 없는 여행이면 없는 것으로 취급한다.
+  const trip = await getTrip(tripId);
+  if (!trip) {
+    return NextResponse.json({ error: "여행을 찾을 수 없습니다" }, { status: 404 });
+  }
+
+  // 이미 찍힌 좌표가 있으면 그것이 지도 공급자를 정한다. 검색도 같은 답을 써야
+  // 검색 결과를 추가했을 때 그 점이 지도에 그대로 나타난다.
+  const items = await listItems(tripId);
+  const provider = pickPlaceProvider({
+    timezone: trip.timezone,
+    points: items.flatMap((item) => (item.coordinate ? [item.coordinate] : [])),
+  });
 
   try {
-    const result = await searchPlaces({
+    const result = await searchPlacesWith(provider, {
       query: q,
       page,
-      categoryGroupCode: CATEGORY_FILTERS.find((filter) => filter.group === category)?.code,
+      category,
+      date,
       center: lat !== undefined && lng !== undefined ? { latitude: lat, longitude: lng } : undefined,
-      radiusMeters: lat !== undefined && lng !== undefined ? 50_000 : undefined,
     });
 
-    return NextResponse.json(result, {
-      // 검색 결과는 사용자별로 다르지 않지만 인증이 필요한 경로이므로
-      // 공유 캐시에 남기지 않는다. 상위 캐싱은 fetch 레이어가 담당한다.
-      headers: { "Cache-Control": "private, no-store" },
-    });
+    return NextResponse.json(
+      { ...result, provider },
+      {
+        // 검색 결과는 사용자별로 다르지 않지만 인증이 필요한 경로이므로
+        // 공유 캐시에 남기지 않는다. 상위 캐싱은 fetch 레이어가 담당한다.
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
   } catch (error) {
     if (error instanceof PlaceSearchError) {
       /*
@@ -94,7 +115,7 @@ export async function GET(request: Request) {
         : error.kind === "quota" || error.kind === "rate_limited"
           ? 429
           : 502;
-      return NextResponse.json({ error: error.message, kind: error.kind }, { status });
+      return NextResponse.json({ error: error.message, kind: error.kind, provider }, { status });
     }
     throw error;
   }

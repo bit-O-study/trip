@@ -10,6 +10,9 @@ describe("isPublicPath", () => {
     "/auth/auth-code-error",
     "/share/abc123",
     "/s/xyz789",
+    // 가입 전에 무엇에 동의하는지 읽을 수 없으면 고지의 의미가 없다.
+    "/legal/privacy",
+    "/legal/location",
   ])("%s 는 인증 없이 접근할 수 있다", (pathname) => {
     expect(isPublicPath(pathname)).toBe(true);
   });
@@ -29,6 +32,8 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/loginhack")).toBe(false);
     // "/auth" 접두사를 노린 경로
     expect(isPublicPath("/authorize")).toBe(false);
+    // "/legal" 접두사를 노린 경로
+    expect(isPublicPath("/legally")).toBe(false);
   });
 
   it("기본값은 보호다", () => {

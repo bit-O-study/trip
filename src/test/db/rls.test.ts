@@ -100,6 +100,93 @@ describe("여행 조회 권한", () => {
     expect(message).toMatch(/permission denied/i);
   });
 
+  /*
+   * 참여자가 스스로 빠져나올 수 있어야 한다. 삭제 정책이 owner 전용이던
+   * 동안에는 초대를 잘못 수락해도 owner 에게 부탁하는 것이 유일한 경로였다.
+   */
+  it("참여자는 스스로 여행에서 나갈 수 있다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.viewer);
+    const left = await db.pg.query(
+      "delete from trip.trip_members where trip_id = $1 and user_id = $2 returning user_id",
+      [tripId, USER.viewer],
+    );
+    expect(left.rows).toHaveLength(1);
+  });
+
+  it("나가기는 자기 행에만 적용된다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.viewer);
+    const removed = await db.pg.query(
+      "delete from trip.trip_members where trip_id = $1 and user_id = $2 returning user_id",
+      [tripId, USER.editor],
+    );
+    expect(removed.rows).toHaveLength(0);
+  });
+
+  /*
+   * 여행을 통째로 지울 때는 마지막 소유자 보호가 걸리면 안 된다.
+   *
+   * cascade 로 지워지는 trip_members 에도 guard_last_owner 가 걸려, 소유자가
+   * 자기 여행을 영구 삭제할 방법이 아예 없었다. "30일 보관 후 물리 삭제"
+   * 정책도 같은 이유로 막혀 있었다.
+   */
+  it("소유자는 여행을 물리 삭제할 수 있다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.owner);
+
+    const deleted = await db.pg.query("delete from trip.trips where id = $1 returning id", [
+      tripId,
+    ]);
+    expect(deleted.rows).toHaveLength(1);
+
+    await db.asSuperuser();
+    const members = await db.pg.query("select user_id from trip.trip_members where trip_id = $1", [
+      tripId,
+    ]);
+    expect(members.rows).toHaveLength(0);
+  });
+
+  it("여행이 남아 있으면 마지막 소유자 보호는 그대로다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.owner);
+    await expect(
+      db.pg.query("delete from trip.trip_members where trip_id = $1 and user_id = $2", [
+        tripId,
+        USER.owner,
+      ]),
+    ).rejects.toThrow(/last owner/i);
+  });
+
+  it("마지막 소유자는 스스로도 나갈 수 없다", async () => {
+    const tripId = await seedTrip();
+    await db.asUser(USER.owner);
+    await expect(
+      db.pg.query("delete from trip.trip_members where trip_id = $1 and user_id = $2", [
+        tripId,
+        USER.owner,
+      ]),
+    ).rejects.toThrow(/last owner/i);
+  });
+
+  it("소유자는 참여자의 역할을 바꿀 수 있고, 참여자는 못 바꾼다", async () => {
+    const tripId = await seedTrip();
+
+    await db.asUser(USER.owner);
+    const promoted = await db.pg.query<{ role: string }>(
+      "update trip.trip_members set role = 'editor' where trip_id = $1 and user_id = $2 returning role",
+      [tripId, USER.viewer],
+    );
+    expect(promoted.rows[0]?.role).toBe("editor");
+
+    await db.asUser(USER.viewer);
+    const selfPromotion = await db.pg.query<{ role: string }>(
+      "update trip.trip_members set role = 'owner' where trip_id = $1 and user_id = $2 returning role",
+      [tripId, USER.viewer],
+    );
+    expect(selfPromotion.rows).toHaveLength(0);
+  });
+
   it("trip_members 조회가 정책 재귀 없이 동작한다", async () => {
     const tripId = await seedTrip();
 
@@ -790,6 +877,72 @@ describe("음식점 후보 투표", () => {
       [pollId],
     );
     expect(poll.rows[0]).toMatchObject({ winner_item_id: second.rows[0].id, status: "finalized" });
+  });
+
+  /*
+   * 읽기 조건과 쓰기 조건은 다르다.
+   *
+   * SELECT 정책이 can_vote_for_item() 을 그대로 쓰던 때에는 투표가 확정되는
+   * 순간 후보 status 와 poll status 가 함께 바뀌면서 모든 표가 안 보이게 됐다.
+   * "투표 종료 · 일정 확정" 인데 1위가 0표로 찍히는 화면이 그 결과였다.
+   */
+  it("투표가 종료된 뒤에도 멤버는 득표를 볼 수 있다", async () => {
+    const { pollId, itemId } = await seedCandidate();
+    await db.asUser(USER.viewer);
+    await db.pg.query(
+      "insert into trip.restaurant_votes (poll_id, item_id, user_id) values ($1, $2, $3)",
+      [pollId, itemId, USER.viewer],
+    );
+    await db.asSuperuser();
+    await db.pg.query(
+      "update trip.restaurant_polls set closes_at = now() - interval '1 minute' where id = $1",
+      [pollId],
+    );
+    await db.asUser(USER.owner);
+    await db.pg.query("select trip.finalize_due_restaurant_polls()");
+
+    const votes = await db.pg.query("select item_id from trip.restaurant_votes where poll_id = $1", [
+      pollId,
+    ]);
+    expect(votes.rows).toHaveLength(1);
+  });
+
+  it("멤버가 아닌 사용자에게는 종료된 투표의 득표도 보이지 않는다", async () => {
+    const { pollId, itemId } = await seedCandidate();
+    await db.asUser(USER.viewer);
+    await db.pg.query(
+      "insert into trip.restaurant_votes (poll_id, item_id, user_id) values ($1, $2, $3)",
+      [pollId, itemId, USER.viewer],
+    );
+    await db.asSuperuser();
+    await db.pg.query(
+      "update trip.restaurant_polls set closes_at = now() - interval '1 minute' where id = $1",
+      [pollId],
+    );
+    await db.pg.query("select trip.finalize_due_restaurant_polls()");
+
+    await db.asUser(USER.stranger);
+    const votes = await db.pg.query("select item_id from trip.restaurant_votes where poll_id = $1", [
+      pollId,
+    ]);
+    expect(votes.rows).toHaveLength(0);
+  });
+
+  it("투표가 종료되면 새 표는 더 이상 넣을 수 없다", async () => {
+    const { pollId, itemId } = await seedCandidate();
+    await db.asSuperuser();
+    await db.pg.query(
+      "update trip.restaurant_polls set closes_at = now() - interval '1 minute' where id = $1",
+      [pollId],
+    );
+    await db.asUser(USER.viewer);
+    const message = await expectDenied(() =>
+      db.pg.query(
+        "insert into trip.restaurant_votes (poll_id, item_id, user_id) values ($1, $2, $3)",
+        [pollId, itemId, USER.viewer],
+      ),
+    );
+    expect(message).toMatch(/row-level security/i);
   });
 });
 

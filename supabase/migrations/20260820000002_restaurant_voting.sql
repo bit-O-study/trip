@@ -1,5 +1,6 @@
 -- 음식점 후보 투표와 회원 초대 수락
 
+-- Google Places 를 장소·일정 스냅샷의 출처로 저장할 수 있게 한다.
 alter table trip.places drop constraint if exists places_provider_check;
 alter table trip.places add constraint places_provider_check
   check (provider in ('google', 'kakao', 'naver', 'manual'));
@@ -7,7 +8,6 @@ alter table trip.places add constraint places_provider_check
 alter type trip.itinerary_item_source add value if not exists 'google';
 
 create table if not exists trip.restaurant_votes (
--- Google Places를 일정 스냅샷의 출처로 저장한다.
   item_id    uuid not null references trip.itinerary_items (id) on delete cascade,
   user_id    uuid not null references auth.users (id) on delete cascade,
   created_at timestamptz not null default now(),

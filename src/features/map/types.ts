@@ -7,6 +7,13 @@ export type MapPoint = {
   dayIndex: number;
   /** 그 날의 방문 순번 (1-based) */
   order: number;
+  /**
+   * 이 점의 성격.
+   *
+   * `candidate` 는 아직 확정되지 않은 투표 후보다. 방문 순서에 속하지 않으므로
+   * 연결선을 긋지 않는다 — 이으면 가지도 않을 곳을 도는 동선처럼 보인다.
+   */
+  kind?: "itinerary" | "candidate";
   /** 음식점 후보처럼 지도 위에 직접 보여 줄 요약. */
   badgeLabel?: string;
   /** 휴무처럼 강조할 짧은 경고. */

@@ -1,7 +1,7 @@
 import type { RestaurantPollView } from "@/features/trips/types";
-import { createRestaurantPollAction, deleteRestaurantPollAction, toggleRestaurantVoteAction } from "@/features/voting/actions";
+import { deleteRestaurantPollAction, toggleRestaurantVoteAction } from "@/features/voting/actions";
 import { PollActionButton } from "@/features/voting/poll-action-button";
-import { PollSubmitButton } from "@/features/voting/poll-submit-button";
+import { PollCreateForm } from "@/features/voting/poll-create-form";
 
 type Props = { tripId: string; polls: RestaurantPollView[]; editable: boolean; defaultDate: string; timezone: string; detail?: boolean };
 
@@ -12,15 +12,7 @@ export function RestaurantPoll({ tripId, polls, editable, defaultDate, timezone,
       {editable && !detail ? (
         <details className="rounded-lg border border-border px-3 py-2">
           <summary className="cursor-pointer text-sm font-medium">새 투표 만들기</summary>
-          <form action={createRestaurantPollAction} className="mt-3 grid gap-3 sm:grid-cols-2">
-            <input type="hidden" name="tripId" value={tripId} />
-            <label className="space-y-1 text-sm sm:col-span-2"><span className="font-medium">투표 제목</span><input name="title" required maxLength={120} placeholder="첫날 점심 투표" className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
-            <label className="space-y-1 text-sm sm:col-span-2"><span className="font-medium">검색할 위치</span><input name="location" required maxLength={120} placeholder="제주 연동" className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
-            <label className="space-y-1 text-sm"><span className="font-medium">일정 시각</span><input type="datetime-local" name="scheduledLocal" required defaultValue={`${defaultDate}T12:00`} className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
-            <label className="space-y-1 text-sm"><span className="font-medium">투표 종료 시각</span><input type="datetime-local" name="closesLocal" required defaultValue={`${defaultDate}T10:00`} className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
-            <p className="text-xs text-muted-foreground sm:col-span-2">시간대: {timezone}</p>
-            <PollSubmitButton />
-          </form>
+          <PollCreateForm tripId={tripId} defaultDate={defaultDate} timezone={timezone} />
         </details>
       ) : null}
       {polls.length === 0 ? <p className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">아직 만든 투표가 없습니다.</p> : (

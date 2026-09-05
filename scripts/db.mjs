@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,8 +18,9 @@ import pg from "pg";
  *   - SUPABASE_DB_URL
  *   - SUPA_DB_HOST / SUPA_DB_PORT / SUPA_DB_REF / SUPA_DB_PW
  *
- * --env-file 로 지정한 파일에서 위 값을 읽는다. 지정하지 않으면 process.env 를 쓴다.
- * 비밀번호를 이 저장소에 복사해 두지 않기 위한 구조다.
+ * --env-file 로 지정한 파일에서 위 값을 읽는다. 생략하면 저장소 루트의
+ * `.env.local` 을 쓰고, 그 파일도 없으면 process.env 를 쓴다.
+ * 비밀번호를 이 저장소에 커밋하지 않기 위한 구조다 (`.env.local` 은 gitignore 대상).
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -34,10 +35,23 @@ function parseArgs(argv) {
   return out;
 }
 
+/**
+ * 명시하지 않으면 저장소 루트의 `.env.local` 을 쓴다.
+ *
+ * 이 값이 없으면 스크립트가 "접속 정보가 없습니다" 로 그냥 죽는데, 정작 값은
+ * 바로 옆 파일에 있다. `npm run db:verify` 가 항상 실패하던 이유였다.
+ * (`.env.local` 은 gitignore 대상이라 없을 수도 있으므로 없으면 조용히 넘어간다.)
+ */
+function defaultEnvFile() {
+  const candidate = join(here, "..", ".env.local");
+  return existsSync(candidate) ? candidate : null;
+}
+
 function loadEnv(envFile) {
-  if (!envFile) return process.env;
+  const file = envFile ?? defaultEnvFile();
+  if (!file) return process.env;
   const merged = { ...process.env };
-  for (const line of readFileSync(resolve(envFile), "utf8").split(/\r?\n/)) {
+  for (const line of readFileSync(resolve(file), "utf8").split(/\r?\n/)) {
     if (!line.trim() || line.trim().startsWith("#")) continue;
     const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
     if (match) merged[match[1]] = match[2].trim();

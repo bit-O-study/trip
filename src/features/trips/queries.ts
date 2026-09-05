@@ -5,6 +5,7 @@ import type {
   RestaurantCandidate,
   RestaurantPollView,
   TripDetail,
+  TripMember,
   TripRole,
   TripSummary,
 } from "@/features/trips/types";
@@ -100,17 +101,62 @@ export const getTrip = cache(async (tripId: string): Promise<TripDetail | null> 
   };
 });
 
+/**
+ * 현재 사용자의 역할.
+ *
+ * ⚠ `user_id` 조건을 빼면 안 된다. `trip_members_select` 정책은
+ * `is_trip_member(trip_id)` 라 **같은 여행의 모든 멤버 행**이 보이므로,
+ * trip_id 만으로 거르면 멤버가 둘 이상인 여행에서 여러 행이 돌아온다.
+ * `maybeSingle()` 은 2행 이상이면 PGRST116 오류를 만들고, 그러면 `getTrip`
+ * 이 통째로 던져 여행 상세·투표·편집이 전부 500 이 된다.
+ */
 export const getTripRole = cache(async (tripId: string): Promise<TripRole | null> => {
   const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return null;
+
   const { data, error } = await supabase
     .from("trip_members")
     .select("role")
     .eq("trip_id", tripId)
+    .eq("user_id", auth.user.id)
     .maybeSingle();
 
   if (error) throw new Error(`권한을 확인하지 못했습니다: ${error.message}`);
   return (data?.role as TripRole | undefined) ?? null;
 });
+
+export async function listTripMembers(tripId: string): Promise<TripMember[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data: members, error: memberError } = await supabase
+    .from("trip_members")
+    .select("user_id, role, joined_at")
+    .eq("trip_id", tripId)
+    .order("joined_at", { ascending: true });
+
+  if (memberError) throw new Error(`함께하는 사람을 불러오지 못했습니다: ${memberError.message}`);
+  if (!members?.length) return [];
+
+  const userIds = members.map((member) => member.user_id);
+  const { data: profiles, error: profileError } = await supabase
+    .from("profiles")
+    .select("user_id, display_name, avatar_url")
+    .in("user_id", userIds);
+
+  if (profileError) throw new Error(`프로필을 불러오지 못했습니다: ${profileError.message}`);
+  const profilesById = new Map((profiles ?? []).map((profile) => [profile.user_id, profile]));
+
+  return members.map((member) => {
+    const profile = profilesById.get(member.user_id);
+    return {
+      userId: member.user_id,
+      displayName: profile?.display_name?.trim() || "이름 없는 여행자",
+      avatarUrl: profile?.avatar_url ?? null,
+      role: member.role as TripRole,
+      joinedAt: member.joined_at,
+    };
+  });
+}
 
 type ItemRow = {
   id: string;

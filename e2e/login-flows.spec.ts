@@ -36,6 +36,17 @@ async function createTrip(page: Page, title: string) {
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 }
 
+/** 직접 입력 폼으로 일정 하나를 만든다. 장소는 비워 둔다(선택 입력). */
+async function addManualItem(page: Page, title: string, startLocal: string) {
+  await page.reload();
+  await page.getByRole("button", { name: "+ 일정 추가" }).first().click();
+  await page.getByRole("button", { name: "직접 입력" }).click();
+  await page.locator("#item-title").fill(title);
+  await page.locator("#startLocal").fill(startLocal);
+  await page.getByRole("button", { name: "추가", exact: true }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
+}
+
 test.describe("로그인 후 핵심 흐름", () => {
   test.skip(
     !accountEmail || !accountPassword,
@@ -51,6 +62,15 @@ test.describe("로그인 후 핵심 흐름", () => {
 
     const itemTitle = unique("점심");
     await page.getByRole("button", { name: "+ 일정 추가" }).first().click();
+    /*
+     * "+ 일정 추가" 는 장소 검색 모드로 열린다. 직접 입력 폼(`#item-title`)은
+     * 토글을 눌러야 나온다 — 누르지 않으면 이 테스트는 존재하지 않는 입력을
+     * 기다리다 끝난다.
+     *
+     * 장소를 비워 둔 채로 저장하는 것도 의도한 검증이다. 장소는 선택 입력이며,
+     * Kakao 가 못 찾는다고 일정 추가가 막히면 안 된다.
+     */
+    await page.getByRole("button", { name: "직접 입력" }).click();
     await page.locator("#item-title").fill(itemTitle);
     await page.getByRole("button", { name: "추가", exact: true }).click();
 
@@ -64,6 +84,29 @@ test.describe("로그인 후 핵심 흐름", () => {
     // 새로고침해도 살아 돌아오지 않아야 진짜 삭제다.
     await page.reload();
     await expect(page.getByRole("listitem").filter({ hasText: itemTitle })).toHaveCount(0);
+  });
+
+  /*
+   * 재정렬은 드래그가 아니라 버튼이다 (AGENTS.md: 드래그 전용 조작 금지).
+   * 서버 액션은 오래전부터 있었지만 이걸 누를 UI 가 없어 재정렬 자체가
+   * 불가능했다. 그래서 "버튼이 실제로 순서를 바꾸는가" 를 화면에서 확인한다.
+   */
+  test("순서 이동 버튼이 같은 날 일정의 위아래를 바꾼다", async ({ page }) => {
+    await createTrip(page, unique("순서"));
+    const morning = unique("아침");
+    const lunch = unique("점심");
+    await addManualItem(page, morning, "2026-09-10T09:00");
+    await addManualItem(page, lunch, "2026-09-10T12:00");
+
+    const rows = page.locator('li[id^="item-"]');
+    await expect(rows.nth(0)).toContainText(morning);
+
+    await page.getByRole("button", { name: `${lunch} 순서 이동` }).click();
+    await page.getByRole("button", { name: `${lunch} 위로 이동` }).click();
+
+    await expect(rows.nth(0)).toContainText(lunch);
+    await page.reload();
+    await expect(rows.nth(0)).toContainText(lunch);
   });
 
   test("투표를 만들면 장소 검색으로 안내하고, 만든 사람은 삭제할 수 있다", async ({ page }) => {

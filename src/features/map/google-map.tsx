@@ -138,17 +138,36 @@ export function GoogleTripMap({
       markersRef.current.set(point.id, element);
       positionsRef.current.set(point.id, { lat: point.latitude, lng: point.longitude });
 
-      element.style.zIndex = String(10 + point.order);
+      // z-index 는 markerButton 이 붙인다. 여기서 다시 쓰면 선택 해제가
+      // 되돌릴 기준값과 어긋난다.
       overlaysRef.current.push(createMarkerOverlay(maps, map, position, element));
     }
 
     for (const [dayIndex, dayPoints] of groupByDay(points)) {
       if (dayPoints.length < 2) continue;
+      /*
+       * 점선이어야 한다 — 화면 아래 설명이 "점선은 방문 순서" 라고 약속한다.
+       *
+       * Google 에는 Kakao 의 `strokeStyle: "shortdash"` 가 없다. 선 자체를
+       * 투명하게 두고 점 아이콘을 일정 간격으로 반복해야 점선이 된다.
+       * 그냥 두면 해외 여행 지도만 실선이 되어 실제 경로처럼 읽힌다.
+       */
       const line = new maps.Polyline({
         path: dayPoints.map((p) => new maps.LatLng(p.latitude, p.longitude)),
-        strokeWeight: 3,
-        strokeColor: dayColor(dayIndex),
-        strokeOpacity: 0.8,
+        strokeOpacity: 0,
+        icons: [
+          {
+            icon: {
+              path: "M 0,-1 0,1",
+              strokeColor: dayColor(dayIndex),
+              strokeOpacity: 0.8,
+              strokeWeight: 3,
+              scale: 3,
+            },
+            offset: "0",
+            repeat: "14px",
+          },
+        ],
       });
       line.setMap(map);
       overlaysRef.current.push(line);

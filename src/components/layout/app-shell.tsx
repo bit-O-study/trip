@@ -67,6 +67,17 @@ export function AppShell({ children, user }: Props) {
         {children}
       </main>
 
+      {/*
+        법적 고지는 로그인 여부와 무관하게 어디서나 닿을 수 있어야 한다.
+        모바일에서는 하단 탭바에 가리지 않도록 여백을 둔다.
+      */}
+      <footer className={`mx-auto w-full max-w-5xl px-4 pb-6 ${isAuthenticated ? "pb-24 md:pb-6" : ""}`}>
+        <nav aria-label="약관" className="flex flex-wrap gap-4 border-t border-border pt-4 text-xs text-muted-foreground">
+          <Link href="/legal/privacy" className="hover:underline">개인정보처리방침</Link>
+          <Link href="/legal/location" className="hover:underline">위치정보 이용 고지</Link>
+        </nav>
+      </footer>
+
       {isAuthenticated ? <MainNav variant="tab" /> : null}
     </div>
   );

@@ -49,7 +49,17 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
   const [selected, setSelected] = useState<PlaceSearchResult | null>(null);
   const [startLocal, setStartLocal] = useState(`${defaultDate}T09:00`);
   const openPolls = polls.filter((poll) => poll.status === "open");
-  const [pollId, setPollId] = useState(openPolls.some((poll) => poll.id === initialPollId) ? initialPollId! : openPolls[0]?.id ?? "");
+  /*
+   * 투표가 여럿이면 기본 선택을 두지 않는다. 첫 투표를 미리 골라 두면
+   * "투표 후보로 등록" 을 눌렀을 때 엉뚱한 투표에 조용히 들어간다.
+   */
+  const [pollId, setPollId] = useState(
+    openPolls.some((poll) => poll.id === initialPollId)
+      ? initialPollId!
+      : openPolls.length === 1
+        ? openPolls[0].id
+        : "",
+  );
 
   const [addState, addAction, adding] = useActionState<ActionState, FormData>(
     addPlaceToTripAction,
@@ -66,6 +76,8 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
 
     try {
       const url = new URL("/api/places/search", window.location.origin);
+      // 공급자(Kakao/Google)는 서버가 이 여행을 보고 정한다.
+      url.searchParams.set("tripId", tripId);
       url.searchParams.set("q", trimmed);
       if (category) url.searchParams.set("category", category);
       const selectedPoll = polls.find((poll) => poll.id === pollId);

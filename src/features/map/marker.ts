@@ -33,7 +33,16 @@ export function markerButton(
     el.textContent = String(point.order);
   }
   el.setAttribute("aria-label", `${point.order}번째 일정 ${point.title}`);
+  /*
+   * 겹치는 마커의 기본 쌓임 순서. 뒤 순번이 위로 온다.
+   *
+   * 값을 dataset 에도 남긴다. 선택 해제는 z-index 를 지우는 것이 아니라 이
+   * 값으로 되돌려야 한다 — 빈 문자열로 지우면 마커가 전부 같은 층으로 내려앉아
+   * 순번이 겹친 곳에서 뒤 번호가 앞 번호에 가린다.
+   */
+  el.dataset.baseZIndex = String(10 + point.order);
   el.style.cssText = [
+    `z-index:${10 + point.order}`,
     "display:flex",
     "align-items:center",
     "justify-content:center",
@@ -67,7 +76,8 @@ export function applyMarkerSelection(el: HTMLElement, selected: boolean, baseTra
   el.style.boxShadow = selected
     ? "0 0 0 4px rgba(37,99,235,.45), 0 2px 8px rgba(0,0,0,.4)"
     : "0 1px 4px rgba(0,0,0,.35)";
-  el.style.zIndex = selected ? "999" : "";
+  // 해제할 때는 지우지 않고 생성 시의 기본값으로 되돌린다.
+  el.style.zIndex = selected ? "999" : (el.dataset.baseZIndex ?? "");
 }
 
 /**
@@ -75,10 +85,14 @@ export function applyMarkerSelection(el: HTMLElement, selected: boolean, baseTra
  *
  * 이 선은 "방문 순서 연결선"이지 실제 이동 경로가 아니다. 길찾기를 붙이기
  * 전까지는 직선이므로 점선으로 그려 경로선과 구분한다.
+ *
+ * 투표 후보(`kind: "candidate"`)는 뺀다. 아직 갈지 안 갈지도 모르는 후보들을
+ * 이어 두면, 한 곳만 고를 자리를 전부 도는 동선처럼 읽힌다.
  */
 export function groupByDay(points: readonly MapPoint[]): Map<number, MapPoint[]> {
   const byDay = new Map<number, MapPoint[]>();
   for (const point of points) {
+    if (point.kind === "candidate") continue;
     const list = byDay.get(point.dayIndex);
     if (list) list.push(point);
     else byDay.set(point.dayIndex, [point]);

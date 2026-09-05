@@ -130,7 +130,7 @@ Kakao·Naver 지도 웹페이지를 스크래핑하지 않는다. 약관 위반�
 /trips/[tripId]/map        전체/날짜별 지도 (모바일 전체화면)
 /trips/[tripId]/settings   여행 정보·동행자·공유 링크 관리
 /share/[token]             공유 토큰 검증 전용 (쿠키 발급 후 /s/... 로 즉시 리다이렉트)
-/s/[tripShortId]           읽기 전용 공유 뷰 (URL에 토큰 없음)
+/s/[tripShortId]           읽기 전용 공유 뷰 (URL에 토큰 없음, short_id 는 링크마다 새로 발급)
 ```
 
 ### 날짜 전환은 라우팅이 아니라 클라이언트 상태
@@ -576,7 +576,7 @@ Vercel Preview 배포는 도메인이 매번 바뀌므로 세 번째 줄처럼 w
 공급자가 **Supabase로 돌려보낼** 주소다. 앱 도메인이 아니라 Supabase 프로젝트 주소를 넣는다.
 
 ```text
-https://hgfsfupazyjcrmophmzc.supabase.co/auth/v1/callback
+https://mtocrrzmhucrrkcqxxeo.supabase.co/auth/v1/callback
 ```
 
 **3) Kakao 개발자 콘솔 → 앱 설정 → 플랫폼 → Web 사이트 도메인**
@@ -601,8 +601,8 @@ Vercel 프로젝트는 별도로 만들고 Preview/Production 환경변수를 �
 4. ~~여행 CRUD와 날짜별 타임라인, soft delete·복구~~ **코드 완료** — 실제 DB 연결 후 동작 확인 필요
 5. ~~Kakao 장소 검색·지도와 장소 일정 저장~~ **코드 완료**
 6. ~~타임라인 ↔ 지도 양방향 하이라이트, Day 색상·번호 마커, 키보드 재정렬~~ **코드 완료** — 로그인 상태 E2E 는 9단계에서 (테스트 계정 픽스처가 아직 없다)
-7. 항공 provider adapter — [ADR-0001](adr/0001-flight-data-provider.md) 검증 완료 후 착수
-8. 읽기 전용 공유 링크(`trip_share_links`), 이후 동행자 초대와 권한 검증
+7. ~~항공 provider adapter~~ **코드 완료** — AeroDataBox·한국공항공사 GW 어댑터와 **항상 노출되는 수동 입력**. 두 공급자 모두 키가 없어 실제 응답 검증은 미완료다 ([ADR-0001](adr/0001-flight-data-provider.md))
+8. ~~읽기 전용 공유 링크(`trip_share_links`), 이후 동행자 초대와 권한 검증~~ **코드 완료** — 공유 뷰 열람에는 `SUPABASE_SERVICE_ROLE_KEY` 가 필요하다. 초대는 역할(editor/viewer)을 고를 수 있고, 참여자 역할 변경·내보내기·스스로 나가기까지 붙었다
 9. Playwright 핵심 흐름과 Vercel 배포 — 배포는 완료(`https://trip-planner-tau-jade.vercel.app`). 로그인 상태 E2E 픽스처가 남았다
 
 각 단계는 타입 검사, 단위 테스트, 최소 한 개의 핵심 E2E 흐름으로 검증한다. RLS는 **권한별 접근 거부 케이스까지** 테스트한다.
@@ -651,7 +651,7 @@ Vercel 프로젝트는 별도로 만들고 Preview/Production 환경변수를 �
 
 | 항목 | 상태 | 결론 / 다음 행동 |
 |---|---|---|
-| 항공 데이터 공급자와 요금제 | **미결** | [ADR-0001](adr/0001-flight-data-provider.md)의 12개 항목을 실제 샘플 응답으로 검증. GW API 활용 신청 먼저 접수 |
+| 항공 데이터 공급자와 요금제 | **잠정** | AeroDataBox 1순위·한국공항공사 GW 2순위로 어댑터 구현 완료. 키 발급 후 [ADR-0001](adr/0001-flight-data-provider.md)의 12개 항목을 실제 샘플 응답으로 검증하고 매핑 확인 |
 | Supabase 프로젝트 | **결정 변경** | Trip 전용 프로젝트를 사용한다. 앱 테이블은 `trip`, 헬퍼는 `trip_private` 스키마에 둔다 (§7) |
 | Kakao 단독 검색 vs Naver fallback | 결정 | Kakao 단독. Naver는 결과 5건·페이지 이동 불가·상세정보 부족으로 fallback 부적합. v1.1 후기·사진 보강으로만 도입 |
 | 동행자 편집 vs 읽기 공유 | 결정 | 읽기 공유(`trip_share_links`)부터. 구현이 짧고 실시간 충돌 처리가 불필요 |
