@@ -116,7 +116,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
         <h1 className="truncate text-2xl font-semibold tracking-tight">{trip.title}</h1>
         <p className="text-sm text-muted-foreground">
@@ -168,6 +168,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
           />
 
           <BulkDeleteToolbar />
+          {editable ? <p className="text-xs text-muted-foreground">일정을 끌어 순서를 바꿀 수 있습니다. 휴대폰에서는 길게 누른 뒤 이동하세요. 키보드는 일정에 포커스한 뒤 Alt + 위·아래 방향키를 사용하세요.</p> : null}
 
           {days.length > 1 ? (
             <nav
@@ -202,7 +203,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
             {days.map((day) => {
               const dayItems = byDay.get(day.date) ?? [];
               return (
-                <section key={day.date} id={`day-${day.date}`} className="scroll-mt-32 space-y-3">
+                <section data-drop-day={editable ? day.date : undefined} data-trip-id={trip.id} key={day.date} id={`day-${day.date}`} className="scroll-mt-32 space-y-3">
                   <h2 className="flex items-center gap-2 text-base font-semibold">
                     <span
                       aria-hidden

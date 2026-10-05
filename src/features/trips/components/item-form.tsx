@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 
 import { IDLE, type ActionState } from "@/features/trips/action-state";
 import { createItemAction } from "@/features/trips/actions";
-import { ITEM_TYPES, ITEM_TYPE_ICONS, ITEM_TYPE_LABELS } from "@/features/trips/types";
+import { ITEM_TYPES, ITEM_TYPE_LABELS } from "@/features/trips/types";
 import { openDatePicker } from "@/lib/date-picker";
 
 type Props = {
@@ -67,7 +67,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
                 defaultChecked={index === 3}
                 className="sr-only"
               />
-              <span aria-hidden>{ITEM_TYPE_ICONS[type]}</span> {ITEM_TYPE_LABELS[type]}
+              {ITEM_TYPE_LABELS[type]}
             </label>
           ))}
         </div>
@@ -89,7 +89,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
         <FieldError errors={errors.title} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <label htmlFor="startLocal" className="text-sm font-medium">
             시작

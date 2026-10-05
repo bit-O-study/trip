@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { planMoveAfter, planMoveDown, planMoveToDay, planMoveUp } from "@/features/trips/reorder";
+import { planMoveAfter, planMoveBefore, planMoveDown, planMoveToDay, planMoveUp } from "@/features/trips/reorder";
 import type { ItineraryItem } from "@/features/trips/types";
 import { zonedDateKey } from "@/lib/datetime";
 
@@ -35,6 +35,20 @@ function timeline(...list: ItineraryItem[]): ItineraryItem[] {
 const a = item("a", "2026-02-14T01:00:00+00:00", 1000);
 const b = item("b", "2026-02-14T02:00:00+00:00", 2000);
 const c = item("c", "2026-02-14T03:00:00+00:00", 3000);
+
+describe("드래그 대상 앞에 놓기", () => {
+  it("첫 항목 앞으로 이동하고 자기 자신은 무시한다", () => {
+    expect(planMoveBefore(timeline(a, b, c), "c", "a", TZ)).toEqual({ startAt: a.startAt, afterItemId: null });
+    expect(planMoveBefore(timeline(a, b, c), "a", "a", TZ)).toBeNull();
+  });
+  it("이동할 항목을 기준 항목에서 제외한다", () => {
+    expect(planMoveBefore(timeline(a, b, c), "a", "b", TZ)).toEqual({ startAt: b.startAt, afterItemId: null });
+  });
+  it("다른 날짜에서도 목표 날짜의 앞 항목만 기준으로 삼는다", () => {
+    const next = item("next", "2026-02-15T01:00:00Z", 1000);
+    expect(planMoveBefore(timeline(a, b, c, next), "c", "next", TZ)).toEqual({ startAt: next.startAt, afterItemId: null });
+  });
+});
 
 describe("planMoveUp", () => {
   it("바로 위 항목의 시각을 넘겨받고 그 앞에 선다", () => {

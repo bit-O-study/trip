@@ -693,3 +693,14 @@ Vercel 프로젝트는 별도로 만들고 Preview/Production 환경변수를 �
 - [공공데이터포털 한국공항공사 API 전환 공지](https://www.data.go.kr/bbs/ntc/selectNotice.do?originId=NOTICE_0000000004750)
 - [Supabase Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
 - [Supabase Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security)
+
+
+## 2026-10-05 구현 검증 기록
+
+- 일정 카드 전체 드래그로 순서/날짜 이동. 모바일은 짧은 쓸기로 스크롤하고 길게 눌러 이동한다. Alt+위/아래 및 날짜 선택을 키보드 대체 경로로 제공한다.
+- 장소 선택 후 같은 영역에서 시간 선택 단계로 전환한다. 일정 수정에서도 장소를 검색·변경하고 선택한 좌표를 재조회 없이 저장한다. 장소명 앞 종류 이모지를 제거하고 모바일 버튼 줄바꿈/입력 폭을 보정했다.
+- 여행/권한 조회 병렬화, 사용자 조회 요청 내 공유, 지도 공급자별 지연 로딩, 여행 로딩 화면을 추가했다.
+- scripts/verify-mobile-ui.mjs는 실제 컴포넌트·CSS와 서버 액션 모형을 사용한다. 320/390/768/1280px에서 가로 넘침·마우스/터치 이동·빠른 스와이프 스크롤·장소 수정·장소→시간 전환을 확인했다. 인증/RLS를 포함한 실제 일정 저장 E2E를 대체하지 않는다.
+- 전체 282건 테스트 및 추가 장소 수정 2건 회귀 검사 통과. 운영 빌드 통과.
+- 현재 배포 리전 iad1 확인. 장소 API 실측 110ms, 인증 설정 첫 요청 909ms/후속61~69ms(로컬 측정이며 운영 전체 페이지 시간 아님). 배포 위치 변경과 운영 체감 속도 비교는 미적용/미측정이다.
+- 환경변수는 gitignored .env.local에만 복구했다. 새 코드 변경은 아직 배포하지 않았다.

@@ -12,6 +12,7 @@ vi.mock("@/features/trips/actions", () => ({
   deleteItemAction: vi.fn(),
   deleteItemsAction: vi.fn(),
   updateItemAction: vi.fn().mockResolvedValue({ status: "idle" }),
+  moveItemAfterAction: vi.fn(),
   moveItemUpAction: vi.fn(),
   moveItemDownAction: vi.fn(),
   moveItemToDayAction: vi.fn(),
@@ -33,24 +34,13 @@ function renderRow(overrides: Partial<ItineraryItem> = {}, props: Record<string,
 describe("ItemRow", () => {
   it("여행 시간대로 시각을 표시한다", () => { renderRow(); expect(screen.getByText("11:00")).toBeInTheDocument(); });
 
-  /*
-   * 재정렬은 드래그가 아니라 버튼이다. 드래그만 제공하면 키보드 사용자에게
-   * 이 기능이 통째로 사라진다 (AGENTS.md).
-   */
-  it("키보드로 쓸 수 있는 위/아래 이동 버튼을 제공한다", async () => {
-    const user = userEvent.setup();
-    renderRow();
-    await user.click(screen.getByRole("button", { name: "이치란 신주쿠 순서 이동" }));
-    expect(screen.getByRole("button", { name: "이치란 신주쿠 위로 이동" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "이치란 신주쿠 아래로 이동" })).toBeEnabled();
-  });
-
-  it("그 날의 처음·마지막 항목은 갈 수 없는 방향을 막는다", async () => {
-    const user = userEvent.setup();
-    renderRow({}, { isFirst: true, isLast: true });
-    await user.click(screen.getByRole("button", { name: "이치란 신주쿠 순서 이동" }));
-    expect(screen.getByRole("button", { name: "이치란 신주쿠 위로 이동" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "이치란 신주쿠 아래로 이동" })).toBeDisabled();
+  it("위아래 클릭 버튼 대신 카드의 키보드 조작으로 이동한다", async () => {
+    const user = userEvent.setup(); renderRow();
+    expect(screen.queryByRole("button", { name: /위로 이동|아래로 이동/ })).not.toBeInTheDocument();
+    const row = screen.getByRole("listitem"); row.focus();
+    await user.keyboard("{Alt>}{ArrowUp}{/Alt}");
+    const { moveItemUpAction } = await import("@/features/trips/actions");
+    expect(moveItemUpAction).toHaveBeenCalled();
   });
 
   it("다른 날짜로 옮기는 셀렉트를 제공한다", async () => {

@@ -125,3 +125,44 @@ describe("createItemAction — 장소 조회 실패와 무관하게 저장한다
     );
   });
 });
+
+describe("updateItemAction — 검색에서 선택한 장소", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getTrip.mockResolvedValue({ id: TRIP_ID, timezone: "Asia/Tokyo" });
+  });
+
+  function editClient() {
+    const query = {
+      select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), is: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: { location_text: "옛 장소", place_snapshot: null }, error: null }),
+    };
+    const result = { eq: vi.fn().mockReturnThis(), is: vi.fn().mockReturnThis(), select: vi.fn().mockResolvedValue({ data: [{ id: "item" }], error: null }) };
+    const update = vi.fn().mockReturnValue(result);
+    mocks.createClient.mockResolvedValue({ from: () => ({ ...query, update }) });
+    return update;
+  }
+
+  const place = { ...KAKAO_HIT, categoryGroup: "food", category: null, address: "새 주소", roadAddress: null };
+
+  it("선택한 좌표를 저장하고 예전 장소 연결을 제거하며 재검색하지 않는다", async () => {
+    const update = editClient();
+    const form = itemForm("새 주소");
+    form.set("itemId", "item"); form.set("expectedUpdatedAt", "2026-02-14T00:00:00Z");
+    form.set("selectedPlace", JSON.stringify(place));
+    const { updateItemAction } = await import("@/features/trips/actions");
+    const result = await updateItemAction({ status: "idle" }, form);
+    expect(result.status).not.toBe("error");
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ place_id: null, place_snapshot: expect.objectContaining({ latitude: 35.69, longitude: 139.7 }) }));
+    expect(mocks.searchPlaces).not.toHaveBeenCalled();
+  });
+
+  it("범위를 벗어난 좌표는 저장하지 않는다", async () => {
+    const update = editClient();
+    const form = itemForm("새 주소");
+    form.set("selectedPlace", JSON.stringify({ ...place, latitude: 999 }));
+    const { updateItemAction } = await import("@/features/trips/actions");
+    expect((await updateItemAction({ status: "idle" }, form)).status).toBe("error");
+    expect(update).not.toHaveBeenCalled();
+  });
+});

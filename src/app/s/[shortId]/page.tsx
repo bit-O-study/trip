@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { loadSharedTrip, verifyShareCookie } from "@/features/share/server";
 import { SHARE_COOKIE } from "@/features/share/types";
-import { ITEM_TYPE_ICONS, ITEM_TYPE_LABELS, type ItemType } from "@/features/trips/types";
+import { ITEM_TYPE_LABELS, type ItemType } from "@/features/trips/types";
 import { dayColorVar } from "@/lib/day-color";
 import { tripDays, tripDurationLabel, zonedDateKey, zonedTimeLabel } from "@/lib/datetime";
 
@@ -176,7 +176,7 @@ function SharedRow({
             {item.allDay ? "종일" : zonedTimeLabel(item.startAt, timezone)}
           </span>
           <span className="truncate font-medium">
-            <span aria-hidden>{ITEM_TYPE_ICONS[type] ?? "📍"}</span>{" "}
+
             <span className="sr-only">{ITEM_TYPE_LABELS[type] ?? "일정"}</span>
             {item.title}
           </span>

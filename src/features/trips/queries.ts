@@ -75,17 +75,15 @@ export async function listTrips(options?: { deleted?: boolean }): Promise<TripSu
 export const getTrip = cache(async (tripId: string): Promise<TripDetail | null> => {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("trips")
-    .select(TRIP_COLUMNS)
-    .eq("id", tripId)
-    .maybeSingle();
+  const [{ data, error }, role] = await Promise.all([
+    supabase.from("trips").select(TRIP_COLUMNS).eq("id", tripId).maybeSingle(),
+    getTripRole(tripId),
+  ]);
 
   if (error) throw new Error(`여행을 불러오지 못했습니다: ${error.message}`);
   if (!data) return null;
 
   const row = data as TripRow;
-  const role = await getTripRole(tripId);
   // 멤버십 행이 없으면 접근할 수 없는 여행으로 취급한다.
   // (소유자는 trips 정책의 owner_id 조건으로 행은 볼 수 있으나, 그 경우에도
   //  트리거가 멤버십을 만들어 두므로 정상 상태에서는 발생하지 않는다.)

@@ -23,3 +23,5 @@
 *.log
 *.tsbuildinfo
 next-env.d.ts
+
+/.verify-ui/

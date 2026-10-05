@@ -3,12 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { selectedPlaceSchema } from "@/features/places/schema";
 
 import { IDLE, fail, type ActionState } from "@/features/trips/action-state";
 import { PlaceSearchError, searchPlaces } from "@/features/places/kakao";
 import { itemFormSchema, tripFormSchema } from "@/features/trips/schema";
 import { listItems, getTrip } from "@/features/trips/queries";
-import { planMoveAfter, planMoveDown, planMoveToDay, planMoveUp, type MovePlan } from "@/features/trips/reorder";
+import { planMoveAfter, planMoveBefore, planMoveDown, planMoveToDay, planMoveUp, type MovePlan } from "@/features/trips/reorder";
 import type { ItineraryItem } from "@/features/trips/types";
 import { zonedLocalToUtc } from "@/lib/datetime";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -320,7 +321,15 @@ export async function updateItemAction(
   const nextLocation = parsed.data.locationText || null;
   let nextSnapshot = current.data.place_snapshot;
   let clearPlaceId = false;
-  if (nextLocation !== current.data.location_text) {
+  const selectedPlace = text(formData, "selectedPlace");
+  if (selectedPlace) {
+    let payload: unknown;
+    try { payload = JSON.parse(selectedPlace); } catch { return fail("선택한 장소가 올바르지 않습니다."); }
+    const place = selectedPlaceSchema.safeParse(payload);
+    if (!place.success) return fail("선택한 장소가 올바르지 않습니다.");
+    nextSnapshot = { ...place.data, capturedAt: new Date().toISOString() };
+    clearPlaceId = true;
+  } else if (nextLocation !== current.data.location_text) {
     // 장소 문자열이 바뀌면 옛 스냅샷은 더 이상 이 항목의 위치가 아니다.
     // 비웠으면 좌표도 함께 지운다 — 지울 방법이 없으면 잘못 붙은 핀이 영원히 남는다.
     clearPlaceId = true;
@@ -468,7 +477,9 @@ export async function moveItemAfterAction(formData: FormData): Promise<void> {
   const itemId = text(formData, "itemId");
   const targetId = text(formData, "targetId");
   const tripId = text(formData, "tripId");
-  await applyMove(tripId, itemId, (items) => planMoveAfter(items, itemId, targetId));
+  await applyMove(tripId, itemId, (items, timezone) => text(formData, "position") === "before"
+    ? planMoveBefore(items, itemId, targetId, timezone)
+    : planMoveAfter(items, itemId, targetId));
 }
 
 export async function moveItemToDayAction(formData: FormData): Promise<void> {

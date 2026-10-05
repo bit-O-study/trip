@@ -3,8 +3,9 @@
 import { useCallback, useState } from "react";
 
 import type { MapLoadError } from "./errors";
-import { GoogleTripMap } from "./google-map";
-import { KakaoTripMap } from "./kakao-map";
+import dynamic from "next/dynamic";
+const GoogleTripMap = dynamic(() => import("./google-map").then((m) => m.GoogleTripMap));
+const KakaoTripMap = dynamic(() => import("./kakao-map").then((m) => m.KakaoTripMap));
 import { isDomesticTrip } from "./region";
 import type { TripMapProps } from "./types";
 

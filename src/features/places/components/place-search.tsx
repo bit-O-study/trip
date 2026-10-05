@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, type FormEvent } from "react";
+import { useActionState, useId, useRef, useState, type FormEvent } from "react";
 
 import { addPlaceToTripAction } from "@/features/places/actions";
 import { PLACE_CATEGORY_LABELS, type PlaceSearchResult } from "@/features/places/types";
@@ -23,6 +23,7 @@ type Props = {
   polls: RestaurantPollView[];
   initialPollId?: string;
   initialQuery?: string;
+  onSelect?: (place: PlaceSearchResult) => void;
 };
 
 type SearchState =
@@ -42,7 +43,9 @@ function dateInTimezone(iso: string, timezone: string): string {
   return `${read("year")}-${read("month")}-${read("day")}`;
 }
 
-export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollId, initialQuery = "" }: Props) {
+export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollId, initialQuery = "", onSelect }: Props) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const startId = useId();
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState<string | null>(null);
   const [search, setSearch] = useState<SearchState>({ status: "idle" });
@@ -62,7 +65,11 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
   );
 
   const [addState, addAction, adding] = useActionState<ActionState, FormData>(
-    addPlaceToTripAction,
+    async (previous, form) => {
+      const result = await addPlaceToTripAction(previous, form);
+      if (result.status === "success") setSelected(null);
+      return result;
+    },
     IDLE,
   );
 
@@ -112,9 +119,10 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
   }
 
   return (
-    <section id="place-search" className="scroll-mt-24 space-y-4 rounded-xl border border-border bg-card p-4">
-      <h2 className="text-base font-semibold">장소 검색</h2>
+    <section ref={sectionRef} className="min-w-0 scroll-mt-24 space-y-4 rounded-xl border border-border bg-card p-4">
+      <h2 className="text-base font-semibold">{selected ? "방문 시간 선택" : "장소 검색"}</h2>
 
+      {!selected ? <>
       <form onSubmit={runSearch} className="space-y-3">
         <div className="flex gap-2">
           <input
@@ -123,7 +131,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
             placeholder="이치란 라멘, 신주쿠 호텔…"
             aria-label="장소 검색어"
             maxLength={80}
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-base"
+            className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-base"
           />
           <button
             type="submit"
@@ -206,7 +214,14 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSelected(place)}
+                    onClick={() => {
+                      if (onSelect) { onSelect(place); return; }
+                      setSelected(place);
+                      requestAnimationFrame(() => {
+                        sectionRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                        sectionRef.current?.querySelector<HTMLInputElement>('input[type="datetime-local"]')?.focus({ preventScroll: true });
+                      });
+                    }}
                     className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
                   >
                     선택
@@ -218,6 +233,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
         )
       ) : null}
 
+      </> : null}
       {selected ? (
         <form action={addAction} className="space-y-3 rounded-lg border border-primary px-3 py-3">
           <p className="text-sm">
@@ -225,11 +241,11 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
           </p>
 
           <div className="space-y-1.5">
-            <label htmlFor="place-start" className="text-sm font-medium">
+            <label htmlFor={startId} className="text-sm font-medium">
               방문 시각
             </label>
             <input
-              id="place-start"
+              id={startId}
               type="datetime-local"
               onClick={openDatePicker}
               value={startLocal}
@@ -262,7 +278,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
             </p>
           ) : null}
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="submit"
               name="intent"
@@ -288,7 +304,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
               onClick={() => setSelected(null)}
               className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
             >
-              취소
+              장소 다시 선택
             </button>
           </div>
         </form>

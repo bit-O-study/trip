@@ -83,6 +83,15 @@ export function planMoveAfter(
   return { startAt: target.startAt, afterItemId: target.id };
 }
 
+export function planMoveBefore(items: ItineraryItem[], itemId: string, targetId: string, timezone: string): MovePlan | null {
+  if (itemId === targetId || !items.some((item) => item.id === itemId)) return null;
+  const target = items.find((item) => item.id === targetId);
+  if (!target) return null;
+  const siblings = siblingsOf(items, zonedDateKey(target.startAt, timezone), timezone).filter((item) => item.id !== itemId);
+  const index = siblings.findIndex((item) => item.id === targetId);
+  return { startAt: target.startAt, afterItemId: index > 0 ? siblings[index - 1].id : null };
+}
+
 /**
  * 다른 날짜로 옮긴다. 벽시계 시각은 유지한다 — "14:00 점심"은 날짜가 바뀌어도
  * 14:00 이어야 한다. UTC 오프셋을 그대로 더하면 시차가 있는 여행에서 시각이 밀린다.
