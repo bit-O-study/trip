@@ -12,6 +12,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const placeItemSchema = z.object({
   tripId: z.uuid(),
+  note: z.string().trim().max(2000).optional(),
+  endLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).optional().or(z.literal("")),
   pollId: z.uuid().nullable().optional(),
   provider: z.enum(["google", "kakao"]),
   providerPlaceId: z.string().trim().min(1),
@@ -73,8 +75,12 @@ export async function addPlaceToTripAction(
 
   const supabase = await createSupabaseServerClient();
   let startAt: string;
+  let endAt: string | null = null;
+  if (intent !== "candidate" && input.categoryGroup === "lodging" && (!input.endLocal || input.endLocal <= input.startLocal)) return fail("체크아웃은 체크인 이후로 입력하세요.");
   try {
     startAt = zonedLocalToUtc(input.startLocal, trip.timezone);
+    if (input.endLocal && intent !== "candidate") endAt = zonedLocalToUtc(input.endLocal, trip.timezone);
+    if (endAt && endAt < startAt) return fail("종료 시각을 확인하세요.");
   } catch (caught) {
     return fail(caught instanceof Error ? caught.message : "시각을 해석할 수 없습니다");
   }
@@ -151,6 +157,8 @@ export async function addPlaceToTripAction(
     type: intent === "candidate" ? "food" : ITEM_TYPE_BY_GROUP[input.categoryGroup],
     title: input.name,
     start_at: startAt,
+    end_at: endAt,
+    note: input.note || null,
     location_text: input.roadAddress ?? input.address,
     place_id: placeId,
     // 선택 시점의 사본. 외부 API 가 바뀌어도 이 값은 그대로다.

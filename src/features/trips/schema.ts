@@ -69,6 +69,7 @@ export const itemFormSchema = z
     locationText: z.string().trim().max(200).optional().or(z.literal("")),
     note: z.string().trim().max(2000).optional().or(z.literal("")),
   })
+  .refine((value) => value.type !== "lodging" || Boolean(value.endLocal && value.endLocal > value.startLocal), { message: "체크아웃은 체크인 이후로 입력하세요", path: ["endLocal"] })
   .refine((value) => !value.endLocal || value.endLocal >= value.startLocal, {
     message: "종료 시각은 시작 시각 이후여야 합니다",
     path: ["endLocal"],

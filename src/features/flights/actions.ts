@@ -111,7 +111,9 @@ async function saveFlight(
   tripId: string,
   flight: z.infer<typeof flightSchema>,
   numberInput: string,
+  note: string,
 ): Promise<ActionState> {
+  if (note.length > 2000) return fail("메모는 2000자 이내로 입력하세요.");
   const normalized = normalizeFlightNumber(numberInput);
   if (!normalized) return fail("편명을 확인하세요. 예: KE703");
 
@@ -138,6 +140,7 @@ async function saveFlight(
   const { error } = await supabase.from("itinerary_items").insert({
     trip_id: tripId,
     type: "flight",
+    note: note.trim() || null,
     title: `${normalized.input} ${flight.departure.airport}→${flight.arrival.airport}`,
     start_at: flight.departure.scheduledAt,
     end_at: flight.arrival.scheduledAt,
@@ -176,7 +179,7 @@ export async function addFlightToTripAction(
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "항공편 정보를 확인하세요");
 
   const numberInput = text(formData, "flightNumberInput") || parsed.data.marketingFlightNumber;
-  return saveFlight(tripId, parsed.data, numberInput);
+  return saveFlight(tripId, parsed.data, numberInput, text(formData, "note"));
 }
 
 const manualSchema = z.object({
@@ -272,6 +275,5 @@ export async function addManualFlightAction(
     raw: {},
   };
 
-  const { raw: _raw, ...withoutRaw } = flight;
-  return saveFlight(parsed.data.tripId, withoutRaw, parsed.data.flightNumber);
+  return saveFlight(parsed.data.tripId, flightSchema.parse(flight), parsed.data.flightNumber, text(formData, "note"));
 }

@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 
 import { IDLE, type ActionState } from "@/features/trips/action-state";
 import { createItemAction } from "@/features/trips/actions";
-import { ITEM_TYPES, ITEM_TYPE_LABELS } from "@/features/trips/types";
+import { ITEM_TYPES, ITEM_TYPE_LABELS, type ItemType } from "@/features/trips/types";
 import { openDatePicker } from "@/lib/date-picker";
 
 type Props = {
@@ -26,6 +26,7 @@ function FieldError({ errors }: { errors?: string[] }) {
 }
 
 export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, onCancel }: Props) {
+  const [type, setType] = useState<ItemType>("activity");
   const [open, setOpen] = useState(defaultOpen);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     createItemAction,
@@ -55,19 +56,20 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
       <div className="space-y-1.5">
         <span className="text-sm font-medium">종류</span>
         <div className="flex flex-wrap gap-1.5">
-          {ITEM_TYPES.map((type, index) => (
+          {ITEM_TYPES.map((itemType) => (
             <label
-              key={type}
+              key={itemType}
               className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground"
             >
               <input
                 type="radio"
                 name="type"
-                value={type}
-                defaultChecked={index === 3}
+                value={itemType}
+                checked={type === itemType}
+                onChange={() => setType(itemType)}
                 className="sr-only"
               />
-              {ITEM_TYPE_LABELS[type]}
+              {ITEM_TYPE_LABELS[itemType]}
             </label>
           ))}
         </div>
@@ -92,7 +94,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <label htmlFor="startLocal" className="text-sm font-medium">
-            시작
+            {type === "lodging" ? "체크인" : "시작"}
           </label>
           <input
             id="startLocal"
@@ -107,11 +109,12 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
         </div>
         <div className="space-y-1.5">
           <label htmlFor="endLocal" className="text-sm font-medium">
-            종료 <span className="text-muted-foreground">(선택)</span>
+            {type === "lodging" ? "체크아웃" : <>종료 <span className="text-muted-foreground">(선택)</span></>}
           </label>
           <input
             id="endLocal"
             name="endLocal"
+            required={type === "lodging"}
             type="datetime-local"
             onClick={openDatePicker}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"

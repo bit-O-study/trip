@@ -14,13 +14,17 @@ const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"] as const;
 /** "2026-02-14" 형태의 날짜 문자열인지 */
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
 function partsInZone(iso: string | Date, timeZone: string) {
   const date = typeof iso === "string" ? new Date(iso) : iso;
   if (Number.isNaN(date.getTime())) {
     throw new Error(`올바르지 않은 시각입니다: ${String(iso)}`);
   }
 
-  const formatter = new Intl.DateTimeFormat("en-US", {
+  let formatter = formatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
     year: "numeric",
     month: "2-digit",
@@ -28,7 +32,10 @@ function partsInZone(iso: string | Date, timeZone: string) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  });
+    });
+    if (formatters.size >= 32) formatters.delete(formatters.keys().next().value!);
+    formatters.set(timeZone, formatter);
+  }
 
   const parts: Record<string, string> = {};
   for (const part of formatter.formatToParts(date)) {

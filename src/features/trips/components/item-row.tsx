@@ -1,5 +1,6 @@
 "use client";
 
+import { ItemTime } from "./item-time";
 import { useState } from "react";
 import { useItemDrag } from "./use-item-drag";
 import {
@@ -13,7 +14,7 @@ import { SubmitButton } from "@/features/trips/components/submit-button";
 import { timelineItemDomId, useItemSelection } from "@/features/trips/components/trip-board";
 import { ITEM_TYPE_LABELS, type ItineraryItem } from "@/features/trips/types";
 import { dayColorVar } from "@/lib/day-color";
-import { zonedTimeLabel, type TripDay } from "@/lib/datetime";
+import { type TripDay } from "@/lib/datetime";
 
 type Props = {
   item: ItineraryItem;
@@ -35,7 +36,7 @@ type Props = {
 const CONTROL = "rounded-lg border border-border px-2 py-1 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40";
 
 function ItemBody({ item, timezone }: { item: ItineraryItem; timezone: string }) {
-  return <><span className="flex min-w-0 flex-wrap items-baseline gap-2"><span className="font-mono text-sm tabular-nums text-muted-foreground">{item.allDay ? "종일" : zonedTimeLabel(item.startAt, timezone)}</span><span className="min-w-0 break-words font-medium"><span className="sr-only">{ITEM_TYPE_LABELS[item.type]}</span>{item.title}</span></span>{item.locationText ? <span className="mt-0.5 block truncate text-sm text-muted-foreground">{item.locationText}</span> : null}{item.note ? <span className="mt-1 block whitespace-pre-wrap text-sm text-muted-foreground">{item.note}</span> : null}</>;
+  return <><span className="flex min-w-0 flex-wrap items-baseline gap-2"><ItemTime item={item} timezone={timezone} /><span className="min-w-0 break-words font-medium"><span className="sr-only">{ITEM_TYPE_LABELS[item.type]}</span>{item.title}</span></span>{item.locationText ? <span className="mt-0.5 block truncate text-sm text-muted-foreground">{item.locationText}</span> : null}{item.note ? <span className="mt-1 block break-words whitespace-pre-wrap text-sm text-muted-foreground">{item.note}</span> : null}</>;
 }
 
 /** 드래그 외에 키보드로 날짜를 바꾸는 경로. 순서는 카드에서 Alt+방향키로 이동한다. */

@@ -236,14 +236,17 @@ function cuisineLabel(snapshot: Record<string, unknown> | null): string {
 
 export async function listRestaurantPolls(tripId: string): Promise<RestaurantPollView[]> {
   const supabase = await createSupabaseServerClient();
-  await supabase.rpc("finalize_due_restaurant_polls");
-  const [{ data: auth }, pollsResult, itemsResult] = await Promise.all([
+  const readPolls = () => supabase.from("restaurant_polls").select("id, title, scheduled_at, closes_at, status, winner_item_id, created_by").eq("trip_id", tripId).order("scheduled_at", { ascending: true });
+  let pollsResult = await readPolls();
+  if (pollsResult.error) throw new Error("투표를 불러오지 못했습니다.");
+  if (!pollsResult.data?.length) return [];
+  if (pollsResult.data.some((poll) => poll.status === "open" && Date.parse(poll.closes_at) <= Date.now())) {
+    const finalized = await supabase.rpc("finalize_due_restaurant_polls");
+    if (finalized.error) throw new Error("투표를 마감하지 못했습니다.");
+    pollsResult = await readPolls();
+  }
+  const [{ data: auth }, itemsResult] = await Promise.all([
     supabase.auth.getUser(),
-    supabase
-      .from("restaurant_polls")
-      .select("id, title, scheduled_at, closes_at, status, winner_item_id, created_by")
-      .eq("trip_id", tripId)
-      .order("scheduled_at", { ascending: true }),
     supabase
       .from("itinerary_items")
       .select("id, restaurant_poll_id, title, location_text, place_snapshot")

@@ -15,7 +15,7 @@ type SearchState =
   | { status: "error"; message: string; retryable: boolean }
   | { status: "done"; results: FlightSearchResult[]; flightNumberInput: string };
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-base";
+const FIELD = "w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-base";
 
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.length) return null;
@@ -200,6 +200,7 @@ export function FlightAdd({ tripId, defaultDate, timezone }: Props) {
             name="payload"
             value={JSON.stringify({ ...selected, raw: undefined })}
           />
+          <label className="block min-w-0 space-y-1 text-sm sm:col-span-2"><span className="font-medium">메모</span><textarea name="note" maxLength={2000} rows={3} className={FIELD} placeholder="예약번호, 준비물 등을 적어주세요" /></label>
           {addState.status === "error" && addState.message ? (
             <p role="alert" className="text-sm text-danger">{addState.message}</p>
           ) : null}
@@ -276,6 +277,7 @@ export function FlightAdd({ tripId, defaultDate, timezone }: Props) {
             코드는 이 여행의 시간대({timezone})로 저장합니다. 날짜변경선을 넘어 도착일이
             출발일보다 이르거나 이틀 뒤여도 그대로 저장됩니다.
           </p>
+          <label className="block min-w-0 space-y-1 text-sm sm:col-span-2"><span className="font-medium">메모</span><textarea name="note" maxLength={2000} rows={3} className={FIELD} placeholder="예약번호, 준비물 등을 적어주세요" /></label>
           {manualState.status === "error" && manualState.message ? (
             <p role="alert" className="text-sm text-danger sm:col-span-2">{manualState.message}</p>
           ) : null}

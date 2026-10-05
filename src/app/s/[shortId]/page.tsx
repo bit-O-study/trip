@@ -1,3 +1,4 @@
+import { ItemTime } from "@/features/trips/components/item-time";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
@@ -6,7 +7,7 @@ import { loadSharedTrip, verifyShareCookie } from "@/features/share/server";
 import { SHARE_COOKIE } from "@/features/share/types";
 import { ITEM_TYPE_LABELS, type ItemType } from "@/features/trips/types";
 import { dayColorVar } from "@/lib/day-color";
-import { tripDays, tripDurationLabel, zonedDateKey, zonedTimeLabel } from "@/lib/datetime";
+import { tripDays, tripDurationLabel, zonedDateKey } from "@/lib/datetime";
 
 type Props = { params: Promise<{ shortId: string }> };
 
@@ -151,7 +152,7 @@ function SharedRow({
   dayIndex,
   timezone,
 }: {
-  item: { type: string; title: string; note: string | null; locationText: string | null; startAt: string; allDay: boolean };
+  item: { type: string; title: string; note: string | null; locationText: string | null; startAt: string; endAt: string | null; allDay: boolean };
   order: number;
   dayIndex: number | null;
   timezone: string;
@@ -172,9 +173,7 @@ function SharedRow({
       </span>
       <div className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2">
-          <span className="font-mono text-sm tabular-nums text-muted-foreground">
-            {item.allDay ? "종일" : zonedTimeLabel(item.startAt, timezone)}
-          </span>
+          <ItemTime item={item} timezone={timezone} />
           <span className="truncate font-medium">
 
             <span className="sr-only">{ITEM_TYPE_LABELS[type] ?? "일정"}</span>

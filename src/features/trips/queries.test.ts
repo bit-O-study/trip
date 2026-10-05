@@ -78,3 +78,39 @@ describe("getTripRole", () => {
     expect(client.from).not.toHaveBeenCalled();
   });
 });
+
+describe("listRestaurantPolls fast path", () => {
+  beforeEach(() => vi.clearAllMocks());
+  function pollsClient(polls: object[]) {
+    const makeQuery = (data: object[]) => {
+      const q = { select: vi.fn(), eq: vi.fn(), not: vi.fn(), in: vi.fn(), is: vi.fn(), order: vi.fn().mockResolvedValue({ data, error: null }) };
+      for (const method of [q.select, q.eq, q.not, q.in, q.is]) method.mockReturnValue(q);
+      return q;
+    };
+    const pollQuery = makeQuery(polls);
+    const db = { from: vi.fn((table: string) => table === "restaurant_polls" ? pollQuery : makeQuery([])), rpc: vi.fn().mockResolvedValue({ error: null }), auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) } };
+    mocks.createClient.mockResolvedValue(db);
+    return { db, pollQuery };
+  }
+  it("skips finalization, auth and candidates when a trip has no polls", async () => {
+    const { db } = pollsClient([]);
+    const { listRestaurantPolls } = await import("./queries");
+    expect(await listRestaurantPolls(TRIP_ID)).toEqual([]);
+    expect(db.from).toHaveBeenCalledTimes(1);
+    expect(db.rpc).not.toHaveBeenCalled();
+    expect(db.auth.getUser).not.toHaveBeenCalled();
+  });
+  it("does not finalize polls before their deadline", async () => {
+    const { db } = pollsClient([{ id: "poll", status: "open", closes_at: "2099-01-01T00:00:00Z" }]);
+    const { listRestaurantPolls } = await import("./queries");
+    expect(await listRestaurantPolls(TRIP_ID)).toHaveLength(1);
+    expect(db.rpc).not.toHaveBeenCalled();
+  });
+  it("finalizes expired polls and rereads their current result", async () => {
+    const { db, pollQuery } = pollsClient([{ id: "poll", status: "open", closes_at: "2000-01-01T00:00:00Z" }]);
+    const { listRestaurantPolls } = await import("./queries");
+    await listRestaurantPolls(TRIP_ID);
+    expect(db.rpc).toHaveBeenCalledWith("finalize_due_restaurant_polls");
+    expect(pollQuery.order).toHaveBeenCalledTimes(2);
+  });
+});

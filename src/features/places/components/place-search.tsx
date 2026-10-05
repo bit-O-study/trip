@@ -50,6 +50,8 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
   const [category, setCategory] = useState<string | null>(null);
   const [search, setSearch] = useState<SearchState>({ status: "idle" });
   const [selected, setSelected] = useState<PlaceSearchResult | null>(null);
+  const [note, setNote] = useState("");
+  const [endLocal, setEndLocal] = useState("");
   const [startLocal, setStartLocal] = useState(`${defaultDate}T09:00`);
   const openPolls = polls.filter((poll) => poll.status === "open");
   /*
@@ -67,7 +69,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
   const [addState, addAction, adding] = useActionState<ActionState, FormData>(
     async (previous, form) => {
       const result = await addPlaceToTripAction(previous, form);
-      if (result.status === "success") setSelected(null);
+      if (result.status === "success") { setSelected(null); setNote(""); setEndLocal(""); }
       return result;
     },
     IDLE,
@@ -217,6 +219,11 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
                     onClick={() => {
                       if (onSelect) { onSelect(place); return; }
                       setSelected(place);
+                      if (place.categoryGroup === "lodging") {
+                        setStartLocal(defaultDate + "T15:00");
+                        const tomorrow = new Date(defaultDate + "T12:00:00Z"); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+                        setEndLocal(tomorrow.toISOString().slice(0, 10) + "T11:00");
+                      } else setEndLocal("");
                       requestAnimationFrame(() => {
                         sectionRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
                         sectionRef.current?.querySelector<HTMLInputElement>('input[type="datetime-local"]')?.focus({ preventScroll: true });
@@ -242,7 +249,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
 
           <div className="space-y-1.5">
             <label htmlFor={startId} className="text-sm font-medium">
-              방문 시각
+              {selected.categoryGroup === "lodging" ? "체크인" : "방문 시각"}
             </label>
             <input
               id={startId}
@@ -256,10 +263,12 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
             <p className="text-xs text-muted-foreground">현지 시간({timezone}) 기준입니다.</p>
           </div>
 
+          {selected.categoryGroup === "lodging" && <label className="block space-y-1 text-sm"><span>체크아웃</span><input type="datetime-local" required value={endLocal} onChange={(e) => setEndLocal(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base" /></label>}
+          <label className="block space-y-1 text-sm"><span>메모</span><textarea value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="예약번호, 준비물, 가는 길 안내…" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base" /></label>
           <input
             type="hidden"
             name="payload"
-            value={JSON.stringify({ ...selected, tripId, startLocal, pollId: pollId || null })}
+            value={JSON.stringify({ ...selected, tripId, startLocal, endLocal, note, pollId: pollId || null })}
           />
 
           {openPolls.length > 0 ? (
