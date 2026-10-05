@@ -61,7 +61,7 @@ export function useItemDrag(tripId: string, itemId: string, enabled: boolean) {
     onPointerDown(event: PointerEvent<HTMLLIElement>) {
       suppressClick.current = false;
       if (!enabled || pending || event.button !== 0) return;
-      const control = (event.target as HTMLElement).closest("button, input, select, textarea, a, form");
+      const control = (event.target as HTMLElement).closest("button, input, select, textarea, a, form, details, summary");
       if (control && !control.hasAttribute("data-select-item")) return;
       gesture.current = { x: event.clientX, y: event.clientY, started: performance.now(), scrolling: false, active: false, target: null, before: false };
     },

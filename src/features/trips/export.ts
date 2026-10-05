@@ -1,3 +1,4 @@
+import { listTravelLegs } from "./travel-actions";
 import { listItems, getTrip, listRestaurantPolls, listTripMembers } from "@/features/trips/queries";
 
 /**
@@ -10,7 +11,7 @@ import { listItems, getTrip, listRestaurantPolls, listTripMembers } from "@/feat
  * `schemaVersion` 을 넣는 이유: 내보낸 파일은 우리 손을 떠나 몇 년 뒤에 열린다.
  * 형태가 바뀌었을 때 어느 버전으로 읽어야 하는지 파일 자체가 말해야 한다.
  */
-export const EXPORT_SCHEMA_VERSION = 1;
+export const EXPORT_SCHEMA_VERSION = 2;
 
 export type TripExport = {
   schemaVersion: number;
@@ -18,6 +19,7 @@ export type TripExport = {
   trip: Record<string, unknown>;
   members: Array<Record<string, unknown>>;
   items: Array<Record<string, unknown>>;
+  travelLegs: Array<Record<string, unknown>>;
   restaurantPolls: Array<Record<string, unknown>>;
 };
 
@@ -25,10 +27,11 @@ export async function buildTripExport(tripId: string): Promise<TripExport | null
   const trip = await getTrip(tripId);
   if (!trip) return null;
 
-  const [items, members, polls] = await Promise.all([
+  const [items, members, polls, travelLegs] = await Promise.all([
     listItems(tripId),
     listTripMembers(tripId),
     listRestaurantPolls(tripId),
+    listTravelLegs(tripId),
   ]);
 
   return {
@@ -67,6 +70,7 @@ export async function buildTripExport(tripId: string): Promise<TripExport | null
       allDay: item.allDay,
       coordinate: item.coordinate,
     })),
+    travelLegs: travelLegs.map(({ fromId, toId, mode, minutes, distanceKm }) => ({ fromId, toId, mode, minutes, distanceKm })),
     restaurantPolls: polls.map((poll) => ({
       id: poll.id,
       title: poll.title,

@@ -1,6 +1,8 @@
 "use client";
 
 import { ItemTime } from "./item-time";
+import { TravelLegView } from "./travel-leg";
+import { legKey, type Stop, type TravelLeg } from "../travel";
 import { useState } from "react";
 import { useItemDrag } from "./use-item-drag";
 import {
@@ -18,6 +20,10 @@ import { type TripDay } from "@/lib/datetime";
 
 type Props = {
   item: ItineraryItem;
+  previous?: Stop;
+  next?: Stop;
+  previousLeg?: TravelLeg;
+  nextLeg?: TravelLeg;
   order: number;
   dayIndex: number | null;
   timezone: string;
@@ -81,19 +87,26 @@ function MoveControls({ item, tripId, days, dateKey }: Omit<Props, "order" | "da
   );
 }
 
-export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, days, isFirst, isLast, dateKey }: Props) {
+export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, days, isFirst, isLast, dateKey, previous, next, previousLeg, nextLeg }: Props) {
   const { selectedId, select } = useItemSelection();
   const selected = selectedId === item.id;
   const [panel, setPanel] = useState<"edit" | "move" | null>(null);
+  const [previousOpen, setPreviousOpen] = useState(false);
+  const [nextOpen, setNextOpen] = useState(false);
+  const dragEnabled = editable && panel === null && !previousOpen && !nextOpen;
   const bulkSelection = useBulkItemSelection();
-  const { dragging, pending, message, ...dragEvents } = useItemDrag(tripId, item.id, editable && panel === null);
+  const { dragging, pending, message, ...dragEvents } = useItemDrag(tripId, item.id, dragEnabled);
 
-  return <li {...dragEvents} data-drag-item={editable ? item.id : undefined} data-trip-id={tripId} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.title}, 끌어서 이동. Alt와 위아래 방향키로 순서 변경` : undefined} aria-busy={pending} id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} className={`relative min-w-0 scroll-mt-32 ${dragging ? "opacity-50" : ""} ${editable && panel === null ? "touch-none cursor-grab" : ""} rounded-lg border bg-card px-4 py-3 transition-colors ${selected ? "border-primary bg-primary/5" : "border-border"}`}>
+  return <li {...dragEvents} data-drag-item={editable ? item.id : undefined} data-trip-id={tripId} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.title}, 끌어서 이동. Alt와 위아래 방향키로 순서 변경` : undefined} aria-busy={pending} id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} className={`relative min-w-0 scroll-mt-32 ${dragging ? "opacity-50" : ""} ${dragEnabled ? "touch-none cursor-grab" : ""} rounded-lg border bg-card px-4 py-3 transition-colors ${selected ? "border-primary bg-primary/5" : "border-border"}`}>
     <div className="flex min-w-0 items-start gap-3">
       {editable && bulkSelection ? <input type="checkbox" checked={bulkSelection.selected.has(item.id)} onChange={() => bulkSelection.toggle(item.id)} aria-label={`${item.title} 선택`} className="mt-1 size-4 shrink-0" /> : null}
       <span aria-hidden className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium text-primary-foreground" style={dayIndex === null ? { background: "var(--muted)", color: "var(--muted-foreground)" } : { background: dayColorVar(dayIndex) }}>{order}</span>
       {item.coordinate ? <button type="button" data-select-item aria-pressed={selected} onClick={() => select(item.id, "timeline")} className="min-w-0 flex-1 rounded text-left"><span className="sr-only">지도에서 보기: </span><ItemBody item={item} timezone={timezone} /></button> : <div className="min-w-0 flex-1"><ItemBody item={item} timezone={timezone} /></div>}
     </div>
+    {(previous || next) && <div className="mt-3 space-y-2">
+      {previous && <TravelLegView key={legKey(previous.id, item.id)} tripId={tripId} from={previous} to={item} leg={previousLeg} editable={editable} direction="previous" onExpandedChange={setPreviousOpen} />}
+      {next && <TravelLegView key={legKey(item.id, next.id)} tripId={tripId} from={item} to={next} leg={nextLeg} editable={editable} direction="next" onExpandedChange={setNextOpen} />}
+    </div>}
     {editable ? <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
       <button type="button" aria-expanded={panel === "move"} aria-label={`${item.title} 순서 이동`} onClick={() => setPanel((value) => (value === "move" ? null : "move"))} className={CONTROL}>{panel === "move" ? "날짜 이동 닫기" : "날짜 이동"}</button>
       <button type="button" aria-expanded={panel === "edit"} onClick={() => setPanel((value) => (value === "edit" ? null : "edit"))} className={CONTROL}>{panel === "edit" ? "수정 닫기" : "수정"}</button>

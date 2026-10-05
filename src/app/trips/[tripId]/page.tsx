@@ -1,3 +1,5 @@
+import { listTravelLegs } from "@/features/trips/travel-actions";
+import { neighborMap, legKey } from "@/features/trips/travel";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -37,7 +39,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
   const trip = await getTrip(tripId);
   if (!trip) notFound();
 
-  const [items, restaurantPolls, members, shareLinks, viewer] = await Promise.all([
+  const [items, restaurantPolls, members, shareLinks, viewer, travelLegs] = await Promise.all([
     listItems(tripId),
     listRestaurantPolls(tripId),
     listTripMembers(tripId),
@@ -45,7 +47,10 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
     listShareLinks(tripId),
     // 화면 표시용이다. 권한 판정은 trip.role 과 RLS 가 한다.
     getCurrentUser(),
+    listTravelLegs(tripId),
   ]);
+  const legs = new Map(travelLegs.map((leg) => [legKey(leg.fromId, leg.toId), leg]));
+  const neighbors = neighborMap(items);
   const days = tripDays(trip.startDate, trip.endDate);
   const editable = canEdit(trip.role);
 
@@ -226,6 +231,10 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                         <ItemRow
                           key={item.id}
                           item={item}
+                        previous={neighbors.get(item.id)?.previous}
+                        next={neighbors.get(item.id)?.next}
+                        previousLeg={legs.get(legKey(neighbors.get(item.id)?.previous?.id ?? "", item.id))}
+                        nextLeg={legs.get(legKey(item.id, neighbors.get(item.id)?.next?.id ?? ""))}
                           order={index + 1}
                           dayIndex={day.index}
                           timezone={trip.timezone}
@@ -268,6 +277,10 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                       <ItemRow
                         key={item.id}
                         item={item}
+                        previous={neighbors.get(item.id)?.previous}
+                        next={neighbors.get(item.id)?.next}
+                        previousLeg={legs.get(legKey(neighbors.get(item.id)?.previous?.id ?? "", item.id))}
+                        nextLeg={legs.get(legKey(item.id, neighbors.get(item.id)?.next?.id ?? ""))}
                         order={index + 1}
                         dayIndex={null}
                         timezone={trip.timezone}

@@ -8,7 +8,7 @@ import pg from "pg";
  * 마이그레이션 적용 도구.
  *
  * Supabase CLI 의 `db push` 는 액세스 토큰과 DB 비밀번호를 요구한다.
- * 이 프로젝트는 헬쑤와 DB 를 공유하므로 헬쑤가 쓰는 접속 정보를 그대로 쓴다.
+ * Trip 전용 DB 접속 정보만 쓴다. 다른 프로젝트의 DB 접속 정보를 사용하지 않는다.
  *
  * 사용법
  *   node scripts/db.mjs inspect --env-file <path>   현재 상태만 확인 (변경 없음)
@@ -89,7 +89,7 @@ function migrationFiles() {
     .sort();
 }
 
-/** 변경 없이 현재 상태만 본다. 공유 DB 라 적용 전에 반드시 거친다. */
+/** 변경 없이 현재 상태만 본다. 적용 전에 반드시 대상 프로젝트를 확인한다. */
 async function inspect(client) {
   const q = async (sql, params) => (await client.query(sql, params)).rows;
 

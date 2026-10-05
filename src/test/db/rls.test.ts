@@ -986,3 +986,39 @@ describe("투표 초대", () => {
     expect(message).toMatch(/invalid or expired/i);
   });
 });
+
+
+describe("일정 구간별 이동 정보", () => {
+  async function seedLeg() {
+    const tripId = await seedTrip();
+    const result = await db.pg.query<{ id: string }>("insert into trip.itinerary_items(trip_id,type,title,start_at) values ($1,'activity','A','2026-10-05T00:00Z'),($1,'activity','B','2026-10-05T01:00Z') returning id", [tripId]);
+    const [from, to] = result.rows.map((r) => r.id);
+    return { tripId, from, to };
+  }
+  const insert = (t: {tripId: string; from: string; to: string}) => db.pg.query("insert into trip.travel_legs(trip_id,from_item_id,to_item_id,mode,minutes,from_location_key,to_location_key) values ($1,$2,$3,'train',90,'A','B')", [t.tripId,t.from,t.to]);
+  it("소유자·편집자는 저장하고 조회자는 읽기만 한다", async () => {
+    const t = await seedLeg(); await insert(t);
+    await db.asUser(USER.editor);
+    await db.pg.query("update trip.travel_legs set minutes=120 where trip_id=$1", [t.tripId]);
+    await db.asUser(USER.viewer);
+    expect((await db.pg.query<{minutes:number}>("select minutes from trip.travel_legs")).rows[0].minutes).toBe(120);
+    expect((await db.pg.query("update trip.travel_legs set minutes=1 returning *")).rows).toHaveLength(0);
+    expect((await db.pg.query("delete from trip.travel_legs returning *")).rows).toHaveLength(0);
+    await expectDenied(() => insert({ ...t, from:t.to, to:t.from }));
+  });
+  it("무관한 사용자와 익명에게는 이동정보를 공개하지 않는다", async () => {
+    const t = await seedLeg(); await insert(t);
+    await db.asUser(USER.stranger);
+    expect((await db.pg.query("select * from trip.travel_legs")).rows).toHaveLength(0);
+    await expectDenied(() => insert({ ...t, from:t.to, to:t.from }));
+    await db.asAnon(); await expectDenied(() => db.pg.query("select * from trip.travel_legs"));
+  });
+  it("다른 여행 일정 연결과 음수 시간은 DB에서도 거부한다", async () => {
+    const t = await seedLeg(); const other = await seedLeg();
+    await expectDenied(() => insert({ ...t, to: other.to }));
+    await insert(t);
+    await expectDenied(() => db.pg.query("update trip.travel_legs set minutes=-1"));
+    await db.pg.query("delete from trip.itinerary_items where id=$1", [t.from]);
+    expect((await db.pg.query("select * from trip.travel_legs")).rows).toHaveLength(0);
+  });
+});

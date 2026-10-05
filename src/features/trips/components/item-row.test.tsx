@@ -18,6 +18,8 @@ vi.mock("@/features/trips/actions", () => ({
   moveItemToDayAction: vi.fn(),
 }));
 
+vi.mock("@/features/trips/travel-actions", () => ({ saveTravelLeg: vi.fn() }));
+
 const TZ = "Asia/Tokyo";
 const DAYS = tripDays("2026-02-14", "2026-02-16");
 
