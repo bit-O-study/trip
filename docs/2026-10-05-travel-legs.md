@@ -12,7 +12,7 @@
 
 ## 배포 전제
 
-운영 코드 전환 전에 `supabase/migrations/20261005000001_travel_legs.sql`을 **trip 전용 프로젝트 mtocrrzmhucrrkcqxxeo**에 적용해야 한다. 다른 프로젝트의 DB를 사용하지 않는다. 현재 확인된 환경변수에는 trip DB 연결정보가 없다. 공개 Supabase 키로는 DDL을 실행할 수 없다.
+운영 코드 전환 전에 `supabase/migrations/20261005000001_travel_legs.sql`을 **trip 전용 프로젝트 mtocrrzmhucrrkcqxxeo**에 적용해야 한다. 다른 프로젝트의 DB를 사용하지 않는다. 2026-10-05 사용자가 제공한 전용 DB 연결정보로 이 마이그레이션 적용을 완료했다. 연결정보는 gitignored 환경변수에만 보관한다.
 
 1. gitignored `.env.local`에 이 프로젝트의 `SUPABASE_DB_URL`을 설정한다.
 2. 저장소 DB 도구로 대상 스키마를 점검하고 마이그레이션을 적용·검증한다 (`supabase/README.md`).
@@ -24,4 +24,4 @@
 - lint, TypeScript, 전체 310개 테스트 통과. 실제 SQL을 PGlite에 적용해 읽기/쓰기 권한 거부·여행 간 연결 금지·cascade를 검증했다.
 - 실제 컴포넌트/CSS 브라우저 검사: 320/390/768/1280px에서 드래그, 장소 검색 수정, 장소→시간, 체크인/체크아웃, 메모, 이동정보 제출, 가로 넘침 없음. 외부 API와 서버 액션은 대체했다.
 - 390px 개발 브라우저 fixture에서 일정 200개 렌더 451ms, 닫힌 이동 입력 폼 0개. 네트워크/로그인/운영 DB 성능을 의미하지 않는다.
-- 실제 운영 DB 적용 및 인증된 사용자 데이터의 E2E는 DB 접속정보를 받으면 이어서 검증해야 한다.
+- 운영 DB 적용 완료. 실제 DB에서도 owner 생성, editor 수정, viewer 읽기 및 쓰기 거부, 비회원·익명 거부를 확인했고 테스트 데이터는 전부 롤백했다. 인증된 브라우저 흐름은 배포 후 별도 확인한다.
