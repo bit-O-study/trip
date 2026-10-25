@@ -14,6 +14,7 @@ const SHARE_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   async headers() {
     return [
       { source: "/s/:path*", headers: SHARE_HEADERS },

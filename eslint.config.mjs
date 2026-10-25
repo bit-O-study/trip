@@ -33,6 +33,10 @@ const SERVICE_ROLE_GUARD = {
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    files: ["scripts/deploy/**/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
   SERVICE_ROLE_GUARD,
   // Override default ignores of eslint-config-next.
   globalIgnores([

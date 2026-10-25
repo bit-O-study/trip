@@ -1,0 +1,7 @@
+{
+  "name": "trip",
+  "port": 4102,
+  "app": ".",
+  "kind": "next",
+  "user": "bito_trip"
+}
