@@ -25,3 +25,9 @@
 next-env.d.ts
 
 /.verify-ui/
+
+# Android WebView shell build output
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties

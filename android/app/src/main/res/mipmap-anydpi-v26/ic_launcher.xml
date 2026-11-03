@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 적응형 아이콘 — 휴대폰마다 다른 모양(원·둥근 네모)으로 잘려도 기호가 잘리지 않는다. monochrome 은 Android 13 테마 아이콘용. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_trip_background" />
+    <foreground android:drawable="@drawable/ic_trip_foreground" />
+    <monochrome android:drawable="@drawable/ic_trip_foreground" />
+</adaptive-icon>
