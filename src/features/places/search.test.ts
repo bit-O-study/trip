@@ -4,12 +4,13 @@ import { GooglePlaceSearchError } from "@/features/places/google";
 import { PlaceSearchError } from "@/features/places/kakao";
 import { pickPlaceProvider, searchPlacesWith } from "@/features/places/search";
 
-const mocks = vi.hoisted(() => ({ searchKakao: vi.fn(), searchGoogle: vi.fn() }));
+const mocks = vi.hoisted(() => ({ searchKakao: vi.fn(), searchGoogle: vi.fn(), searchOsm: vi.fn() }));
 
 vi.mock("@/features/places/kakao", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/places/kakao")>()),
   searchPlaces: mocks.searchKakao,
 }));
+vi.mock("@/features/places/osm", () => ({ searchOsmPlaces: mocks.searchOsm }));
 vi.mock("@/features/places/google", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/places/google")>()),
   searchGooglePlaces: mocks.searchGoogle,
@@ -42,7 +43,10 @@ describe("pickPlaceProvider", () => {
 });
 
 describe("searchPlacesWith", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchOsm.mockRejectedValue(new Error("osm down"));
+  });
 
   it("Kakao 카테고리 필터를 공급자 코드로 옮긴다", async () => {
     mocks.searchKakao.mockResolvedValue({ results: [] });
@@ -67,6 +71,14 @@ describe("searchPlacesWith", () => {
       name: "PlaceSearchError",
       kind: "quota",
     });
+  });
+
+  it("Google 을 쓸 수 없으면 OpenStreetMap 검색으로 대신하고 그 사실을 알린다", async () => {
+    mocks.searchGoogle.mockRejectedValue(new GooglePlaceSearchError("결제 계정 없음", "not_configured"));
+    mocks.searchOsm.mockResolvedValue({ results: [{ name: "타이베이 101" }], hasMore: false, reachableCount: 1, totalCount: 1 });
+    const response = await searchPlacesWith("google", { query: "101" });
+    expect(response.results).toHaveLength(1);
+    expect(response.notice).toMatch(/OpenStreetMap/);
   });
 
   it("공급자 오류는 upstream 으로 옮긴다", async () => {

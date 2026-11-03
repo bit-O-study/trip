@@ -3,7 +3,7 @@ import { PLACE_CATEGORY_GROUPS } from "./types";
 
 // 수정에서도 사용자가 고른 좌표를 저장하고 외부 검색을 반복하지 않는다.
 export const selectedPlaceSchema = z.object({
-  provider: z.enum(["google", "kakao"]),
+  provider: z.enum(["google", "kakao", "manual"]),
   providerPlaceId: z.string().trim().min(1).max(300),
   name: z.string().trim().min(1).max(200),
   categoryGroup: z.enum(PLACE_CATEGORY_GROUPS),

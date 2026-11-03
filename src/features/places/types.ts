@@ -54,7 +54,8 @@ export function toCategoryGroup(kakaoCode: string | null | undefined): PlaceCate
 
 /** 검색 결과. 좌표는 이미 WGS84 실수로 정규화된 상태다. */
 export type PlaceSearchResult = {
-  provider: "google" | "kakao";
+  /** "manual" 은 상용 공급자가 아닌 곳(OpenStreetMap)에서 찾은 장소다. 출처는 providerPlaceId 의 "osm:" 접두사. */
+  provider: "google" | "kakao" | "manual";
   providerPlaceId: string;
   name: string;
   /** 원본 카테고리 문자열 ("음식점 > 일식 > 초밥,롤") */
@@ -81,4 +82,6 @@ export type PlaceSearchResponse = {
   reachableCount: number;
   /** 실제로 존재하는 전체 건수. 45보다 클 수 있다 */
   totalCount: number;
+  /** 기본 검색을 쓸 수 없어 다른 방식으로 찾았을 때 사용자에게 알릴 말. */
+  notice?: string;
 };

@@ -16,7 +16,7 @@ const placeItemSchema = z.object({
   note: z.string().trim().max(2000).optional(),
   endLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).optional().or(z.literal("")),
   pollId: z.uuid().nullable().optional(),
-  provider: z.enum(["google", "kakao"]),
+  provider: z.enum(["google", "kakao", "manual"]),
   providerPlaceId: z.string().trim().min(1),
   name: z.string().trim().min(1).max(200),
   category: z.string().trim().max(200).nullable(),

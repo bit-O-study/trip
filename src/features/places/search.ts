@@ -1,6 +1,7 @@
 import { isDomesticTrip } from "@/features/map/region";
 
 import { GooglePlaceSearchError, searchGooglePlaces } from "./google";
+import { searchOsmPlaces } from "./osm";
 import { CATEGORY_FILTERS, PlaceSearchError, searchPlaces } from "./kakao";
 import type { PlaceCategoryGroup, PlaceSearchResponse } from "./types";
 
@@ -61,6 +62,22 @@ export async function searchPlacesWith(
       center: input.center,
     });
   } catch (error) {
+    /*
+     * Google 을 못 쓰는 이유는 대개 결제 계정·API 사용 설정·키 제한이다. 그때 해외 여행은 장소를 아예
+     * 추가할 수 없게 되므로, 키가 필요 없는 OpenStreetMap 검색으로 한 번 더 찾는다.
+     * 그것도 안 되면 원래 Google 오류를 그대로 돌려준다.
+     */
+    const fallback = await searchOsmPlaces({
+      query: input.query,
+      category: input.category,
+      center: input.center,
+    }).catch(() => null);
+    if (fallback) {
+      return {
+        ...fallback,
+        notice: "Google 장소 검색을 쓸 수 없어 무료 지도(OpenStreetMap)에서 찾았어요. 영업시간·평점은 표시되지 않고 이름이 현지어일 수 있어요.",
+      };
+    }
     if (error instanceof GooglePlaceSearchError) {
       throw new PlaceSearchError(
         error.message,

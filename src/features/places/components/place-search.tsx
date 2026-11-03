@@ -32,7 +32,7 @@ type SearchState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "error"; message: string; retryable: boolean }
-  | { status: "done"; results: PlaceSearchResult[]; reachableCount: number; totalCount: number; page: number; hasMore: boolean };
+  | { status: "done"; results: PlaceSearchResult[]; reachableCount: number; totalCount: number; page: number; hasMore: boolean; notice?: string };
 
 function dateInTimezone(iso: string, timezone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -143,6 +143,7 @@ export function PlaceSearch({ tripId, defaultDate, defaultTime = "09:00", timezo
         totalCount: body.totalCount,
         page,
         hasMore: Boolean(body.hasMore) && page < 3,
+        notice: typeof body.notice === "string" ? body.notice : undefined,
       });
     } catch {
       if (requestRef.current !== controller) return;
@@ -240,6 +241,7 @@ export function PlaceSearch({ tripId, defaultDate, defaultTime = "09:00", timezo
           <p className="text-sm text-muted-foreground">검색 결과가 없습니다.</p>
         ) : (
           <div className="space-y-2">
+            {search.notice ? <p role="status" className="rounded-lg bg-muted px-3 py-2 text-xs">{search.notice}</p> : null}
             <p className="text-xs text-muted-foreground">
               {search.totalCount > search.reachableCount
                 ? `${search.totalCount.toLocaleString()}건 중 ${search.reachableCount}건까지 볼 수 있습니다. 검색어를 좁히면 더 정확합니다.`
