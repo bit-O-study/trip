@@ -22,13 +22,13 @@ export default async function AuthCodeErrorPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-sm space-y-6 py-12 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight">로그인하지 못했습니다</h1>
+      <h1 className="text-3xl font-bold tracking-tight">로그인하지 못했습니다</h1>
       <p className="text-sm text-muted-foreground">
         {detail ?? "인증 과정에서 문제가 발생했습니다."}
       </p>
       <Link
         href="/login"
-        className="inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+        className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
       >
         다시 로그인
       </Link>

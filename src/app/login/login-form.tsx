@@ -129,7 +129,7 @@ export function LoginForm({ next }: Props) {
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+            className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base"
             placeholder="you@example.com"
           />
         </div>
@@ -147,7 +147,7 @@ export function LoginForm({ next }: Props) {
             minLength={8}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+            className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base"
           />
         </div>
 
@@ -165,7 +165,7 @@ export function LoginForm({ next }: Props) {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {mode === "signin" ? "로그인" : "회원가입"}
         </button>
@@ -184,7 +184,7 @@ export function LoginForm({ next }: Props) {
             type="button"
             disabled={pending}
             onClick={() => handleOAuth(provider.id)}
-            className="w-full rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            className="w-full rounded-full border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
           >
             {provider.label}
           </button>

@@ -21,8 +21,8 @@ export const viewport: Viewport = {
   /* 노치·홈 인디케이터 영역까지 배경을 채우고, safe-area 변수를 사용 가능하게 한다 */
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+    { media: "(prefers-color-scheme: light)", color: "#f2f4f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0d12" },
   ],
   /*
    * maximumScale / userScalable 은 의도적으로 설정하지 않는다.

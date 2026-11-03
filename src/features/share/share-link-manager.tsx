@@ -69,7 +69,7 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
           <button
             type="submit"
             disabled={!readable || creating || rotating}
-            className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+            className="rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
           >
             {creating ? "만드는 중…" : "공유 링크 만들기"}
           </button>
@@ -80,7 +80,7 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
             <button
               type="submit"
               disabled={!readable || creating || rotating}
-              className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+              className="rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
             >
               {rotating ? "교체 중…" : "링크 새로 발급(기존 폐기)"}
             </button>
@@ -93,7 +93,7 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
       ) : null}
 
       {fresh.sharePath ? (
-        <div className="space-y-1 rounded-lg border border-primary/40 bg-primary/5 px-3 py-3">
+        <div className="space-y-1 rounded-lg border border-border bg-muted/60 px-3 py-3">
           <p className="text-xs font-medium text-primary">
             지금 한 번만 표시됩니다. 복사해서 전달하세요.
           </p>
@@ -110,7 +110,7 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
               navigator.clipboard.writeText(absolute(fresh.sharePath!));
               setCopied(true);
             }}
-            className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            className="rounded-full border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
           >
             {copied ? "복사했습니다" : "링크 복사"}
           </button>

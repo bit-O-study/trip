@@ -118,7 +118,7 @@ export function FlightAdd({ tripId, defaultDate, timezone }: Props) {
         <button
           type="submit"
           disabled={search.status === "loading"}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {search.status === "loading" ? "찾는 중…" : "항공편 찾기"}
         </button>
@@ -172,7 +172,7 @@ export function FlightAdd({ tripId, defaultDate, timezone }: Props) {
                 <button
                   type="button"
                   onClick={() => setSelected(flight)}
-                  className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                  className="shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
                 >
                   선택
                 </button>
@@ -183,7 +183,7 @@ export function FlightAdd({ tripId, defaultDate, timezone }: Props) {
       ) : null}
 
       {selected ? (
-        <form action={addAction} className="space-y-2 rounded-lg border border-primary px-3 py-3">
+        <form action={addAction} className="space-y-2 rounded-xl border border-foreground/40 bg-card px-3.5 py-3.5">
           <p className="text-sm">
             <span className="font-medium">{selected.marketingFlightNumber}</span> 을(를) 일정에
             추가합니다.
@@ -208,14 +208,14 @@ export function FlightAdd({ tripId, defaultDate, timezone }: Props) {
             <button
               type="submit"
               disabled={adding}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               {adding ? "추가 중…" : "일정에 추가"}
             </button>
             <button
               type="button"
               onClick={() => setSelected(null)}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
             >
               취소
             </button>
@@ -287,7 +287,7 @@ export function FlightAdd({ tripId, defaultDate, timezone }: Props) {
           <button
             type="submit"
             disabled={savingManual}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50 sm:col-span-2"
+            className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50 sm:col-span-2"
           >
             {savingManual ? "추가 중…" : "직접 입력한 항공편 추가"}
           </button>

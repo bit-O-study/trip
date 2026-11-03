@@ -4,53 +4,78 @@
  * 한글 우선 시스템 폰트 스택.
  * 웹폰트를 쓰지 않는 이유: 빌드 시 외부 폰트 다운로드 의존성을 만들지 않고,
  * 한국 사용자 기기에서 이미 최적화된 한글 폰트가 렌더링되기 때문.
+ * 시각표 느낌의 숫자(시각·좌표·금액)는 모노 스택을 쓴다.
  */
 :root {
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas,
+    "Noto Sans Mono", monospace;
 
-  --background: #ffffff;
-  --foreground: #18181b;
+  /*
+   * 디자인 개념: 여행을 철도 여정으로 본다.
+   * 도시 종이색 바탕 위에 잉크색 하나, 날짜마다 서로 다른 차분한 노선 색.
+   * 쨍한 원색은 쓰지 않는다 — 구분은 채도가 아니라 명도·색상 차이로 한다.
+   */
+  --background: #f2f4f7;
+  --foreground: #101828;
   --card: #ffffff;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --border: #e4e4e7;
-  --primary: #2563eb;
+  --muted: #eceff3;
+  --muted-foreground: #667085;
+  --border: #e4e7ec;
+  --rail: #cfd4dc;
+  --primary: #101828;
   --primary-foreground: #ffffff;
-  --danger: #dc2626;
+  --danger: #b5453b;
+  --warn: #946016;
+  --warn-soft: #f5ebd8;
+  --shadow-card:
+    0 1px 2px rgb(16 24 40 / 0.04), 0 8px 26px rgb(16 24 40 / 0.06);
+  --shadow-lift:
+    0 2px 4px rgb(16 24 40 / 0.05), 0 14px 32px rgb(16 24 40 / 0.1);
 
   /*
    * Day 팔레트. 지도 마커와 타임라인이 같은 색을 공유하므로
    * 여기 한 곳에서만 정의한다 (src/lib/day-color.ts 참고).
-   * 지도 위에서 서로 구별되도록 색상환에서 충분히 떨어진 8색을 고름.
+   * 흰 글자를 올려도 읽히는 중간 명도의 차분한 8색이며,
+   * 라이트·다크 두 테마에서 같은 값을 쓴다(지도 마커와 어긋나지 않게).
    */
-  --day-1: #2563eb;
-  --day-2: #ea580c;
-  --day-3: #059669;
-  --day-4: #7c3aed;
-  --day-5: #e11d48;
-  --day-6: #d97706;
-  --day-7: #0891b2;
-  --day-8: #c026d3;
+  --day-1: #4f7399;
+  --day-2: #3f8070;
+  --day-3: #6e7f3e;
+  --day-4: #a5703c;
+  --day-5: #7b6a9c;
+  --day-6: #94566f;
+  --day-7: #3f7c8c;
+  --day-8: #5f6b7a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #09090b;
-    --foreground: #fafafa;
-    --card: #18181b;
-    --muted: #27272a;
-    --muted-foreground: #a1a1aa;
-    --border: #27272a;
-    --primary: #3b82f6;
-    --primary-foreground: #ffffff;
-    --danger: #ef4444;
+    --background: #0b0d12;
+    --foreground: #eef0f4;
+    --card: #14171f;
+    --muted: #1d212b;
+    --muted-foreground: #98a2b3;
+    --border: #242934;
+    --rail: #3a404d;
+    --primary: #eef0f4;
+    --primary-foreground: #0b0d12;
+    --danger: #e27d72;
+    --warn: #ddb06a;
+    --warn-soft: #33291a;
+    --shadow-card:
+      0 1px 2px rgb(0 0 0 / 0.4), 0 8px 26px rgb(0 0 0 / 0.35);
+    --shadow-lift:
+      0 2px 4px rgb(0 0 0 / 0.4), 0 14px 32px rgb(0 0 0 / 0.45);
   }
 }
 
 @theme inline {
   --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -58,9 +83,12 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-rail: var(--rail);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
 
   --color-day-1: var(--day-1);
   --color-day-2: var(--day-2);
@@ -70,6 +98,12 @@
   --color-day-6: var(--day-6);
   --color-day-7: var(--day-7);
   --color-day-8: var(--day-8);
+
+  /* 모서리를 한 단계씩 키워 카드와 입력창을 부드럽게 한다. */
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.625rem;
 }
 
 html {
@@ -81,13 +115,21 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  letter-spacing: -0.005em;
   /* 모바일에서 바텀시트/지도 제스처와 충돌하는 가로 스크롤 제거 */
   overflow-x: hidden;
 }
 
+h1,
+h2,
+h3 {
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
 /* 키보드 포커스만 링을 표시한다 (마우스 클릭 시 제외) */
 :focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--foreground);
   outline-offset: 2px;
 }
 
@@ -103,5 +145,109 @@ body {
 
 /* 모바일 입력 너비 제한 */
 input, select, textarea { min-width: 0; max-width: 100%; }
-[data-drop-position="before"] { box-shadow: 0 -3px 0 var(--primary); }
-[data-drop-position="after"] { box-shadow: 0 3px 0 var(--primary); }
+
+/* 입력창은 카드 위에서 살짝 들어간 면으로 보이게 하고, 포커스 때 잉크색 테두리로 또렷하게 한다. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+select,
+textarea {
+  border-radius: var(--radius-lg);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--foreground);
+  outline-offset: 0;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--foreground);
+}
+
+[data-drop-position="before"] { box-shadow: 0 -3px 0 var(--foreground); }
+[data-drop-position="after"] { box-shadow: 0 3px 0 var(--foreground); }
+
+/*
+ * 철도 노선 컨셉 부품. 색은 부모가 --line 으로 넘긴다(보통 var(--day-N)).
+ *  - .line-rail     : 정거장을 잇는 굵은 노선
+ *  - .line-station  : 정거장 표시(흰 원 + 노선색 테두리)
+ *  - .line-code     : 정거장 번호 배지
+ */
+.line-rail {
+  position: relative;
+}
+.line-rail::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: var(--line, var(--rail));
+}
+.line-station {
+  position: absolute;
+  left: 50%;
+  top: 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: -0.625rem;
+  border-radius: 9999px;
+  border: 5px solid var(--line, var(--rail));
+  background: var(--card);
+  box-shadow: 0 0 0 3px var(--background);
+}
+.line-code {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: var(--line, var(--rail));
+  color: #fff;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+/* 승차권 느낌의 카드: 점선 절취선과 양쪽 노치 */
+.ticket {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+}
+.ticket-perf {
+  position: relative;
+  margin: 0 1rem;
+  border-top: 2px dashed var(--rail);
+}
+.ticket-perf::before,
+.ticket-perf::after {
+  content: "";
+  position: absolute;
+  top: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--background);
+}
+.ticket-perf::before { left: -27px; }
+.ticket-perf::after { right: -27px; }
+
+/* 같은 날 일정 목록: 첫·마지막 정거장에서 노선이 끝나도록 다듬는다 */
+.line-list > li:first-child > .line-rail::before { top: 2.1rem; border-top-left-radius: 0; border-top-right-radius: 0; }
+.line-list > li:last-child > .line-rail::before { bottom: calc(100% - 2.1rem - 0.75rem); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.line-list > li:only-child > .line-rail::before { display: none; }
+.line-list > li:first-child .line-station,
+.line-list > li:last-child .line-station {
+  top: 1.1rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-left: -0.75rem;
+  box-shadow: 0 0 0 3px var(--background), 0 0 0 5px var(--line, var(--rail));
+}

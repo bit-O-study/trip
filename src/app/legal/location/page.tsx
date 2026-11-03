@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "위치정보 이용 고지" };
 export default function LocationNoticePage() {
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">위치정보 이용 고지</h1>
+      <h1 className="text-3xl font-bold tracking-tight">위치정보 이용 고지</h1>
       <p>최종 갱신일: 2026-09-04</p>
 
       <p className="rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-danger">

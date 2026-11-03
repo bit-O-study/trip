@@ -12,7 +12,7 @@ export default async function InvitePage({ params }: Props) {
       </p>
       <form action={acceptVoteInviteAction}>
         <input type="hidden" name="token" value={token} />
-        <button className="w-full rounded-lg bg-primary px-4 py-2.5 font-medium text-primary-foreground">
+        <button className="w-full rounded-full bg-primary px-4 py-2.5 font-medium text-primary-foreground">
           초대 수락하고 투표하기
         </button>
       </form>

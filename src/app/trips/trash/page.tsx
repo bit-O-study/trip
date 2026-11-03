@@ -14,14 +14,14 @@ export default async function TrashPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">휴지통</h1>
+        <h1 className="text-3xl font-bold tracking-tight">휴지통</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           삭제한 여행은 30일 동안 보관되며 그 안에는 복구할 수 있습니다.
         </p>
       </div>
 
       {trips.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border px-6 py-12 text-center">
+        <div className="rounded-2xl border-2 border-dashed border-rail bg-card px-6 py-12 text-center">
           <p className="text-sm text-muted-foreground">삭제한 여행이 없습니다.</p>
         </div>
       ) : (
@@ -41,7 +41,7 @@ export default async function TrashPage() {
                 <input type="hidden" name="tripId" value={trip.id} />
                 <button
                   type="submit"
-                  className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+                  className="shrink-0 rounded-full border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
                 >
                   복구
                 </button>

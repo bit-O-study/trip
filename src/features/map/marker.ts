@@ -26,7 +26,7 @@ export function markerButton(
       const warning = document.createElement("span");
       warning.textContent = point.warning;
       warning.style.cssText =
-        "display:block;margin-top:2px;font-size:10px;font-weight:700;color:#dc2626";
+        "display:block;margin-top:2px;font-size:10px;font-weight:700;color:#b5453b";
       el.appendChild(warning);
     }
   } else {
@@ -74,7 +74,7 @@ export function applyMarkerSelection(el: HTMLElement, selected: boolean, baseTra
   el.setAttribute("aria-pressed", String(selected));
   el.style.transform = baseTransform ? `${baseTransform} ${scale}` : scale;
   el.style.boxShadow = selected
-    ? "0 0 0 4px rgba(37,99,235,.45), 0 2px 8px rgba(0,0,0,.4)"
+    ? "0 0 0 4px rgba(16,24,40,.38), 0 2px 8px rgba(0,0,0,.4)"
     : "0 1px 4px rgba(0,0,0,.35)";
   // 해제할 때는 지우지 않고 생성 시의 기본값으로 되돌린다.
   el.style.zIndex = selected ? "999" : (el.dataset.baseZIndex ?? "");

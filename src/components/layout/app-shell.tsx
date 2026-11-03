@@ -28,9 +28,17 @@ export function AppShell({ children, user }: Props) {
         본문으로 건너뛰기
       </a>
 
-      <header className="sticky top-0 z-30 border-b border-border bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-border bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
-          <Link href="/" className="text-base font-semibold tracking-tight">
+          <Link href="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight">
+            {/* 노선도 모양 로고: 두 정거장을 잇는 선 */}
+            <span aria-hidden className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
+              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                <path d="M5 17h5a3 3 0 0 0 3-3V9a3 3 0 0 1 3-3h3" />
+                <circle cx="5" cy="17" r="1.6" fill="currentColor" stroke="none" />
+                <circle cx="19" cy="6" r="1.6" fill="currentColor" stroke="none" />
+              </svg>
+            </span>
             Trip Planner
           </Link>
 
@@ -41,7 +49,7 @@ export function AppShell({ children, user }: Props) {
               <form action="/auth/signout" method="post">
                 <button
                   type="submit"
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   로그아웃
                 </button>
@@ -49,7 +57,7 @@ export function AppShell({ children, user }: Props) {
             ) : (
               <Link
                 href="/login"
-                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
               >
                 로그인
               </Link>
@@ -60,7 +68,7 @@ export function AppShell({ children, user }: Props) {
 
       <main
         id="main"
-        className={`mx-auto w-full max-w-5xl flex-1 px-4 pt-6 ${
+        className={`mx-auto w-full max-w-5xl flex-1 px-4 pt-7 ${
           isAuthenticated ? "pb-24 md:pb-12" : "pb-12"
         }`}
       >

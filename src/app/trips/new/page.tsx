@@ -11,7 +11,7 @@ export default function NewTripPage() {
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">새 여행</h1>
+        <h1 className="text-3xl font-bold tracking-tight">새 여행</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           이름과 기간을 정하면 날짜별 타임라인이 만들어집니다.
         </p>

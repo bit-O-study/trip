@@ -24,14 +24,23 @@ export default async function LoginPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-sm space-y-8 py-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">로그인</h1>
+      <div className="space-y-3 text-center">
+        {/* 노선도 로고. 두 정거장을 잇는 선 */}
+        <span aria-hidden className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-card)]">
+          <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+            <path d="M5 17h5a3 3 0 0 0 3-3V9a3 3 0 0 1 3-3h3" />
+            <circle cx="5" cy="17" r="1.6" fill="currentColor" stroke="none" />
+            <circle cx="19" cy="6" r="1.6" fill="currentColor" stroke="none" />
+          </svg>
+        </span>
+        <h1 className="text-3xl font-bold tracking-tight">로그인</h1>
+        <p className="text-sm text-muted-foreground">항공편, 숙소, 맛집을 한 노선에 모아 관리해요.</p>
       </div>
 
       {env ? (
         <LoginForm next={next} />
       ) : (
-        <div className="rounded-xl border border-dashed border-border px-5 py-8 text-center">
+        <div className="rounded-2xl border-2 border-dashed border-rail bg-card px-5 py-8 text-center">
           <p className="text-sm font-medium">Supabase가 설정되지 않았습니다</p>
           <p className="mt-2 text-sm text-muted-foreground">
             <code className="rounded bg-muted px-1 py-0.5">.env.local</code>에 Supabase

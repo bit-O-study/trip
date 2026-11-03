@@ -54,8 +54,8 @@ export function ItemEditForm({ item, timezone, onCancel }: Props) {
       <p className="text-xs text-muted-foreground">시작 날짜를 바꾸면 저장 후 해당 날짜의 일정으로 자동 이동합니다. 장소를 비우면 지도에서도 사라집니다.</p>
       {state.status === "error" ? <p role="alert" className="text-sm text-danger">{state.message}</p> : null}
       <div className="flex gap-2">
-        <button type="submit" disabled={pending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">{pending ? "저장 중…" : "수정 저장"}</button>
-        <button type="button" disabled={pending} onClick={onCancel} className="rounded-lg border border-border px-4 py-2 text-sm font-medium">취소</button>
+        <button type="submit" disabled={pending} className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">{pending ? "저장 중…" : "수정 저장"}</button>
+        <button type="button" disabled={pending} onClick={onCancel} className="rounded-full border border-border px-4 py-2 text-sm font-medium">취소</button>
       </div>
     </form>
     </>

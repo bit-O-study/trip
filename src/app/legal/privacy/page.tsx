@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "개인정보처리방침" };
 export default function PrivacyPolicyPage() {
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">개인정보처리방침</h1>
+      <h1 className="text-3xl font-bold tracking-tight">개인정보처리방침</h1>
       <p>최종 갱신일: 2026-09-04</p>
 
       <p className="rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-danger">

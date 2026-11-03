@@ -41,9 +41,9 @@ export function MainNav({ variant }: Props) {
                 <Link
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
                     active
-                      ? "bg-muted text-foreground"
+                      ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
@@ -65,7 +65,7 @@ export function MainNav({ variant }: Props) {
        * 홈 인디케이터가 있는 기기에서 탭이 가려지지 않도록 safe-area만큼 더 띄운다.
        * viewport의 viewportFit: "cover" 와 짝을 이룬다.
        */
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
     >
       <ul className="mx-auto flex max-w-lg">
         {NAV_ITEMS.map((item) => {
@@ -78,12 +78,14 @@ export function MainNav({ variant }: Props) {
                 aria-current={active ? "page" : undefined}
                 title={item.description}
                 /* min-h-14: 터치 타깃 최소 크기 확보 */
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors ${
+                className={`relative flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors ${
                   active
-                    ? "text-primary"
+                    ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
+                {/* 현재 정거장 표시: 위쪽의 짧은 노선 막대 */}
+                {active ? <span aria-hidden className="absolute top-0 h-1 w-10 rounded-b-full bg-foreground" /> : null}
                 {Icon ? <Icon className="size-6" /> : null}
                 <span>{item.label}</span>
               </Link>
