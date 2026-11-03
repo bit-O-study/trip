@@ -15,11 +15,12 @@ import android.view.WindowInsets;
 
 /**
  * Trip Planner 웹을 여는 WebView 껍데기. 화면은 웹 배포로 바뀌므로 화면을 고칠 때 APK 를 다시 만들 필요가 없다.
- * 로그인 쿠키를 유지하고, 다른 사이트 링크는 외부 브라우저로 열며, HTTP·파일 접근·혼합 콘텐츠는 허용하지 않는다.
+ * 로그인 쿠키를 유지하고, 다른 사이트 링크는 외부 브라우저로 열며, 파일 접근·혼합 콘텐츠는 허용하지 않는다. 평문(HTTP)은 서버 주소 하나에만 network_security_config 로 허용한다.
  */
 public final class MainActivity extends Activity {
     private WebView web;
-    private static final String origin = "https://trip-planner-tau-jade.vercel.app";
+    // 서버(Windows) 주소. Tailscale 에 연결된 기기에서만 열린다.
+    private static final String origin = "http://100.97.115.109:4102";
     private LinearLayout root;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -49,14 +50,14 @@ public final class MainActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 Uri home = Uri.parse(origin);
-                if ("https".equals(uri.getScheme()) && home.getHost().equals(uri.getHost()) && home.getPort() == uri.getPort()) return false;
+                if (home.getScheme().equals(uri.getScheme()) && home.getHost().equals(uri.getHost()) && home.getPort() == uri.getPort()) return false;
                 if (request.isForMainFrame() && ("https".equals(uri.getScheme()) || "mailto".equals(uri.getScheme()) || "tel".equals(uri.getScheme()))) {
                     try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (android.content.ActivityNotFoundException ignored) { }
                 }
                 return true;
             }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, android.webkit.WebResourceError error) {
-                if (request.isForMainFrame()) new AlertDialog.Builder(MainActivity.this).setMessage("Trip Planner 에 연결할 수 없습니다. 인터넷 연결을 확인한 뒤 다시 시도하세요.").setPositiveButton("다시 시도", (dialog, which) -> view.loadUrl(origin)).setNegativeButton("닫기", null).show();
+                if (request.isForMainFrame()) new AlertDialog.Builder(MainActivity.this).setMessage("Trip Planner 서버에 연결할 수 없습니다. Tailscale 이 켜져 있고 연결됐는지, 인터넷이 되는지 확인한 뒤 다시 시도하세요.").setPositiveButton("다시 시도", (dialog, which) -> view.loadUrl(origin)).setNegativeButton("닫기", null).show();
             }
         });
         if (state == null || web.restoreState(state) == null) web.loadUrl(origin);
