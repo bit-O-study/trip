@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 서버 주소(Tailscale 안의 HTTP)만 평문 통신을 허용한다. Tailscale 구간은 WireGuard 로 암호화되어 있고, 다른 모든 주소는 HTTPS 만 쓴다. -->
-<network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">100.97.115.109</domain>
-    </domain-config>
-</network-security-config>
