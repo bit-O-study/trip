@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { dayColor } from "@/lib/day-color";
 
+import { mapGeometryKey, mapContentKey } from "./update-key";
 import { MapLoadError } from "./errors";
 import { loadGoogleMaps, onMapAuthFailure, type GoogleMapsLibraries } from "./google-sdk";
 import { applyMarkerSelection, groupByDay, markerButton } from "./marker";
@@ -56,6 +57,8 @@ export function GoogleTripMap({
   initialCenter,
   onError,
 }: Props) {
+  const contentKeyRef = useRef<string | null>(null);
+  const geometryKeyRef = useRef<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const overlaysRef = useRef<Array<google.maps.OverlayView | google.maps.Polyline>>([]);
@@ -119,6 +122,12 @@ export function GoogleTripMap({
       });
     }
     const map = mapRef.current;
+    const contentKey = mapContentKey(points);
+    if (contentKeyRef.current === contentKey) return;
+    contentKeyRef.current = contentKey;
+    const geometryKey = mapGeometryKey(points);
+    const geometryChanged = geometryKeyRef.current !== geometryKey;
+    geometryKeyRef.current = geometryKey;
 
     // 이전 마커·선을 지운다. 지우지 않으면 갱신할 때마다 겹쳐 쌓인다.
     for (const overlay of overlaysRef.current) overlay.setMap(null);
@@ -173,8 +182,18 @@ export function GoogleTripMap({
       overlaysRef.current.push(line);
     }
 
-    map.fitBounds(bounds, 48);
+    if (geometryChanged) map.fitBounds(bounds, 48);
   }, [maps, points, initialCenter]);
+
+  useEffect(() => () => {
+    for (const overlay of overlaysRef.current) overlay.setMap(null);
+    overlaysRef.current = [];
+    markersRef.current.clear();
+    positionsRef.current.clear();
+    mapRef.current = null;
+    contentKeyRef.current = null;
+    geometryKeyRef.current = null;
+  }, []);
 
   // 선택 반영은 마커를 다시 만들지 않는다. 다시 만들면 fitBounds 가 함께 돌아
   // 항목을 누를 때마다 지도 축척이 튄다.

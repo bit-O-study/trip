@@ -31,14 +31,10 @@ async function seedTrip(): Promise<string> {
   );
   const tripId = inserted.rows[0].id;
 
-  await db.pg.query(
-    `insert into trip.trip_members (trip_id, user_id, role) values ($1, $2, 'editor')`,
-    [tripId, USER.editor],
-  );
-  await db.pg.query(
-    `insert into trip.trip_members (trip_id, user_id, role) values ($1, $2, 'viewer')`,
-    [tripId, USER.viewer],
-  );
+  // 멤버는 앱에서 초대 수락으로만 생긴다. 픽스처는 superuser 로 넣는다.
+  await db.addMember(tripId, USER.editor, "editor");
+  await db.addMember(tripId, USER.viewer, "viewer");
+  await db.asUser(USER.owner);
   return tripId;
 }
 

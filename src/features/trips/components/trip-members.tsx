@@ -36,14 +36,45 @@ function initials(name: string) {
   return Array.from(name.trim()).slice(0, 2).join("").toUpperCase();
 }
 
+/**
+ * https 로 시작하는 절대 URL 만 이미지로 쓴다.
+ *
+ * 예전에는 `backgroundImage: url(${avatarUrl})` 로 그렸는데, 값에 `)` 나 `,` 가
+ * 들어가면 CSS 문맥을 빠져나가 다른 배경 이미지(추적 픽셀)·화면 덮기를 넣을 수
+ * 있었다. DB 도 같은 규칙을 CHECK 로 강제한다(profiles_avatar_url_safe).
+ */
+export function safeAvatarSrc(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function Avatar({ member, className = "size-9" }: { member: TripMember; className?: string }) {
+  const src = safeAvatarSrc(member.avatarUrl);
   return (
     <span
       aria-hidden
       className={`grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-background bg-primary text-xs font-semibold text-primary-foreground ${className}`}
-      style={member.avatarUrl ? { backgroundImage: `url(${member.avatarUrl})`, backgroundPosition: "center", backgroundSize: "cover" } : undefined}
     >
-      {member.avatarUrl ? null : initials(member.displayName)}
+      {src ? (
+        // 외부 프로필 이미지(Google·Kakao). next/image 최적화 대상 도메인을 늘리지 않고,
+        // Referer 로 여행 주소가 새지 않게 no-referrer 로 직접 불러온다.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
+          className="size-full object-cover"
+        />
+      ) : (
+        initials(member.displayName)
+      )}
     </span>
   );
 }
@@ -157,7 +188,7 @@ export function TripMembers({ members, manageable = false, tripId, currentUserId
                 <DeleteSubmitButton
                   idleLabel="이 여행에서 나가기"
                   pendingLabel="나가는 중…"
-                  className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:border-danger hover:text-danger"
+                  className="rounded-full border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:border-danger hover:text-danger"
                 />
               </form>
             ) : (

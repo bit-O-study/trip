@@ -153,6 +153,7 @@ export async function createVoteInviteAction(
   formData: FormData,
 ): Promise<InviteActionState> {
   const tripId = value(formData, "tripId");
+  if (!z.uuid().safeParse(tripId).success) return { status: "error", message: "올바르지 않은 여행입니다" };
   const parsedRole = z.enum(["editor", "viewer"]).safeParse(value(formData, "role"));
   if (!parsedRole.success) return { status: "error", message: "역할을 선택하세요" };
 
@@ -162,17 +163,59 @@ export async function createVoteInviteAction(
 
   const token = randomBytes(24).toString("base64url");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { error } = await supabase.from("trip_invites").insert({
-    trip_id: tripId,
-    created_by: auth.user.id,
-    token_hash: tokenHash(token),
-    role: parsedRole.data,
-    max_uses: 20,
-    expires_at: expiresAt,
-  });
+  const { data, error } = await supabase
+    .from("trip_invites")
+    .insert({
+      trip_id: tripId,
+      created_by: auth.user.id,
+      token_hash: tokenHash(token),
+      role: parsedRole.data,
+      max_uses: 20,
+      expires_at: expiresAt,
+    })
+    .select("id")
+    .single();
   if (error) return { status: "error", message: `초대 링크를 만들지 못했습니다: ${error.message}` };
 
-  return { status: "success", invitePath: `/invite/${token}` };
+  return { status: "success", invitePath: `/invite/${token}`, inviteId: data.id };
+}
+
+/**
+ * 초대 링크 폐기.
+ *
+ * 링크가 원치 않는 곳에 퍼졌을 때 막을 방법이 없었다(만료 7일·최대 20명을 기다리는
+ * 것뿐). `inviteId` 가 있으면 그 링크 하나, 없으면 이 여행의 살아 있는 링크 전부를
+ * 폐기한다. 권한 판정은 RLS(owner 만 revoked_at 갱신)가 한다.
+ */
+export async function revokeVoteInvitesAction(
+  _previous: InviteActionState,
+  formData: FormData,
+): Promise<InviteActionState> {
+  const tripId = value(formData, "tripId");
+  const inviteId = value(formData, "inviteId");
+  if (!z.uuid().safeParse(tripId).success) return { status: "error", message: "올바르지 않은 여행입니다" };
+  if (inviteId && !z.uuid().safeParse(inviteId).success) {
+    return { status: "error", message: "올바르지 않은 초대 링크입니다" };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("trip_invites")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("trip_id", tripId)
+    .is("revoked_at", null);
+  if (inviteId) query = query.eq("id", inviteId);
+  const { data, error } = await query.select("id");
+
+  if (error) return { status: "error", message: `초대 링크를 폐기하지 못했습니다: ${error.message}` };
+  if (!data || data.length === 0) {
+    return { status: "error", message: "폐기할 초대 링크가 없거나 권한이 없습니다." };
+  }
+  return {
+    status: "revoked",
+    message: `초대 링크 ${data.length}개를 폐기했습니다. 이미 참여한 사람은 그대로입니다.`,
+    revokedIds: data.map((row) => row.id as string),
+  };
 }
 
 export async function acceptVoteInviteAction(formData: FormData): Promise<void> {
@@ -182,7 +225,7 @@ export async function acceptVoteInviteAction(formData: FormData): Promise<void> 
     p_token_hash: tokenHash(token),
   });
   if (error || typeof data !== "string") {
-    throw new Error("초대 링크가 만료됐거나 사용할 수 없습니다");
+    throw new Error("초대 링크가 만료됐거나 폐기되어 사용할 수 없습니다");
   }
   revalidatePath(`/trips/${data}`);
   redirect(`/trips/${data}`);

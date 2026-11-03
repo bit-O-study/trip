@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { PlaceSearchError } from "@/features/places/kakao";
 import { pickPlaceProvider, searchPlacesWith } from "@/features/places/search";
-import { getTrip, listItems } from "@/features/trips/queries";
+import { getTrip, listItemCoordinates } from "@/features/trips/queries";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -80,10 +80,10 @@ export async function GET(request: Request) {
 
   // 이미 찍힌 좌표가 있으면 그것이 지도 공급자를 정한다. 검색도 같은 답을 써야
   // 검색 결과를 추가했을 때 그 점이 지도에 그대로 나타난다.
-  const items = await listItems(tripId);
+  const points = await listItemCoordinates(tripId);
   const provider = pickPlaceProvider({
     timezone: trip.timezone,
-    points: items.flatMap((item) => (item.coordinate ? [item.coordinate] : [])),
+    points,
   });
 
   try {

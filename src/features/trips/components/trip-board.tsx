@@ -72,7 +72,7 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
     // 포커스 스크롤은 항목을 화면 가장자리에 붙여 놓는다.
     const focusable = element.querySelector<HTMLElement>("[data-select-item]");
     focusable?.focus({ preventScroll: true });
-    element.scrollIntoView({ block: "center", behavior: "smooth" });
+    element.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   }, [selected]);
 
   // Esc 로 선택 해제. 모달이 아니므로 포커스를 가두지 않는다.
@@ -92,6 +92,8 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
 
   return (
     <SelectionContext.Provider value={value}>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <aside aria-label="여행 지도" className="min-w-0 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1">
       <TripMap
         points={points}
         className={mapClassName}
@@ -103,7 +105,9 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
         initialCenter={initialCenter}
         timezone={timezone}
       />
-      {children}
+      </aside>
+      <div className="min-w-0 lg:col-start-1 lg:row-start-1">{children}</div>
+      </div>
     </SelectionContext.Provider>
   );
 }

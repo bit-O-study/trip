@@ -92,14 +92,28 @@ export function zonedLocalToUtc(local: string, timeZone: string): string {
   }
 
   const asUtc = Date.parse(`${local}:00Z`);
-  if (Number.isNaN(asUtc)) {
-    throw new Error(`시각을 해석할 수 없습니다: ${local}`);
+  // 2월 31일처럼 달력에 없는 날은 Date.parse 가 다음 달로 넘겨 버린다. 되돌려 비교해 거부한다.
+  if (Number.isNaN(asUtc) || new Date(asUtc).toISOString().slice(0, 16) !== local) {
+    throw new Error(`존재하지 않는 날짜나 시각입니다: ${local}`);
   }
 
-  const firstGuess = asUtc - zoneOffsetMs(new Date(asUtc), timeZone);
-  const refined = asUtc - zoneOffsetMs(new Date(firstGuess), timeZone);
+  /*
+   * 전환 직전·직후의 오프셋 두 개로 후보를 만든다. DST 전환은 하루에 두 번
+   * 일어나지 않으므로 ±12시간 지점의 오프셋이 곧 전환 전·후 오프셋이다.
+   *
+   * - 둘 다 맞으면(가을 겹침, 01:30 이 두 번) 이른 쪽 — Temporal 의 "compatible".
+   * - 둘 다 틀리면(봄 공백, 02:30 이 없음) 전환 전 오프셋으로 읽어 **뒤로** 민다
+   *   (02:30 → 03:30). 예전 구현은 한 시간 앞(01:30)으로 당겨 저장했다.
+   */
+  const halfDay = 12 * 60 * 60 * 1000;
+  const before = asUtc - zoneOffsetMs(new Date(asUtc - halfDay), timeZone);
+  const after = asUtc - zoneOffsetMs(new Date(asUtc + halfDay), timeZone);
+  const valid = [before, after].filter(
+    (candidate) => utcToZonedLocal(new Date(candidate), timeZone) === local,
+  );
+  const chosen = valid.length > 0 ? Math.min(...valid) : before;
 
-  return new Date(refined).toISOString();
+  return new Date(chosen).toISOString();
 }
 
 /** UTC ISO 를 여행 시간대의 로컬 입력값으로 되돌린다. 폼 초기값에 쓴다. */

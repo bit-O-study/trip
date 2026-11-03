@@ -31,14 +31,10 @@ async function seedTrip(): Promise<string> {
   );
   const tripId = inserted.rows[0].id;
 
-  await db.pg.query(
-    `insert into trip.trip_members (trip_id, user_id, role) values ($1, $2, 'editor')`,
-    [tripId, USER.editor],
-  );
-  await db.pg.query(
-    `insert into trip.trip_members (trip_id, user_id, role) values ($1, $2, 'viewer')`,
-    [tripId, USER.viewer],
-  );
+  // 멤버는 앱에서 초대 수락(accept_invite)으로만 생긴다. 픽스처는 superuser 로 넣는다.
+  await db.addMember(tripId, USER.editor, "editor");
+  await db.addMember(tripId, USER.viewer, "viewer");
+  await db.asUser(USER.owner);
 
   return tripId;
 }
@@ -262,17 +258,23 @@ describe("일정 편집 권한", () => {
 });
 
 describe("멤버 관리", () => {
-  it("owner 만 멤버를 추가할 수 있다", async () => {
+  /*
+   * 멤버는 초대 수락(accept_invite)으로만 생긴다. owner 도 동의 없이 남의 계정을
+   * 넣을 수 없다 — 넣는 순간 그 사람의 프로필이 보이고 owner 로 만들 수도 있었다.
+   */
+  it("owner 를 포함해 누구도 멤버를 직접 추가할 수 없다", async () => {
     const tripId = await seedTrip();
 
-    await db.asUser(USER.editor);
-    const message = await expectDenied(() =>
-      db.pg.query(
-        `insert into trip.trip_members (trip_id, user_id, role) values ($1, $2, 'editor')`,
-        [tripId, USER.stranger],
-      ),
-    );
-    expect(message).toMatch(/row-level security/i);
+    for (const user of [USER.editor, USER.owner]) {
+      await db.asUser(user);
+      const message = await expectDenied(() =>
+        db.pg.query(
+          `insert into trip.trip_members (trip_id, user_id, role) values ($1, $2, 'editor')`,
+          [tripId, USER.stranger],
+        ),
+      );
+      expect(message).toMatch(/permission denied/i);
+    }
   });
 
   it("마지막 owner 는 강등할 수 없다", async () => {
@@ -304,11 +306,8 @@ describe("멤버 관리", () => {
   it("owner 가 둘이면 한 명은 떠날 수 있다", async () => {
     const tripId = await seedTrip();
 
+    await db.addMember(tripId, USER.coOwner, "owner");
     await db.asUser(USER.owner);
-    await db.pg.query(
-      `insert into trip.trip_members (trip_id, user_id, role) values ($1, $2, 'owner')`,
-      [tripId, USER.coOwner],
-    );
     await db.pg.query(`delete from trip.trip_members where trip_id = $1 and user_id = $2`, [
       tripId,
       USER.owner,
@@ -327,8 +326,8 @@ describe("공유 링크와 초대", () => {
   async function seedShareLink(tripId: string) {
     await db.asUser(USER.owner);
     await db.pg.query(
-      `insert into trip.trip_share_links (trip_id, created_by, token_hash, short_id)
-       values ($1, $2, 'sha256:deadbeef', 'abc12345')`,
+      `insert into trip.trip_share_links (trip_id, created_by, token_hash, short_id, expires_at)
+       values ($1, $2, 'sha256:deadbeef', 'abc12345', now() + interval '30 days')`,
       [tripId, USER.owner],
     );
   }
@@ -367,8 +366,9 @@ describe("감사 기록", () => {
     const tripId = await seedTrip();
 
     await db.asUser(USER.owner);
+    // 여행 생성(trips.insert)도 기록되지만 여기서는 멤버 변경만 본다.
     const events = await db.pg.query<{ action: string; target_id: string }>(
-      "select action, target_id from trip.audit_events where trip_id = $1 order by id",
+      "select action, target_id from trip.audit_events where trip_id = $1 and action like 'trip_members.%' order by id",
       [tripId],
     );
 
@@ -421,24 +421,36 @@ describe("감사 기록", () => {
 });
 
 describe("공유 엔티티 (places)", () => {
-  it("인증 사용자는 장소를 읽고 만들 수 있다", async () => {
+  /** 장소는 편집 권한을 확인하는 trip.save_place 로만 저장한다. */
+  async function savePlace() {
+    const tripId = await seedTrip();
     await db.asUser(USER.owner);
-    await db.pg.query(
-      `insert into trip.places (provider, provider_place_id, name, category_group, latitude, longitude)
-       values ('kakao', '12345', '이치란 신주쿠', 'food', 35.6938, 139.7034)`,
-    );
+    await db.pg.query("select trip.save_place($1, $2::jsonb)", [
+      tripId,
+      JSON.stringify({
+        provider: "kakao",
+        provider_place_id: "12345",
+        name: "이치란 신주쿠",
+        category_group: "food",
+        latitude: 35.6938,
+        longitude: 139.7034,
+      }),
+    ]);
+  }
+
+  it("여행 편집자는 save_place 로 장소를 만들고, 무관한 사용자는 읽지 못한다", async () => {
+    await savePlace();
+
+    await db.asSuperuser();
+    expect((await db.pg.query("select name from trip.places")).rows).toHaveLength(1);
 
     await db.asUser(USER.stranger);
     const rows = await db.pg.query("select name from trip.places");
-    expect(rows.rows).toHaveLength(1);
+    expect(rows.rows).toHaveLength(0);
   });
 
   it("인증 사용자는 공유 장소를 수정할 수 없다", async () => {
-    await db.asUser(USER.owner);
-    await db.pg.query(
-      `insert into trip.places (provider, provider_place_id, name, category_group, latitude, longitude)
-       values ('kakao', '12345', '이치란 신주쿠', 'food', 35.6938, 139.7034)`,
-    );
+    await savePlace();
 
     await db.asUser(USER.stranger);
     const message = await expectDenied(() =>
@@ -448,11 +460,7 @@ describe("공유 엔티티 (places)", () => {
   });
 
   it("서버(service_role)는 장소를 갱신할 수 있다", async () => {
-    await db.asUser(USER.owner);
-    await db.pg.query(
-      `insert into trip.places (provider, provider_place_id, name, category_group, latitude, longitude)
-       values ('kakao', '12345', '이치란 신주쿠', 'food', 35.6938, 139.7034)`,
-    );
+    await savePlace();
 
     await db.asService();
     const updated = await db.pg.query("update trip.places set name = '이치란 신주쿠점'");
@@ -510,6 +518,10 @@ describe("낙관적 잠금", () => {
 describe("Storage 정책", () => {
   const BUCKET = "trip-attachments";
 
+  /*
+   * 첨부 업로드 기능이 아직 없어 쓰기 정책을 닫았다(20261023000001).
+   * 기능을 만들 때 서버 경로와 함께 다시 연다. 읽기 정책은 그대로다.
+   */
   async function upload(tripId: string, name = "ticket.pdf") {
     return db.pg.query(
       "insert into storage.objects (bucket_id, name, owner) values ($1, $2, (select auth.uid()))",
@@ -517,14 +529,20 @@ describe("Storage 정책", () => {
     );
   }
 
-  it("editor 는 자기 여행 폴더에 업로드할 수 있다", async () => {
+  async function seedObject(tripId: string) {
+    await db.asSuperuser();
+    await db.pg.query("insert into storage.objects (bucket_id, name) values ($1, $2)", [
+      BUCKET,
+      `${tripId}/item/ticket.pdf`,
+    ]);
+  }
+
+  it("editor 도 지금은 업로드할 수 없다", async () => {
     const tripId = await seedTrip();
 
     await db.asUser(USER.editor);
-    await upload(tripId);
-
-    const rows = await db.pg.query("select id from storage.objects");
-    expect(rows.rows).toHaveLength(1);
+    const message = await expectDenied(() => upload(tripId));
+    expect(message).toMatch(/row-level security/i);
   });
 
   it("viewer 는 업로드할 수 없다", async () => {
@@ -545,8 +563,7 @@ describe("Storage 정책", () => {
 
   it("멤버가 아닌 사용자에게는 파일이 보이지 않는다", async () => {
     const tripId = await seedTrip();
-    await db.asUser(USER.editor);
-    await upload(tripId);
+    await seedObject(tripId);
 
     await db.asUser(USER.stranger);
     const rows = await db.pg.query("select id from storage.objects");
@@ -558,18 +575,15 @@ describe("Storage 정책", () => {
     expect(asViewer.rows).toHaveLength(1);
   });
 
-  it("trip_id 로 시작하지 않는 경로는 업로드할 수 없다", async () => {
-    await seedTrip();
+  it("editor 는 남의 파일을 지우거나 덮어쓸 수 없다", async () => {
+    const tripId = await seedTrip();
+    await seedObject(tripId);
 
     await db.asUser(USER.editor);
-    const message = await expectDenied(() =>
-      db.pg.query("insert into storage.objects (bucket_id, name) values ($1, $2)", [
-        BUCKET,
-        "anything/ticket.pdf",
-      ]),
-    );
-    // 경로에서 uuid 를 못 뽑으면 null 이 되고, null 은 어떤 멤버십도 통과하지 못한다.
-    expect(message).toMatch(/row-level security/i);
+    const deleted = await db.pg.query("delete from storage.objects returning id");
+    expect(deleted.rows).toHaveLength(0);
+    const updated = await db.pg.query("update storage.objects set name = name || 'x' returning id");
+    expect(updated.rows).toHaveLength(0);
   });
 });
 
@@ -865,7 +879,11 @@ describe("음식점 후보 투표", () => {
     await db.asSuperuser();
     await db.pg.query("update trip.restaurant_polls set closes_at = now() - interval '1 minute' where id = $1", [pollId]);
     await db.asUser(USER.owner);
-    await db.pg.query("select trip.finalize_due_restaurant_polls()");
+    // 화면은 여행별 마감 함수를 쓴다. 전역 함수는 cron/service_role 전용이다.
+    await db.pg.query(
+      "select trip.finalize_due_restaurant_polls_for_trip(trip_id) from trip.restaurant_polls where id = $1",
+      [pollId],
+    );
     const items = await db.pg.query<{ id: string; status: string }>(
       "select id, status::text from trip.itinerary_items where restaurant_poll_id = $1 order by id",
       [pollId],
@@ -899,7 +917,11 @@ describe("음식점 후보 투표", () => {
       [pollId],
     );
     await db.asUser(USER.owner);
-    await db.pg.query("select trip.finalize_due_restaurant_polls()");
+    // 화면은 여행별 마감 함수를 쓴다. 전역 함수는 cron/service_role 전용이다.
+    await db.pg.query(
+      "select trip.finalize_due_restaurant_polls_for_trip(trip_id) from trip.restaurant_polls where id = $1",
+      [pollId],
+    );
 
     const votes = await db.pg.query("select item_id from trip.restaurant_votes where poll_id = $1", [
       pollId,

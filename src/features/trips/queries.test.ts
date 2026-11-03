@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: mocks.createClient }));
+vi.mock("@/lib/supabase/env", () => ({ isSupabaseConfigured: () => true }));
 
 const TRIP_ID = "00000000-0000-4000-8000-000000000010";
 const USER_ID = "00000000-0000-4000-8000-0000000000a1";
@@ -110,7 +111,38 @@ describe("listRestaurantPolls fast path", () => {
     const { db, pollQuery } = pollsClient([{ id: "poll", status: "open", closes_at: "2000-01-01T00:00:00Z" }]);
     const { listRestaurantPolls } = await import("./queries");
     await listRestaurantPolls(TRIP_ID);
-    expect(db.rpc).toHaveBeenCalledWith("finalize_due_restaurant_polls");
+    expect(db.rpc).toHaveBeenCalledWith("finalize_due_restaurant_polls_for_trip", { p_trip_id: TRIP_ID });
     expect(pollQuery.order).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("마감 직후 타임라인 일관성", () => {
+  it("첫 일정 조회가 마감 전에 끝나도 확정된 후보를 반환한다", async () => {
+    let itemReads = 0;
+    let closed = false;
+    const winner = { id: "winner", trip_id: TRIP_ID, type: "food", status: "confirmed", title: "선정 음식점", start_at: "2026-11-03T03:00:00Z", sort_order: 1000, place_snapshot: null };
+    const client = {
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
+      rpc: vi.fn(async () => { closed = true; return { error: null }; }),
+      from: vi.fn((table: string) => {
+        let candidates = false;
+        const q = {
+          select: vi.fn(() => q), eq: vi.fn(() => q), is: vi.fn(() => q), in: vi.fn(() => q),
+          not: vi.fn(() => { candidates = true; return q; }), order: vi.fn(() => q),
+          then: (resolve: (value: unknown) => unknown) => {
+            let data: object[] = [];
+            if (table === "restaurant_polls") data = [{ id: "poll", status: closed ? "closed" : "open", closes_at: "2000-01-01T00:00:00Z" }];
+            else if (table === "itinerary_items" && !candidates) { itemReads++; data = itemReads > 1 ? [winner] : []; }
+            return Promise.resolve({ data, error: null }).then(resolve);
+          },
+        };
+        return q;
+      }),
+    };
+    mocks.createClient.mockResolvedValue(client);
+    const { listTripSchedule } = await import("./queries");
+    const result = await listTripSchedule(TRIP_ID);
+    expect(result.items.map((item) => item.id)).toEqual(["winner"]);
+    expect(itemReads).toBe(2);
   });
 });

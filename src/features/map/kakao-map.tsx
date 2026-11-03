@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { dayColor } from "@/lib/day-color";
 
+import { mapGeometryKey, mapContentKey } from "./update-key";
 import { MapLoadError } from "./errors";
 import { loadKakaoMaps, type KakaoMap, type KakaoMaps, type KakaoOverlay } from "./kakao-sdk";
 import { applyMarkerSelection, groupByDay, markerButton } from "./marker";
@@ -26,6 +27,8 @@ export function KakaoTripMap({
   initialCenter,
   onError,
 }: Props) {
+  const contentKeyRef = useRef<string | null>(null);
+  const geometryKeyRef = useRef<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMap | null>(null);
   const overlaysRef = useRef<KakaoOverlay[]>([]);
@@ -72,6 +75,12 @@ export function KakaoTripMap({
       mapRef.current = new maps.Map(containerRef.current, { center, level: INITIAL_LEVEL });
     }
     const map = mapRef.current;
+    const contentKey = mapContentKey(points);
+    if (contentKeyRef.current === contentKey) return;
+    contentKeyRef.current = contentKey;
+    const geometryKey = mapGeometryKey(points);
+    const geometryChanged = geometryKeyRef.current !== geometryKey;
+    geometryKeyRef.current = geometryKey;
 
     // 이전 마커·선을 지운다. 지우지 않으면 갱신할 때마다 겹쳐 쌓인다.
     for (const overlay of overlaysRef.current) overlay.setMap(null);
@@ -115,8 +124,18 @@ export function KakaoTripMap({
       overlaysRef.current.push(line);
     }
 
-    map.setBounds(bounds, 48, 48, 48, 48);
+    if (geometryChanged) map.setBounds(bounds, 48, 48, 48, 48);
   }, [maps, points, initialCenter]);
+
+  useEffect(() => () => {
+    for (const overlay of overlaysRef.current) overlay.setMap(null);
+    overlaysRef.current = [];
+    markersRef.current.clear();
+    positionsRef.current.clear();
+    mapRef.current = null;
+    contentKeyRef.current = null;
+    geometryKeyRef.current = null;
+  }, []);
 
   // 선택 반영은 마커를 다시 만들지 않는다. 다시 만들면 setBounds 가 함께 돌아
   // 항목을 누를 때마다 지도 축척이 튄다.

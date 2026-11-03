@@ -59,7 +59,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
           {ITEM_TYPES.map((itemType) => (
             <label
               key={itemType}
-              className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground"
+              className="cursor-pointer rounded-full border border-border bg-card px-3.5 py-1.5 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground"
             >
               <input
                 type="radio"
@@ -167,17 +167,17 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
         <button
           type="submit"
           disabled={pending}
-          className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex-1 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           추가
         </button>
         <button
           type="button"
           onClick={() => {
-            setOpen(false);
+            if (!onCancel) setOpen(false);
             onCancel?.();
           }}
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
+          className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
         >
           취소
         </button>

@@ -62,7 +62,7 @@ function itemForm(locationText: string) {
 describe("createItemAction — 장소 조회 실패와 무관하게 저장한다", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getTrip.mockResolvedValue({ id: TRIP_ID, timezone: "Asia/Tokyo" });
+    mocks.getTrip.mockResolvedValue({ id: TRIP_ID, timezone: "Asia/Seoul" });
   });
 
   it("지도에서 못 찾은 장소도 글자로 저장한다", async () => {
@@ -129,7 +129,16 @@ describe("createItemAction — 장소 조회 실패와 무관하게 저장한다
 describe("updateItemAction — 검색에서 선택한 장소", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getTrip.mockResolvedValue({ id: TRIP_ID, timezone: "Asia/Seoul" });
+  });
+  it("해외 수동 입력은 국내 검색 결과를 붙이지 않는다", async () => {
     mocks.getTrip.mockResolvedValue({ id: TRIP_ID, timezone: "Asia/Tokyo" });
+    const { client, insert } = insertClient();
+    mocks.createClient.mockResolvedValue(client);
+    const { createItemAction } = await import("@/features/trips/actions");
+    await createItemAction({ status: "idle" }, itemForm("신주쿠"));
+    expect(mocks.searchPlaces).not.toHaveBeenCalled();
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ place_snapshot: null }));
   });
 
   function editClient() {

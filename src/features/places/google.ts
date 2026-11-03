@@ -71,7 +71,12 @@ export async function searchGooglePlaces(input: {
   date?: string;
   center?: { latitude: number; longitude: number };
 }): Promise<PlaceSearchResponse> {
-  const key = process.env.GOOGLE_PLACES_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  /*
+   * 서버 전용 키만 쓴다. 예전에는 없으면 브라우저용 공개 키(NEXT_PUBLIC_...)로
+   * 대신했는데, 그 키는 HTTP referrer 로 제한해 두는 것이 정상이라 서버 호출이
+   * 거부되거나 — 더 나쁘게는 제한을 풀어 둔 공개 키가 서버 쿼터를 떠안는다.
+   */
+  const key = process.env.GOOGLE_PLACES_API_KEY;
   if (!key) {
     throw new GooglePlaceSearchError(
       "GOOGLE_PLACES_API_KEY가 없어 Google 장소 검색을 사용할 수 없습니다.",
@@ -113,15 +118,15 @@ export async function searchGooglePlaces(input: {
     },
     body: JSON.stringify(requestBody),
     cache: "no-store",
+    signal: AbortSignal.timeout(8000),
   });
 
   if (!response.ok) {
-    const detail = await response.text();
     const kind = response.status === 429 ? "quota" : response.status === 403 ? "not_configured" : "provider";
     throw new GooglePlaceSearchError(
       kind === "not_configured"
         ? "Google Places API(New)가 사용 설정되지 않았거나 API 키 제한이 맞지 않습니다."
-        : `Google 장소 검색에 실패했습니다 (${response.status}): ${detail.slice(0, 160)}`,
+        : "장소 검색을 일시적으로 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
       kind,
     );
   }

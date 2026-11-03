@@ -108,3 +108,48 @@ describe("createRestaurantPollAction", () => {
     );
   });
 });
+
+describe("revokeVoteInvitesAction", () => {
+  function revokeClient(rows: Array<{ id: string }>) {
+    const calls: Array<[string, unknown]> = [];
+    const chain = {
+      eq: vi.fn((column: string, value: unknown) => {
+        calls.push([column, value]);
+        return chain;
+      }),
+      is: vi.fn(() => chain),
+      select: vi.fn().mockResolvedValue({ data: rows, error: null }),
+    };
+    const update = vi.fn().mockReturnValue(chain);
+    return { client: { from: vi.fn().mockReturnValue({ update }) }, update, calls };
+  }
+
+  function revokeForm(inviteId?: string) {
+    const form = new FormData();
+    form.set("tripId", TRIP_ID);
+    if (inviteId) form.set("inviteId", inviteId);
+    return form;
+  }
+
+  it("inviteId 가 있으면 그 링크 하나만 폐기한다", async () => {
+    const inviteId = "00000000-0000-4000-8000-0000000000aa";
+    const { client, update, calls } = revokeClient([{ id: inviteId }]);
+    mocks.createClient.mockResolvedValue(client);
+    const { revokeVoteInvitesAction } = await import("@/features/voting/actions");
+
+    const state = await revokeVoteInvitesAction({ status: "idle" }, revokeForm(inviteId));
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ revoked_at: expect.any(String) }));
+    expect(calls).toContainEqual(["id", inviteId]);
+    expect(state).toMatchObject({ status: "revoked", revokedIds: [inviteId] });
+  });
+
+  it("폐기된 행이 없으면(권한 없음 포함) 오류로 알린다", async () => {
+    const { client } = revokeClient([]);
+    mocks.createClient.mockResolvedValue(client);
+    const { revokeVoteInvitesAction } = await import("@/features/voting/actions");
+
+    const state = await revokeVoteInvitesAction({ status: "idle" }, revokeForm());
+    expect(state.status).toBe("error");
+  });
+});

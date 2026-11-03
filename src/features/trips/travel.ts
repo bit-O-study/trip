@@ -19,7 +19,7 @@ export type TravelLeg = {
   minutes: number | null; distanceKm: number | null; version: number;
   fromLocationKey: string; toLocationKey: string;
 };
-export type Stop = Pick<ItineraryItem, "id" | "title" | "coordinate" | "locationText">;
+export type Stop = Pick<ItineraryItem, "id" | "title" | "coordinate" | "locationText"> & Partial<Pick<ItineraryItem, "startAt" | "endAt" | "allDay">>;
 export function locationKey(item: Stop): string {
   return item.coordinate ? `${item.coordinate.latitude},${item.coordinate.longitude}` : (item.locationText ?? item.title);
 }
@@ -34,7 +34,9 @@ export function straightDistanceKm(a: Stop["coordinate"], b: Stop["coordinate"])
   return 6371.0088 * 2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
 }
 export function distanceLabel(km: number) {
-  return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}km`;
+  // 반올림한 **뒤에** 단위를 고른다. 0.9996km 를 m 로 반올림하면 "1000m" 가 됐다.
+  const meters = Math.round(km * 1000);
+  return meters < 1000 ? `${meters}m` : `${km.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}km`;
 }
 export function durationLabel(minutes: number) {
   const hours = Math.floor(minutes / 60), rest = minutes % 60;
@@ -43,6 +45,14 @@ export function durationLabel(minutes: number) {
 
 /** 좌표가 없는 메모도 순서에 포함한다. 없는 위치를 건너뛰어 거리를 꾸미지 않는다. */
 export function neighborMap(items: ItineraryItem[]) {
-  const stops: Stop[] = items.map(({ id, title, coordinate, locationText }) => ({ id, title, coordinate, locationText }));
+  const stops: Stop[] = items.map(({ id, title, coordinate, locationText, startAt, endAt, allDay }) => ({ id, title, coordinate, locationText, startAt, endAt, allDay }));
   return new Map(stops.map((item, i) => [item.id, { previous: stops[i - 1], next: stops[i + 1] }]));
+}
+
+/** 종료 시각·이동시간을 모두 아는 구간만 경고한다. 추정 소요시간은 만들지 않는다. */
+export function travelConflictMinutes(from: Stop, to: Stop, leg?: TravelLeg): number | null {
+  if (!leg || leg.minutes === null || !from.endAt || !to.startAt || from.allDay || to.allDay) return null;
+  if (leg.fromId !== from.id || leg.toId !== to.id || leg.fromLocationKey !== locationKey(from) || leg.toLocationKey !== locationKey(to)) return null;
+  const gap = Date.parse(from.endAt) + leg.minutes * 60_000 - Date.parse(to.startAt);
+  return Number.isFinite(gap) && gap > 0 ? Math.ceil(gap / 60_000) : null;
 }

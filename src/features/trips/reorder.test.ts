@@ -44,6 +44,14 @@ describe("드래그 대상 앞에 놓기", () => {
   it("이동할 항목을 기준 항목에서 제외한다", () => {
     expect(planMoveBefore(timeline(a, b, c), "a", "b", TZ)).toEqual({ startAt: b.startAt, afterItemId: null });
   });
+  it("시각이 다른 앞 항목은 기준으로 삼지 않는다", () => {
+    const w = item("w", "2026-02-14T00:00:00Z", 2000);
+    const x = item("x", "2026-02-14T01:00:00Z", 1000);
+    const y = item("y", "2026-02-14T01:00:00Z", 3000);
+    expect(planMoveBefore(timeline(w, x, y), "y", "x", TZ)).toEqual({ startAt: x.startAt, afterItemId: null });
+    const x2 = item("x2", "2026-02-14T01:00:00Z", 1500);
+    expect(planMoveBefore(timeline(w, x, x2, y), "y", "x2", TZ)).toEqual({ startAt: x.startAt, afterItemId: "x" });
+  });
   it("다른 날짜에서도 목표 날짜의 앞 항목만 기준으로 삼는다", () => {
     const next = item("next", "2026-02-15T01:00:00Z", 1000);
     expect(planMoveBefore(timeline(a, b, c, next), "c", "next", TZ)).toEqual({ startAt: next.startAt, afterItemId: null });
@@ -54,7 +62,24 @@ describe("planMoveUp", () => {
   it("바로 위 항목의 시각을 넘겨받고 그 앞에 선다", () => {
     // sort_order 만 바꾸면 start_at 이 앞서는 b 를 절대 넘어설 수 없다.
     const plan = planMoveUp(timeline(a, b, c), "c", TZ);
-    expect(plan).toEqual({ startAt: b.startAt, afterItemId: a.id });
+    // a 는 시각이 달라 기준이 될 수 없다 — 같은 시각 그룹의 맨 앞(null)이다.
+    expect(plan).toEqual({ startAt: b.startAt, afterItemId: null });
+  });
+
+  it("시각이 다른 항목을 기준으로 삼지 않는다 (sort_order 비단조 회귀)", () => {
+    // W 09:00(2000), X 10:00(1000), Y 10:00(3000). Y 를 올리면 X 앞이어야 한다.
+    // W 를 기준으로 삼으면 move_item 이 2000 보다 큰 sort_order 를 줘 무변화였다.
+    const w = item("w", "2026-02-14T00:00:00Z", 2000);
+    const x = item("x", "2026-02-14T01:00:00Z", 1000);
+    const y = item("y", "2026-02-14T01:00:00Z", 3000);
+    expect(planMoveUp(timeline(w, x, y), "y", TZ)).toEqual({ startAt: x.startAt, afterItemId: null });
+  });
+
+  it("같은 시각의 바로 앞 항목은 기준으로 쓴다", () => {
+    const p = item("p", "2026-02-14T01:00:00Z", 1000);
+    const q = item("q", "2026-02-14T01:00:00Z", 2000);
+    const r = item("r", "2026-02-14T01:00:00Z", 3000);
+    expect(planMoveUp(timeline(p, q, r), "r", TZ)).toEqual({ startAt: q.startAt, afterItemId: "p" });
   });
 
   it("두 번째 항목은 기준 없이 맨 앞으로 간다", () => {

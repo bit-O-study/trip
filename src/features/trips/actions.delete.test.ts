@@ -92,7 +92,8 @@ describe("삭제 Server Actions", () => {
     form.append("itemId", ITEM_ID);
     form.append("itemId", ITEM_ID_2);
 
-    await deleteItemsAction(form);
+    const result = await deleteItemsAction({ status: "idle" }, form);
+    expect(result.status).toBe("success");
 
     expect(query.eq).toHaveBeenCalledWith("trip_id", TRIP_ID);
     expect(query.in).toHaveBeenCalledWith("id", [ITEM_ID, ITEM_ID_2]);

@@ -21,6 +21,11 @@ describe("일정 사이 거리와 이동 입력", () => {
     expect(durationLabel(90)).toBe("1시간 30분");
     expect(distanceLabel(0.125)).toBe("125m");
   });
+  it("1km 경계에서 1000m 로 표시하지 않는다", () => {
+    expect(distanceLabel(0.9996)).toBe("1km");
+    expect(distanceLabel(0.9994)).toBe("999m");
+    expect(distanceLabel(12345.67)).toBe("12,345.7km");
+  });
   it("같은 일정 연결·음수·소수 분·알 수 없는 이동수단을 거절한다", () => {
     for (const change of [{ toId: base.fromId }, { minutes: "-1" }, { minutes: "1.5" }, { distanceKm: "Infinity" }, { mode: "unknown" }]) expect(travelInput.safeParse({ ...base, ...change }).success).toBe(false);
   });

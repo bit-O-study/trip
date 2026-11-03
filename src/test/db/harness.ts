@@ -52,7 +52,10 @@ const SUPABASE_SHIM = `
   create table storage.buckets (
     id     text primary key,
     name   text not null,
-    public boolean not null default false
+    public boolean not null default false,
+    -- 운영 Supabase 의 storage.buckets 에 있는 업로드 제한 컬럼.
+    file_size_limit    bigint,
+    allowed_mime_types text[]
   );
 
   create table storage.objects (
@@ -84,6 +87,12 @@ export type TestDb = {
   createUser: (userId: string, email?: string) => Promise<void>;
   /** public 스키마의 모든 데이터를 지운다. */
   truncateAll: () => Promise<void>;
+  /**
+   * 멤버를 픽스처로 붙인다. 앱 경로에서는 accept_invite 로만 멤버가 생기므로
+   * (owner 의 직접 INSERT 는 막혀 있다) superuser 로 넣는다.
+   * 끝나면 superuser 상태로 남는다.
+   */
+  addMember: (tripId: string, userId: string, role: "owner" | "editor" | "viewer") => Promise<void>;
 };
 
 /**
@@ -167,7 +176,16 @@ export async function createTestDb(): Promise<TestDb> {
     `);
   };
 
-  return { pg, asUser, asAnon, asService, asSuperuser, createUser, truncateAll };
+  const addMember = async (tripId: string, userId: string, role: "owner" | "editor" | "viewer") => {
+    await asSuperuser();
+    await pg.query("insert into trip.trip_members (trip_id, user_id, role) values ($1, $2, $3)", [
+      tripId,
+      userId,
+      role,
+    ]);
+  };
+
+  return { pg, asUser, asAnon, asService, asSuperuser, createUser, truncateAll, addMember };
 }
 
 /** 테스트 안에서 사람이 읽기 쉬운 고정 UUID. */

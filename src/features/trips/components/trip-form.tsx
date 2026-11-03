@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
-import { IDLE, type ActionState } from "@/features/trips/action-state";
+import { IDLE, valueOr, type ActionState } from "@/features/trips/action-state";
 import { openDatePicker } from "@/lib/date-picker";
+import { tripDurationLabel } from "@/lib/datetime";
 
 /**
  * 자주 쓰는 시간대. 목록에 없으면 직접 입력할 수 있게 datalist 로 둔다.
@@ -57,9 +58,12 @@ function FieldError({ errors }: { errors?: string[] }) {
 export function TripForm({ action, submitLabel, defaults }: Props) {
   const [state, formAction, pending] = useActionState(action, IDLE);
   const errors = state.fieldErrors ?? {};
+  const [startDate, setStartDate] = useState(defaults?.startDate ?? "");
+  const [endDate, setEndDate] = useState(defaults?.endDate ?? "");
+  const [timezone, setTimezone] = useState(defaults?.timezone ?? "Asia/Seoul");
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} aria-busy={pending} className="space-y-5">
       {defaults?.tripId ? <input type="hidden" name="tripId" value={defaults.tripId} /> : null}
       {defaults?.expectedUpdatedAt ? (
         <input type="hidden" name="expectedUpdatedAt" value={defaults.expectedUpdatedAt} />
@@ -74,9 +78,9 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
           name="title"
           required
           maxLength={120}
-          defaultValue={defaults?.title}
+          defaultValue={valueOr(state, "title", defaults?.title)}
           placeholder="도쿄 4박5일"
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+          className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base"
         />
         <FieldError errors={errors.title} />
       </div>
@@ -89,9 +93,9 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
           id="destinationName"
           name="destinationName"
           maxLength={120}
-          defaultValue={defaults?.destinationName}
+          defaultValue={valueOr(state, "destinationName", defaults?.destinationName)}
           placeholder="도쿄"
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+          className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base"
         />
         <FieldError errors={errors.destinationName} />
       </div>
@@ -107,8 +111,9 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
             type="date"
             onClick={openDatePicker}
             required
-            defaultValue={defaults?.startDate}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base"
           />
           <FieldError errors={errors.startDate} />
         </div>
@@ -122,12 +127,18 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
             type="date"
             onClick={openDatePicker}
             required
-            defaultValue={defaults?.endDate}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+            value={endDate}
+            min={startDate || undefined}
+            onChange={(event) => setEndDate(event.target.value)}
+            className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base"
           />
           <FieldError errors={errors.endDate} />
         </div>
       </div>
+
+      <p role="status" className="text-sm text-muted-foreground">
+        {startDate && endDate ? (endDate < startDate ? "종료일은 시작일 이후로 선택해 주세요." : tripDurationLabel(startDate, endDate)) : "여행 기간을 선택해 주세요."}
+      </p>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
@@ -139,8 +150,9 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
             name="timezone"
             list="timezone-options"
             required
-            defaultValue={defaults?.timezone ?? "Asia/Seoul"}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+            value={timezone}
+            onChange={(event) => setTimezone(event.target.value)}
+            className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base"
           />
           <datalist id="timezone-options">
             {COMMON_TIMEZONES.map((zone) => (
@@ -159,12 +171,22 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
             name="baseCurrency"
             maxLength={3}
             required
-            defaultValue={defaults?.baseCurrency ?? "KRW"}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base uppercase"
+            defaultValue={valueOr(state, "baseCurrency", defaults?.baseCurrency ?? "KRW")}
+            className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base uppercase"
           />
           <FieldError errors={errors.baseCurrency} />
         </div>
       </div>
+
+      {defaults?.tripId && timezone !== defaults.timezone ? (
+        <fieldset className="space-y-3 rounded-lg border border-border p-4">
+          <legend className="px-1 text-sm font-medium">시간대 변경 시 기존 일정</legend>
+          <p className="text-xs text-muted-foreground">시간대를 바꾸면 일정의 날짜와 표시 시각이 달라질 수 있습니다.</p>
+          <label className="flex items-start gap-2 text-sm"><input type="radio" name="timezoneMode" value="instant" required className="mt-1" />실제 시각 유지 — 새 시간대에 맞춰 표시합니다.</label>
+          <label className="flex items-start gap-2 text-sm"><input type="radio" name="timezoneMode" value="wall_clock" required className="mt-1" />현지 시각 유지 — 오전 10시 일정을 변경 후에도 오전 10시로 맞춥니다.</label>
+          <FieldError errors={errors.timezoneMode} />
+        </fieldset>
+      ) : null}
 
       {state.status === "error" && state.message ? (
         <p role="alert" className="text-sm text-danger">
@@ -180,9 +202,9 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
       >
-        {submitLabel}
+        {pending ? "저장 중…" : submitLabel}
       </button>
     </form>
   );

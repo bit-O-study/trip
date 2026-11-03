@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type PointerEvent } from "react";
 import { moveItemAfterAction, moveItemDownAction, moveItemToDayAction, moveItemUpAction } from "@/features/trips/actions";
+import type { MoveResult } from "@/features/trips/reorder";
 
 export function useItemDrag(tripId: string, itemId: string, enabled: boolean) {
   const [dragging, setDragging] = useState(false);
@@ -18,11 +19,14 @@ export function useItemDrag(tripId: string, itemId: string, enabled: boolean) {
     gesture.current?.target?.removeAttribute("data-drop-position");
   }, []);
 
-  function save(action: (data: FormData) => Promise<void>, extra: Record<string, string> = {}) {
+  function save(action: (data: FormData) => Promise<MoveResult>, extra: Record<string, string> = {}) {
     const data = new FormData();
     Object.entries({ tripId, itemId, ...extra }).forEach(([key, value]) => data.set(key, value));
     startTransition(async () => {
-      try { await action(data); setMessage("일정을 이동했습니다."); }
+      try {
+        const result = await action(data);
+        setMessage(result.status === "error" ? result.message : result.status === "unchanged" ? "이미 같은 위치에 있습니다." : "일정을 이동했습니다.");
+      }
       catch { setMessage("이동하지 못했습니다. 다시 시도하세요."); }
     });
   }

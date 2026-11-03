@@ -23,7 +23,10 @@ npm run dev        # http://localhost:3100
 | `npm run test:e2e` | E2E 테스트 (프로덕션 빌드 대상, 모바일·데스크톱 뷰포트) |
 | `npm run test:e2e:dev` | E2E 테스트 (dev 서버 대상, 화면 수정 중 빠른 확인용) |
 | `npm run build` | 프로덕션 빌드 |
-| `npm run db:push` | 마이그레이션을 Supabase 프로젝트에 적용 ([supabase/README.md](supabase/README.md)) |
+| `npm run db:verify` | DB 마이그레이션 상태 확인 ([supabase/README.md](supabase/README.md)) |
+| `npm run db:apply` | 검토한 마이그레이션 적용 ([supabase/README.md](supabase/README.md)) |
+| `node scripts/verify-mobile-ui.mjs` | 실제 컴포넌트의 모바일 편집·드래그 회귀 검사 |
+| `node scripts/verify-board-ui.mjs` | 일정·지도 배치, 포커스 이동, 입력 초안 보존 검사 |
 
 E2E는 처음 한 번 브라우저 설치가 필요합니다.
 
@@ -36,17 +39,19 @@ npx playwright install chromium
 구현 순서는 [docs/architecture.md](docs/architecture.md) 8절을 따릅니다.
 
 - [x] 1단계 — Next.js 기본 앱, 모바일 우선 레이아웃, lint/test 구성
-- [x] 2단계 — SQL migration과 RLS 테스트 (Supabase 프로젝트 생성 후 `npm run db:push` 필요)
+- [x] 2단계 — SQL migration과 RLS 테스트 (대상 DB 적용 상태는 `npm run db:verify`로 별도 확인)
 - [x] 3단계 코드 — Supabase SSR 클라이언트·세션 proxy·로그인 UI·OAuth 콜백·로그아웃
   - [ ] Trip 프로젝트 연결 및 Google/Kakao 콘솔 등록 후 실제 로그인 통합 검증
 - [x] 4단계 — 여행 CRUD와 날짜별 타임라인 (실제 DB 연결 후 동작 확인 필요)
 - [x] 5단계 — Kakao 장소 검색·지도 (실제 로그인 후 동작 확인 필요)
 - [x] 6단계 — 타임라인 ↔ 지도 양방향 하이라이트, 키보드 재정렬 (실제 로그인 후 동작 확인 필요)
-- [ ] 7단계 — 항공 provider adapter
-- [ ] 8단계 — 읽기 전용 공유 링크, 동행자 초대
+- [x] 7단계 코드 — 항공 provider adapter와 수동 입력 (실제 공급자 응답 검증 별도)
+- [x] 8단계 코드 — 읽기 전용 공유 링크, 동행자 초대·권한 관리
 - [~] 9단계 — Vercel 배포 완료 (<https://trip-planner-tau-jade.vercel.app>). 로그인 상태 E2E 픽스처는 남음
 
 ## 환경변수
+
+최근 개선 내역과 후속 과제는 [전체 개선 점검](docs/2026-11-03-improvement-audit.md)을 참고하세요. 로컬 브라우저 검사에서는 지도 SDK와 서버 액션을 모형으로 대체하므로 실제 로그인·권한 검증을 대신하지 않습니다.
 
 - 실제 값은 `.env.local`에 두며 Git에 커밋하지 않습니다.
 - 필요한 키 목록은 `.env.example`에 있습니다.

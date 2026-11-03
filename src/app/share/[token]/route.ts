@@ -61,11 +61,20 @@ export async function GET(
   if (!grant) return bounce("invalid");
 
   const response = NextResponse.redirect(`${origin}/s/${grant.shortId}`, { status: 302 });
+  /*
+   * 쿠키는 그 공유 뷰 경로에만 붙인다(`/s/<shortId>`).
+   *
+   * path 를 "/" 로 두면 쿠키가 하나뿐이라 두 번째 공유 링크를 여는 순간 첫 번째
+   * 여행을 볼 수 없게 되고, 공유 토큰이 앱의 모든 요청(로그인 화면 포함)에 실려
+   * 다닌다. 경로별로 두면 같은 이름이라도 브라우저가 링크마다 따로 보관하고
+   * `/s/<shortId>` 요청에만 보낸다 — 읽는 쪽(`cookies().get(SHARE_COOKIE)`)은 그대로다.
+   * shortId 는 base64url 이라 경로에 그대로 써도 된다.
+   */
   response.cookies.set(SHARE_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/",
+    path: `/s/${encodeURIComponent(grant.shortId)}`,
     maxAge: SHARE_COOKIE_MAX_AGE_SECONDS,
   });
   // 토큰이 실린 이 응답은 어디에도 저장되면 안 된다.

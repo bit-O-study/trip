@@ -10,11 +10,22 @@ function form(overrides = {}) { const f = new FormData(); f.set("payload", JSON.
 beforeEach(() => { vi.clearAllMocks(); mocks.trip.mockResolvedValue({ timezone: "Asia/Seoul" }); });
 it("stores both lodging dates in UTC and preserves multiline notes", async () => {
   const insertItem = vi.fn().mockResolvedValue({ error: null });
-  const q = { insert: vi.fn(), select: vi.fn(), single: vi.fn().mockResolvedValue({ data: { id: "place" }, error: null }) };
-  q.insert.mockReturnValue(q); q.select.mockReturnValue(q);
-  mocks.client.mockResolvedValue({ from: (table: string) => table === "places" ? q : { insert: insertItem }, rpc: vi.fn().mockResolvedValue({ data: 1000, error: null }) });
+  const from = vi.fn(() => ({ insert: insertItem }));
+  const rpc = vi.fn((name: string) => Promise.resolve(name === "save_place" ? { data: "place", error: null } : { data: 1000, error: null }));
+  mocks.client.mockResolvedValue({ from, rpc });
   expect((await addPlaceToTripAction(IDLE, form())).status).toBe("success");
-  expect(insertItem).toHaveBeenCalledWith(expect.objectContaining({ type: "lodging", start_at: "2026-10-05T06:00:00.000Z", end_at: "2026-10-07T02:00:00.000Z", note: input.note }));
+  expect(insertItem).toHaveBeenCalledWith(expect.objectContaining({ type: "lodging", place_id: "place", start_at: "2026-10-05T06:00:00.000Z", end_at: "2026-10-07T02:00:00.000Z", note: input.note }));
+  // 공유 places 행은 편집 권한을 확인하는 RPC 로만 저장한다.
+  expect(from).not.toHaveBeenCalledWith("places");
+  expect(rpc).toHaveBeenCalledWith("save_place", expect.objectContaining({ p_trip_id: input.tripId }));
+});
+it("drops non-http place urls before saving", async () => {
+  const insertItem = vi.fn().mockResolvedValue({ error: null });
+  const rpc = vi.fn((name: string) => Promise.resolve(name === "save_place" ? { data: "place", error: null } : { data: 1000, error: null }));
+  mocks.client.mockResolvedValue({ from: () => ({ insert: insertItem }), rpc });
+  expect((await addPlaceToTripAction(IDLE, form({ url: "javascript:alert(1)" }))).status).toBe("success");
+  expect(rpc).toHaveBeenCalledWith("save_place", expect.objectContaining({ p_place: expect.objectContaining({ url: null }) }));
+  expect(insertItem).toHaveBeenCalledWith(expect.objectContaining({ place_snapshot: expect.objectContaining({ url: null }) }));
 });
 it("rejects missing, equal and earlier checkout dates without writes", async () => {
   const from = vi.fn(); mocks.client.mockResolvedValue({ from });

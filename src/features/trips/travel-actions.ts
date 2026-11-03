@@ -4,15 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTrip, listItems } from "./queries";
 import { canEdit } from "./types";
-import { locationKey, travelInput, type TravelLeg } from "./travel";
+import { locationKey, travelInput } from "./travel";
 import { fail, type ActionState } from "./action-state";
-
-export async function listTravelLegs(tripId: string): Promise<TravelLeg[]> {
-  const db = await createSupabaseServerClient();
-  const { data, error } = await db.from("travel_legs").select("*").eq("trip_id", tripId);
-  if (error) throw new Error("이동 정보를 불러오지 못했습니다.");
-  return (data ?? []).map((r) => ({ tripId: r.trip_id, fromId: r.from_item_id, toId: r.to_item_id, mode: r.mode, minutes: r.minutes, distanceKm: r.distance_km === null ? null : Number(r.distance_km), version: r.version, fromLocationKey: r.from_location_key, toLocationKey: r.to_location_key }));
-}
 
 export async function saveTravelLeg(_previous: ActionState, form: FormData): Promise<ActionState> {
   const parsed = travelInput.safeParse({ tripId: form.get("tripId"), fromId: form.get("fromId"), toId: form.get("toId"), version: form.get("version"), mode: form.get("mode") || null, minutes: form.get("minutes"), distanceKm: form.get("distanceKm") });

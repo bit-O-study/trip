@@ -75,6 +75,23 @@ describe("zonedLocalToUtc", () => {
   it("형식이 다르면 거부한다", () => {
     expect(() => zonedLocalToUtc("2026-02-14 08:20", "Asia/Seoul")).toThrow(/형식/);
   });
+
+  it("봄 DST 공백의 없는 시각은 한 시간 뒤로 민다 (앞당기지 않는다)", () => {
+    // 뉴욕 2026-03-08 02:30 은 존재하지 않는다. 예전에는 01:30 EST(06:30Z)로 저장됐다.
+    const utc = zonedLocalToUtc("2026-03-08T02:30", "America/New_York");
+    expect(utc).toBe("2026-03-08T07:30:00.000Z");
+    expect(utcToZonedLocal(utc, "America/New_York")).toBe("2026-03-08T03:30");
+  });
+
+  it("가을 DST 겹침의 모호한 시각은 이른 쪽(서머타임)으로 읽는다", () => {
+    expect(zonedLocalToUtc("2026-11-01T01:30", "America/New_York")).toBe("2026-11-01T05:30:00.000Z");
+    expect(zonedLocalToUtc("2026-10-25T02:30", "Europe/Paris")).toBe("2026-10-25T00:30:00.000Z");
+  });
+
+  it("달력에 없는 날짜는 거부한다", () => {
+    expect(() => zonedLocalToUtc("2026-02-31T15:00", "Asia/Seoul")).toThrow(/존재하지 않는/);
+    expect(() => zonedLocalToUtc("2026-02-14T24:30", "Asia/Seoul")).toThrow();
+  });
 });
 
 describe("tripDays", () => {

@@ -16,6 +16,8 @@ export default defineConfig({
      * 로직과 무관하게 **각 파일의 첫 테스트만** 타임아웃으로 떨어졌다.
      */
     testTimeout: 20_000,
+    // jsdom과 DB 엔진을 동시에 너무 많이 띄우면 워커 종료가 지연된다.
+    maxWorkers: 4,
   },
   resolve: {
     alias: {

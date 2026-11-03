@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { fail, type ActionState } from "@/features/trips/action-state";
+import { dbErrorMessage } from "@/features/trips/db-error";
 import { getTrip } from "@/features/trips/queries";
 import { PLACE_CATEGORY_GROUPS, type PlaceCategoryGroup } from "@/features/places/types";
 import type { ItemType } from "@/features/trips/types";
@@ -67,11 +68,13 @@ export async function addPlaceToTripAction(
 
   const parsed = placeItemSchema.safeParse(parsedJson);
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "입력을 확인하세요");
+    // zod 기본 메시지는 영어다. 이 페이로드는 검색 결과에서 만들어지므로 일반 문장으로 충분하다.
+    return fail("선택한 장소 정보를 확인하세요. 다시 검색해 선택해 주세요.");
   }
   const input = parsed.data;
   const trip = await getTrip(input.tripId);
   if (!trip) return fail("여행을 찾을 수 없습니다");
+  if (trip.deletedAt) return fail("휴지통에 있는 여행입니다. 복구한 뒤 수정하세요.");
 
   const supabase = await createSupabaseServerClient();
   let startAt: string;
@@ -99,9 +102,10 @@ export async function addPlaceToTripAction(
   }
 
   /*
-   * authenticated 에는 places 의 INSERT 만 있고 UPDATE 가 없다(공유 행을 한
-   * 사용자가 바꾸지 못하게 하려고). 그래서 upsert 를 쓸 수 없다.
-   * 넣어 보고 중복(23505)이면 기존 행을 읽는다.
+   * authenticated 는 places 에 직접 쓰거나 남의 장소를 읽을 수 없다
+   * (마이그레이션 20261023000002). 이 여행의 편집 권한을 확인하는
+   * `trip.save_place` RPC 가 저장하고, 이미 있는 장소면 덮어쓰지 않고 id 만 준다.
+   * DB 는 http(s) 가 아닌 url 을 거부하므로 그런 값은 비워서 넘긴다.
    */
   const placeRow = {
     provider: input.provider,
@@ -112,37 +116,22 @@ export async function addPlaceToTripAction(
     address: input.address,
     road_address: input.roadAddress,
     phone: input.phone,
-    url: input.url,
+    url: input.url && /^https?:\/\//i.test(input.url) ? input.url : null,
     latitude: input.latitude,
     longitude: input.longitude,
   };
 
-  let placeId: string;
-  const inserted = await supabase.from("places").insert(placeRow).select("id").single();
-
-  if (inserted.error) {
-    if (inserted.error.code !== "23505") {
-      return fail(`장소를 저장하지 못했습니다: ${inserted.error.message}`);
-    }
-    const existing = await supabase
-      .from("places")
-      .select("id")
-      .eq("provider", input.provider)
-      .eq("provider_place_id", input.providerPlaceId)
-      .single();
-    if (existing.error) {
-      return fail(`장소를 찾지 못했습니다: ${existing.error.message}`);
-    }
-    placeId = existing.data.id;
-  } else {
-    placeId = inserted.data.id;
+  const saved = await supabase.rpc("save_place", { p_trip_id: input.tripId, p_place: placeRow });
+  if (saved.error || typeof saved.data !== "string") {
+    return fail(dbErrorMessage("장소를 저장하지 못했습니다", saved.error));
   }
+  const placeId: string = saved.data;
 
   const { data: sortOrder, error: sortError } = await supabase.rpc("next_sort_order", {
     p_trip_id: input.tripId,
     p_start_at: startAt,
   });
-  if (sortError) return fail(`순서를 계산하지 못했습니다: ${sortError.message}`);
+  if (sortError) return fail(dbErrorMessage("순서를 계산하지 못했습니다", sortError));
 
   const { error } = await supabase.from("itinerary_items").insert({
     trip_id: input.tripId,
@@ -171,7 +160,7 @@ export async function addPlaceToTripAction(
       address: input.address,
       roadAddress: input.roadAddress,
       phone: input.phone,
-      url: input.url,
+      url: placeRow.url,
       latitude: input.latitude,
       longitude: input.longitude,
       cuisineType: input.cuisineType,
@@ -185,7 +174,7 @@ export async function addPlaceToTripAction(
     restaurant_poll_id: intent === "candidate" ? input.pollId : null,
   });
 
-  if (error) return fail(`일정에 추가하지 못했습니다: ${error.message}`);
+  if (error) return fail(dbErrorMessage("일정에 추가하지 못했습니다", error));
 
   revalidatePath(`/trips/${input.tripId}`);
   return {

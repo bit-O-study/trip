@@ -3,7 +3,7 @@
 import { ItemTime } from "./item-time";
 import { TravelLegView } from "./travel-leg";
 import { legKey, type Stop, type TravelLeg } from "../travel";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useItemDrag } from "./use-item-drag";
 import {
   deleteItemAction,
@@ -15,7 +15,7 @@ import { ItemEditForm } from "@/features/trips/components/item-edit-form";
 import { SubmitButton } from "@/features/trips/components/submit-button";
 import { timelineItemDomId, useItemSelection } from "@/features/trips/components/trip-board";
 import { ITEM_TYPE_LABELS, type ItineraryItem } from "@/features/trips/types";
-import { dayColorVar } from "@/lib/day-color";
+import { dayColorVar, lineLetter } from "@/lib/day-color";
 import { type TripDay } from "@/lib/datetime";
 
 type Props = {
@@ -29,6 +29,7 @@ type Props = {
   timezone: string;
   tripId: string;
   editable: boolean;
+  travelEditable?: boolean;
   /** 날짜 이동 대상 목록. 여행 기간의 모든 날. */
   days: readonly TripDay[];
   /** 그 날의 첫 항목인가 — "위로" 를 비활성화한다. */
@@ -39,14 +40,23 @@ type Props = {
   dateKey: string;
 };
 
-const CONTROL = "rounded-lg border border-border px-2 py-1 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40";
+const CONTROL = "rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40";
 
 function ItemBody({ item, timezone }: { item: ItineraryItem; timezone: string }) {
-  return <><span className="flex min-w-0 flex-wrap items-baseline gap-2"><ItemTime item={item} timezone={timezone} /><span className="min-w-0 break-words font-medium"><span className="sr-only">{ITEM_TYPE_LABELS[item.type]}</span>{item.title}</span></span>{item.locationText ? <span className="mt-0.5 block truncate text-sm text-muted-foreground">{item.locationText}</span> : null}{item.note ? <span className="mt-1 block break-words whitespace-pre-wrap text-sm text-muted-foreground">{item.note}</span> : null}</>;
+  return <><span className="flex min-w-0 flex-col gap-0.5"><ItemTime item={item} timezone={timezone} /><span className="min-w-0 break-words text-base font-semibold leading-snug"><span className="sr-only">{ITEM_TYPE_LABELS[item.type]}</span>{item.title}</span></span>{item.locationText ? <span className="mt-0.5 block truncate text-sm text-muted-foreground">{item.locationText}</span> : null}{item.note ? <span className="mt-1 block break-words whitespace-pre-wrap text-sm text-muted-foreground">{item.note}</span> : null}</>;
 }
 
 /** 드래그 외에 키보드로 날짜를 바꾸는 경로. 순서는 카드에서 Alt+방향키로 이동한다. */
 function MoveControls({ item, tripId, days, dateKey }: Omit<Props, "order" | "dayIndex" | "timezone" | "editable">) {
+  const [message, setMessage] = useState("");
+  async function move(formData: FormData) {
+    try {
+      const result = await moveItemToDayAction(formData);
+      setMessage(result.status === "error" ? result.message : result.status === "unchanged" ? "이미 같은 날짜에 있습니다." : "일정을 이동했습니다.");
+    } catch {
+      setMessage("이동하지 못했습니다. 다시 시도하세요.");
+    }
+  }
   const hidden = (
     <>
       <input type="hidden" name="itemId" value={item.id} />
@@ -57,7 +67,7 @@ function MoveControls({ item, tripId, days, dateKey }: Omit<Props, "order" | "da
   return (
     <div className="mt-3 space-y-2 border-t border-border pt-3">
       {days.length > 0 ? (
-        <form action={moveItemToDayAction} className="flex flex-wrap items-center gap-2">
+        <form action={move} className="flex flex-wrap items-center gap-2">
           {hidden}
           <label htmlFor={`move-day-${item.id}`} className="text-xs font-medium text-muted-foreground">
             날짜 이동
@@ -83,11 +93,12 @@ function MoveControls({ item, tripId, days, dateKey }: Omit<Props, "order" | "da
           />
         </form>
       ) : null}
+      {message ? <p role="status" className="text-xs text-muted-foreground">{message}</p> : null}
     </div>
   );
 }
 
-export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, days, isFirst, isLast, dateKey, previous, next, previousLeg, nextLeg }: Props) {
+export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, travelEditable = editable, days, isFirst, isLast, dateKey, previous, next, previousLeg, nextLeg }: Props) {
   const { selectedId, select } = useItemSelection();
   const selected = selectedId === item.id;
   const [panel, setPanel] = useState<"edit" | "move" | null>(null);
@@ -97,15 +108,18 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, day
   const bulkSelection = useBulkItemSelection();
   const { dragging, pending, message, ...dragEvents } = useItemDrag(tripId, item.id, dragEnabled);
 
-  return <li {...dragEvents} data-drag-item={editable ? item.id : undefined} data-trip-id={tripId} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.title}, 끌어서 이동. Alt와 위아래 방향키로 순서 변경` : undefined} aria-busy={pending} id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} className={`relative min-w-0 scroll-mt-32 ${dragging ? "opacity-50" : ""} ${dragEnabled ? "touch-none cursor-grab" : ""} rounded-lg border bg-card px-4 py-3 transition-colors ${selected ? "border-primary bg-primary/5" : "border-border"}`}>
+  return <li {...dragEvents} data-drag-item={editable ? item.id : undefined} data-trip-id={tripId} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.title}, 끌어서 이동. Alt와 위아래 방향키로 순서 변경` : undefined} aria-busy={pending} id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} style={{ "--line": dayIndex === null ? "var(--rail)" : dayColorVar(dayIndex) } as CSSProperties} className={`relative grid min-w-0 scroll-mt-32 grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 ${dragging ? "opacity-50" : ""} ${dragEnabled ? "touch-none cursor-grab" : ""}`}>
+    {/* 노선과 정거장 점. 같은 날의 일정이 하나의 선으로 이어진다. */}
+    <div aria-hidden className="line-rail"><i className="line-station" /></div>
+    <div className={`mb-3 min-w-0 rounded-xl border bg-card px-3.5 py-3 shadow-[var(--shadow-card)] transition-colors ${selected ? "border-foreground" : "border-border"}`}>
     <div className="flex min-w-0 items-start gap-3">
       {editable && bulkSelection ? <input type="checkbox" checked={bulkSelection.selected.has(item.id)} onChange={() => bulkSelection.toggle(item.id)} aria-label={`${item.title} 선택`} className="mt-1 size-4 shrink-0" /> : null}
-      <span aria-hidden className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium text-primary-foreground" style={dayIndex === null ? { background: "var(--muted)", color: "var(--muted-foreground)" } : { background: dayColorVar(dayIndex) }}>{order}</span>
+      <span aria-hidden className="line-code size-11 shrink-0" style={dayIndex === null ? { background: "var(--muted)", color: "var(--muted-foreground)" } : undefined}><small className="text-[9px] font-semibold tracking-wider opacity-90">{dayIndex === null ? "·" : lineLetter(dayIndex)}</small><b className="mt-0.5 text-[17px] font-semibold">{String(order).padStart(2, "0")}</b></span>
       {item.coordinate ? <button type="button" data-select-item aria-pressed={selected} onClick={() => select(item.id, "timeline")} className="min-w-0 flex-1 rounded text-left"><span className="sr-only">지도에서 보기: </span><ItemBody item={item} timezone={timezone} /></button> : <div className="min-w-0 flex-1"><ItemBody item={item} timezone={timezone} /></div>}
     </div>
     {(previous || next) && <div className="mt-3 space-y-2">
-      {previous && <TravelLegView key={legKey(previous.id, item.id)} tripId={tripId} from={previous} to={item} leg={previousLeg} editable={editable} direction="previous" onExpandedChange={setPreviousOpen} />}
-      {next && <TravelLegView key={legKey(item.id, next.id)} tripId={tripId} from={item} to={next} leg={nextLeg} editable={editable} direction="next" onExpandedChange={setNextOpen} />}
+      {previous && <TravelLegView key={legKey(previous.id, item.id)} tripId={tripId} from={previous} to={item} leg={previousLeg} editable={travelEditable} direction="previous" onExpandedChange={setPreviousOpen} />}
+      {next && <TravelLegView key={legKey(item.id, next.id)} tripId={tripId} from={item} to={next} leg={nextLeg} editable={travelEditable} direction="next" onExpandedChange={setNextOpen} />}
     </div>}
     {editable ? <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
       <button type="button" aria-expanded={panel === "move"} aria-label={`${item.title} 순서 이동`} onClick={() => setPanel((value) => (value === "move" ? null : "move"))} className={CONTROL}>{panel === "move" ? "날짜 이동 닫기" : "날짜 이동"}</button>
@@ -115,5 +129,6 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, day
     {editable && panel === "move" ? <MoveControls item={item} tripId={tripId} days={days} isFirst={isFirst} isLast={isLast} dateKey={dateKey} /> : null}
     {editable && panel === "edit" ? <ItemEditForm item={item} timezone={timezone} onCancel={() => setPanel(null)} /> : null}
     {message || pending ? <p role="status" className="mt-2 text-xs text-muted-foreground">{pending ? "이동 중…" : message}</p> : null}
+    </div>
   </li>;
 }

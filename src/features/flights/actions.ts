@@ -5,8 +5,12 @@ import { z } from "zod";
 
 import { airportTimezone, isValidTimezone } from "@/features/flights/airports";
 import { normalizeFlightNumber, type FlightSearchResult } from "@/features/flights/provider";
-import { fail, type ActionState } from "@/features/trips/action-state";
+import { fail, withSubmittedValues, type ActionState } from "@/features/trips/action-state";
+import { dbErrorMessage } from "@/features/trips/db-error";
 import { getTrip } from "@/features/trips/queries";
+
+const ARRIVAL_BEFORE_DEPARTURE =
+  "도착 시각이 출발 시각보다 이릅니다. 각 공항의 현지 날짜와 시각을 확인하세요.";
 import { zonedLocalToUtc } from "@/lib/datetime";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -52,12 +56,13 @@ function text(formData: FormData, key: string): string {
 /**
  * 공유 `flights` 행을 확보한다.
  *
- * authenticated 에는 INSERT 만 있고 UPDATE 가 없어(한 사용자가 공유 행을 바꾸지
- * 못하게) upsert 를 쓸 수 없다. 넣어 보고 중복이면 기존 행을 읽는다 —
- * `places` 와 같은 방식이다.
+ * authenticated 는 `flights` 에 직접 쓸 수 없다(마이그레이션 20261023000002).
+ * 아무 로그인 사용자나 행을 만들고 모든 사람의 항공편을 열람할 수 있었기
+ * 때문이다. 대신 이 여행의 편집 권한을 확인하는 `trip.save_flight` RPC 로 저장한다.
  */
 async function ensureFlightRow(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  tripId: string,
   flight: z.infer<typeof flightSchema>,
   numberInput: string,
   numberKey: string,
@@ -86,25 +91,13 @@ async function ensureFlightRow(
     estimated_arrival: flight.arrival.estimatedAt,
     actual_arrival: flight.arrival.actualAt,
     status: flight.status,
-    raw: {},
   };
 
-  const inserted = await supabase.from("flights").insert(row).select("id").single();
-  if (!inserted.error) return { id: inserted.data.id };
-  if (inserted.error.code !== "23505") {
-    return { error: `항공편을 저장하지 못했습니다: ${inserted.error.message}` };
+  const saved = await supabase.rpc("save_flight", { p_trip_id: tripId, p_flight: row });
+  if (saved.error || typeof saved.data !== "string") {
+    return { error: dbErrorMessage("항공편을 저장하지 못했습니다", saved.error) };
   }
-
-  const existing = await supabase
-    .from("flights")
-    .select("id")
-    .eq("flight_number_key", numberKey)
-    .eq("scheduled_departure", flight.departure.scheduledAt)
-    .maybeSingle();
-  if (existing.error || !existing.data) {
-    return { error: "이미 등록된 항공편을 찾지 못했습니다." };
-  }
-  return { id: existing.data.id };
+  return { id: saved.data };
 }
 
 async function saveFlight(
@@ -117,18 +110,28 @@ async function saveFlight(
   const normalized = normalizeFlightNumber(numberInput);
   if (!normalized) return fail("편명을 확인하세요. 예: KE703");
 
+  /*
+   * 도착이 출발보다 이르면 저장하지 않는다. 일정 행의 end_at >= start_at 제약에 걸려
+   * 영어 제약 오류가 그대로 보이던 경로다. 날짜변경선을 넘는 노선도 UTC 로는
+   * 도착이 항상 뒤이므로, 여기 걸리면 현지 날짜·시간대를 잘못 넣은 것이다.
+   */
+  if (Date.parse(flight.arrival.scheduledAt) < Date.parse(flight.departure.scheduledAt)) {
+    return fail(ARRIVAL_BEFORE_DEPARTURE, { arrivalLocal: [ARRIVAL_BEFORE_DEPARTURE] });
+  }
+
   const trip = await getTrip(tripId);
   if (!trip) return fail("여행을 찾을 수 없습니다");
+  if (trip.deletedAt) return fail("휴지통에 있는 여행입니다. 복구한 뒤 수정하세요.");
 
   const supabase = await createSupabaseServerClient();
-  const flightRow = await ensureFlightRow(supabase, flight, normalized.input, normalized.key);
+  const flightRow = await ensureFlightRow(supabase, tripId, flight, normalized.input, normalized.key);
   if ("error" in flightRow) return fail(flightRow.error);
 
   const { data: sortOrder, error: sortError } = await supabase.rpc("next_sort_order", {
     p_trip_id: tripId,
     p_start_at: flight.departure.scheduledAt,
   });
-  if (sortError) return fail(`순서를 계산하지 못했습니다: ${sortError.message}`);
+  if (sortError) return fail(dbErrorMessage("순서를 계산하지 못했습니다", sortError));
 
   const snapshot = {
     ...flight,
@@ -154,7 +157,7 @@ async function saveFlight(
     source: flight.provider === "manual" ? "manual" : "flight_api",
   });
 
-  if (error) return fail(`일정에 추가하지 못했습니다: ${error.message}`);
+  if (error) return fail(dbErrorMessage("일정에 추가하지 못했습니다", error));
 
   revalidatePath(`/trips/${tripId}`);
   return { status: "success", message: "항공편을 일정에 추가했습니다." };
@@ -176,15 +179,19 @@ export async function addFlightToTripAction(
   }
 
   const parsed = flightSchema.safeParse(parsedJson);
-  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "항공편 정보를 확인하세요");
+  if (!parsed.success) {
+    // 직접 단 메시지(한국어)만 보여 준다. zod 기본 메시지는 영어다.
+    const issue = parsed.error.issues[0]?.message;
+    return fail(issue && /[가-힣]/.test(issue) ? issue : "항공편 정보를 확인하세요");
+  }
 
   const numberInput = text(formData, "flightNumberInput") || parsed.data.marketingFlightNumber;
-  return saveFlight(tripId, parsed.data, numberInput, text(formData, "note"));
+  return withSubmittedValues(await saveFlight(tripId, parsed.data, numberInput, text(formData, "note")), formData);
 }
 
 const manualSchema = z.object({
   tripId: z.uuid(),
-  flightNumber: z.string().trim().min(2).max(12),
+  flightNumber: z.string().trim().min(2, "편명을 입력하세요. 예: KE703").max(12, "편명은 12자 이내로 입력하세요"),
   departureAirport: z.string().trim().length(3, "3자 공항 코드를 입력하세요").toUpperCase(),
   arrivalAirport: z.string().trim().length(3, "3자 공항 코드를 입력하세요").toUpperCase(),
   departureLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "출발 시각을 입력하세요"),
@@ -208,6 +215,11 @@ export async function addManualFlightAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  // 실패하면 입력을 되살린다. React 19 는 액션이 끝나면 폼을 기본값으로 리셋한다.
+  return withSubmittedValues(await addManualFlight(formData), formData);
+}
+
+async function addManualFlight(formData: FormData): Promise<ActionState> {
   const parsed = manualSchema.safeParse({
     tripId: text(formData, "tripId"),
     flightNumber: text(formData, "flightNumber"),

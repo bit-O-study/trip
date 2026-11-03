@@ -18,15 +18,6 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   memo: "메모",
 };
 
-export const ITEM_TYPE_ICONS: Record<ItemType, string> = {
-  flight: "✈",
-  lodging: "🏨",
-  food: "🍜",
-  activity: "📍",
-  transport: "🚇",
-  memo: "📝",
-};
-
 export type TripStatus = "planning" | "ongoing" | "completed";
 export type TripRole = "owner" | "editor" | "viewer";
 export type ItemStatus = "confirmed" | "tentative" | "candidate" | "cancelled";
@@ -75,6 +66,15 @@ export type ItineraryItem = {
   updatedAt: string;
   /** 지도에 찍을 좌표. 장소가 붙지 않은 항목은 null. */
   coordinate: { latitude: number; longitude: number } | null;
+  /** 좌표가 직접 입력한 글자를 자동 검색한 첫 결과다 ("추정 위치"). */
+  coordinateEstimated?: boolean;
+  /** 항공편이면 공항과 각 공항의 시간대. 시각은 여행 시간대가 아니라 공항 현지 시각으로 보여 준다. */
+  flight?: {
+    departureAirport: string | null;
+    arrivalAirport: string | null;
+    departureTimezone: string;
+    arrivalTimezone: string;
+  } | null;
 };
 
 export type RestaurantCandidate = {

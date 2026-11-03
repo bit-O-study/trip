@@ -1,4 +1,5 @@
-import { listTravelLegs } from "@/features/trips/travel-actions";
+import { listTravelLegs } from "@/features/trips/queries";
+import { Suspense } from "react";
 import { neighborMap, legKey } from "@/features/trips/travel";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -12,13 +13,16 @@ import { BulkDeleteProvider, BulkDeleteToolbar } from "@/features/trips/componen
 import { DayItemAdd } from "@/features/trips/components/day-item-add";
 import { ItemRow } from "@/features/trips/components/item-row";
 import { TripBoard } from "@/features/trips/components/trip-board";
+import { ItineraryFinder } from "@/features/trips/components/itinerary-finder";
+import { indexContinuingStays } from "@/features/trips/overview";
 import { TripForm } from "@/features/trips/components/trip-form";
 import { TripMembers } from "@/features/trips/components/trip-members";
-import { listItems, getTrip, listRestaurantPolls, listTripMembers } from "@/features/trips/queries";
-import { canEdit, type ItineraryItem } from "@/features/trips/types";
+import { getTrip, listTripSchedule, listTripMembers } from "@/features/trips/queries";
+import { canEdit, type ItineraryItem, type TripMember } from "@/features/trips/types";
+import type { CurrentUser } from "@/lib/supabase/user";
 import { InviteLink } from "@/features/voting/invite-link";
 import { RestaurantPoll } from "@/features/voting/restaurant-poll";
-import { dayColorVar } from "@/lib/day-color";
+import { dayColorVar, lineLetter } from "@/lib/day-color";
 import { getCurrentUser } from "@/lib/supabase/user";
 import { tripDays, tripDurationLabel, zonedDateKey } from "@/lib/datetime";
 
@@ -26,6 +30,23 @@ type Props = {
   params: Promise<{ tripId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+async function ShareSettings({ tripId }: { tripId: string }) {
+  const links = await listShareLinks(tripId).catch(() => null);
+  return links ? <ShareLinkManager tripId={tripId} links={links} readable={isShareReadable()} />
+    : <p role="status" className="text-sm text-muted-foreground">공유 설정을 불러오지 못했습니다. 새로고침해 다시 시도해 주세요. 일정은 계속 이용할 수 있습니다.</p>;
+}
+
+async function TripPeople({ members, viewer, tripId, manageable }: { members: Promise<TripMember[] | null>; viewer: Promise<CurrentUser | null>; tripId: string; manageable: boolean }) {
+  const [people, user] = await Promise.all([members, viewer]);
+  return people ? <TripMembers members={people} manageable={manageable} tripId={tripId} currentUserId={user?.id ?? null} />
+    : <p role="status" className="text-sm text-muted-foreground">참여자 정보를 불러오지 못했습니다. 새로고침해 주세요.</p>;
+}
+
+async function MemberCount({ members }: { members: Promise<TripMember[] | null> }) {
+  const people = await members;
+  return <>{people?.length ?? "—"}</>;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { tripId } = await params;
@@ -39,19 +60,17 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
   const trip = await getTrip(tripId);
   if (!trip) notFound();
 
-  const [items, restaurantPolls, members, shareLinks, viewer, travelLegs] = await Promise.all([
-    listItems(tripId),
-    listRestaurantPolls(tripId),
-    listTripMembers(tripId),
-    // owner 가 아니면 RLS 가 빈 목록을 준다. 화면에서 다시 판정하지 않는다.
-    listShareLinks(tripId),
-    // 화면 표시용이다. 권한 판정은 trip.role 과 RLS 가 한다.
-    getCurrentUser(),
-    listTravelLegs(tripId),
+  const members = listTripMembers(tripId).catch(() => null);
+  const viewer = getCurrentUser();
+  const [schedule, travelLegs] = await Promise.all([
+    listTripSchedule(tripId),
+    listTravelLegs(tripId).catch(() => null),
   ]);
-  const legs = new Map(travelLegs.map((leg) => [legKey(leg.fromId, leg.toId), leg]));
+  const { items, polls: restaurantPolls } = schedule;
+  const legs = new Map((travelLegs ?? []).map((leg) => [legKey(leg.fromId, leg.toId), leg]));
   const neighbors = neighborMap(items);
   const days = tripDays(trip.startDate, trip.endDate);
+  const staysByDate = indexContinuingStays(items, days.map((day) => day.date), trip.timezone);
   const editable = canEdit(trip.role);
 
   /*
@@ -121,10 +140,11 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-1">
-        <h1 className="truncate text-2xl font-semibold tracking-tight">{trip.title}</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="ticket">
+      <header className="flex flex-wrap items-start justify-between gap-4 p-5 pb-5">
+        <div className="min-w-0 space-y-1.5">
+        <h1 className="truncate text-3xl font-bold tracking-tight">{trip.title}</h1>
+        <p className="font-mono text-xs leading-relaxed text-muted-foreground">
           {trip.destinationName ? `${trip.destinationName} · ` : ""}
           {trip.startDate} ~ {trip.endDate}
           {(() => {
@@ -138,13 +158,21 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
           <p className="text-sm text-muted-foreground">읽기 전용으로 참여 중입니다.</p>
         ) : null}
         </div>
-        <TripMembers
+        <Suspense fallback={<p role="status" className="text-sm text-muted-foreground">참여자를 불러오는 중…</p>}><TripPeople
           members={members}
           manageable={trip.role === "owner"}
           tripId={trip.id}
-          currentUserId={viewer?.id ?? null}
-        />
+          viewer={viewer}
+        /></Suspense>
       </header>
+
+      <div className="ticket-perf" aria-hidden />
+      <section aria-label="여행 요약" className="grid grid-cols-3 divide-x divide-border text-left">
+        <div className="px-5 py-4"><p className="font-mono text-2xl font-semibold tracking-tight">{items.length}</p><p className="text-xs text-muted-foreground">등록한 일정</p></div>
+        <div className="px-4 py-4"><p className="font-mono text-2xl font-semibold tracking-tight">{days.filter((day) => (byDay.get(day.date)?.length ?? 0) > 0).length}<span className="text-base text-muted-foreground"> / {days.length}</span></p><p className="text-xs text-muted-foreground">일정이 있는 날</p></div>
+        <div className="px-4 py-4"><p className="font-mono text-2xl font-semibold tracking-tight"><Suspense fallback="…"><MemberCount members={members} /></Suspense></p><p className="text-xs text-muted-foreground">함께하는 멤버</p></div>
+      </section>
+      </div>
 
       {/*
         지도와 타임라인이 선택 상태를 공유한다. 타임라인은 서버 컴포넌트로 남기고
@@ -164,6 +192,9 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
       >
         <BulkDeleteProvider tripId={trip.id} itemIds={editable ? items.map((item) => item.id) : []}>
         <div className="space-y-6">
+          <ItineraryFinder items={items} timezone={trip.timezone} />
+          {schedule.pollError ? <p role="status" className="rounded-xl border border-border bg-card p-3 text-sm">투표 정보를 불러오지 못했습니다. 새로고침해 다시 확인해 주세요. 일정은 계속 이용할 수 있습니다.</p> : null}
+          {travelLegs === null ? <p role="status" className="rounded-xl border border-border bg-card p-3 text-sm">저장된 이동 정보를 불러오지 못했습니다. 새로고침 후 이동 정보를 수정해 주세요.</p> : null}
           <RestaurantPoll
             tripId={trip.id}
             polls={restaurantPolls}
@@ -178,20 +209,21 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
           {days.length > 1 ? (
             <nav
               aria-label="날짜 이동"
-              className="sticky top-14 z-20 -mx-4 bg-background/90 px-4 py-2 backdrop-blur"
+              className="sticky top-14 z-20 -mx-4 border-b border-border bg-background/90 px-4 py-2.5 backdrop-blur-md"
             >
               <ul className="flex gap-2 overflow-x-auto pb-1">
-                <li><a href="#all-events" className="flex shrink-0 items-center rounded-full border border-primary bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">모두</a></li>
+                <li><a href="#all-events" className="flex shrink-0 items-center whitespace-nowrap rounded-full border border-foreground bg-foreground px-3.5 py-1.5 text-sm font-medium text-background">모두</a></li>
+                {dayKeys.has(todayKey) ? <li><a href={`#day-${todayKey}`} className="flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-foreground px-3.5 py-1.5 text-sm font-medium">오늘</a></li> : null}
                 {days.map((day) => (
                   <li key={day.date}>
                     <a
                       href={`#day-${day.date}`}
-                      className="flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
+                      className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-card px-3.5 py-1.5 text-sm transition-colors hover:bg-muted"
                     >
                       <span
                         aria-hidden
-                        className="size-2 rounded-full"
-                        style={{ background: dayColorVar(day.index) }}
+                        className="size-3.5 rounded-full border-[3.5px] bg-card"
+                        style={{ borderColor: dayColorVar(day.index) }}
                       />
                       Day {day.index + 1}
                       <span className="text-muted-foreground">
@@ -207,26 +239,34 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
           <div id="all-events" className="scroll-mt-32 space-y-8">
             {days.map((day) => {
               const dayItems = byDay.get(day.date) ?? [];
+              const stays = staysByDate.get(day.date) ?? [];
               return (
                 <section data-drop-day={editable ? day.date : undefined} data-trip-id={trip.id} key={day.date} id={`day-${day.date}`} className="scroll-mt-32 space-y-3">
-                  <h2 className="flex items-center gap-2 text-base font-semibold">
+                  <h2 className="flex items-center gap-2.5 text-lg font-bold">
                     <span
                       aria-hidden
-                      className="size-3 rounded-full"
-                      style={{ background: dayColorVar(day.index) }}
-                    />
+                      className="line-code h-6 rounded-md px-2 text-[11px] font-semibold"
+                      style={{ "--line": dayColorVar(day.index) } as React.CSSProperties}
+                    >{lineLetter(day.index)}</span>
                     Day {day.index + 1}
                     <span className="font-normal text-muted-foreground">
                       {day.shortLabel} ({day.weekday})
                     </span>
+                    <span className="ml-auto text-xs font-normal text-muted-foreground">{dayItems.length}개 일정</span>
                   </h2>
 
+                  {stays.map((stay) => <div key={stay.id} className="rounded-xl border border-border bg-card px-4 py-3 text-sm shadow-[var(--shadow-card)]">
+                    <span className="font-medium">{stay.title}</span>
+                    <span className="ml-2 text-muted-foreground">{zonedDateKey(stay.endAt!, trip.timezone) === day.date ? "체크아웃 예정" : "숙박 중"}</span>
+                    {stay.locationText ? <p className="mt-1 text-xs text-muted-foreground">{stay.locationText}</p> : null}
+                  </div>)}
+
                   {dayItems.length === 0 ? (
-                    <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                    <p className="rounded-xl border-2 border-dashed border-rail bg-card px-4 py-6 text-center text-sm text-muted-foreground">
                       이 날의 일정이 없습니다
                     </p>
                   ) : (
-                    <ol className="space-y-2">
+                    <ol className="line-list">
                       {dayItems.map((item, index) => (
                         <ItemRow
                           key={item.id}
@@ -240,6 +280,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                           timezone={trip.timezone}
                           tripId={trip.id}
                           editable={editable}
+                          travelEditable={editable && travelLegs !== null}
                           days={days}
                           isFirst={index === 0}
                           isLast={index === dayItems.length - 1}
@@ -272,7 +313,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
               {orphans.map(([date, dayItems]) => (
                 <div key={date} className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">{date}</p>
-                  <ol className="space-y-2">
+                  <ol className="line-list">
                     {dayItems.map((item, index) => (
                       <ItemRow
                         key={item.id}
@@ -286,6 +327,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                         timezone={trip.timezone}
                         tripId={trip.id}
                         editable={editable}
+                        travelEditable={editable && travelLegs !== null}
                         days={days}
                         isFirst={index === 0}
                         isLast={index === dayItems.length - 1}
@@ -302,7 +344,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
       </TripBoard>
 
       {editable ? (
-        <details className="rounded-xl border border-border px-4 py-3">
+        <details className="rounded-2xl border border-border bg-card px-5 py-3.5 shadow-[var(--shadow-card)]">
           <summary className="cursor-pointer text-sm font-medium">여행 관리</summary>
           <div className="mt-4 space-y-6">
             <section className="space-y-2">
@@ -314,7 +356,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
               <a
                 href={`/api/trips/${trip.id}/export`}
                 download
-                className="inline-block rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                className="inline-block rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
               >
                 여행 JSON 내려받기
               </a>
@@ -346,7 +388,9 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
             {trip.role === "owner" ? (
               <section className="space-y-3 border-t border-border pt-5">
                 <h2 className="text-sm font-medium">공유와 삭제</h2>
-                <ShareLinkManager tripId={trip.id} links={shareLinks} readable={isShareReadable()} />
+                <Suspense fallback={<p role="status" className="text-sm text-muted-foreground">공유 설정을 불러오는 중…</p>}>
+                  <ShareSettings tripId={trip.id} />
+                </Suspense>
                 <div className="border-t border-border pt-3">
                   <InviteLink tripId={trip.id} tripTitle={trip.title} />
                 </div>
@@ -357,7 +401,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                   <input type="hidden" name="tripId" value={trip.id} />
                   <button
                     type="submit"
-                    className="rounded-lg border border-danger px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger hover:text-primary-foreground"
+                    className="rounded-full border border-danger px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger hover:text-primary-foreground"
                   >
                     여행 삭제
                   </button>

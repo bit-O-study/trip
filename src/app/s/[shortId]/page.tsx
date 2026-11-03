@@ -64,7 +64,7 @@ export default async function SharedTripPage({ params }: Props) {
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           공유된 일정 · 읽기 전용
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">{trip.title}</h1>
+        <h1 className="break-words text-2xl font-semibold tracking-tight">{trip.title}</h1>
         <p className="text-sm text-muted-foreground">
           {trip.destinationName ? `${trip.destinationName} · ` : ""}
           {trip.startDate} ~ {trip.endDate}
@@ -73,7 +73,7 @@ export default async function SharedTripPage({ params }: Props) {
       </header>
 
       {trip.items.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border-2 border-dashed border-rail bg-card px-6 py-12 text-center text-sm text-muted-foreground">
           아직 공개된 일정이 없습니다.
         </p>
       ) : (
@@ -159,7 +159,7 @@ function SharedRow({
 }) {
   const type = item.type as ItemType;
   return (
-    <li className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3">
+    <li className="flex min-w-0 items-start gap-3 rounded-lg border border-border bg-card px-4 py-3">
       <span
         aria-hidden
         className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium text-primary-foreground"
@@ -172,21 +172,20 @@ function SharedRow({
         {order}
       </span>
       <div className="min-w-0 flex-1">
-        <span className="flex items-baseline gap-2">
+        <span className="flex min-w-0 flex-wrap items-baseline gap-2">
           <ItemTime item={item} timezone={timezone} />
-          <span className="truncate font-medium">
-
+          <span className="min-w-0 break-words font-medium">
             <span className="sr-only">{ITEM_TYPE_LABELS[type] ?? "일정"}</span>
             {item.title}
           </span>
         </span>
         {item.locationText ? (
-          <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+          <span className="mt-0.5 block break-words text-sm text-muted-foreground">
             {item.locationText}
           </span>
         ) : null}
         {item.note ? (
-          <span className="mt-1 block whitespace-pre-wrap text-sm text-muted-foreground">
+          <span className="mt-1 block whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm text-muted-foreground">
             {item.note}
           </span>
         ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useRef, useState, type FormEvent } from "react";
+import { useActionState, useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { addPlaceToTripAction } from "@/features/places/actions";
 import { PLACE_CATEGORY_LABELS, type PlaceSearchResult } from "@/features/places/types";
@@ -30,7 +30,7 @@ type SearchState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "error"; message: string; retryable: boolean }
-  | { status: "done"; results: PlaceSearchResult[]; reachableCount: number; totalCount: number };
+  | { status: "done"; results: PlaceSearchResult[]; reachableCount: number; totalCount: number; page: number; hasMore: boolean };
 
 function dateInTimezone(iso: string, timezone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -46,6 +46,10 @@ function dateInTimezone(iso: string, timezone: string): string {
 export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollId, initialQuery = "", onSelect }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const startId = useId();
+  const requestRef = useRef<AbortController | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pageError, setPageError] = useState("");
+  useEffect(() => () => { requestRef.current?.abort(); requestRef.current = null; }, []);
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState<string | null>(null);
   const [search, setSearch] = useState<SearchState>({ status: "idle" });
@@ -75,12 +79,27 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
     IDLE,
   );
 
-  async function runSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function cancelSearch() {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setLoadingMore(false);
+    setPageError("");
+    setSearch({ status: "idle" });
+  }
+
+  async function runSearch(event?: FormEvent<HTMLFormElement>, page = 1) {
+    event?.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
 
-    setSearch({ status: "loading" });
+    const previous = page > 1 && search.status === "done" ? search : null;
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 15000);
+    setPageError("");
+    if (previous) setLoadingMore(true);
+    else setSearch({ status: "loading" });
     setSelected(null);
 
     try {
@@ -88,35 +107,58 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
       // 공급자(Kakao/Google)는 서버가 이 여행을 보고 정한다.
       url.searchParams.set("tripId", tripId);
       url.searchParams.set("q", trimmed);
+      url.searchParams.set("page", String(page));
       if (category) url.searchParams.set("category", category);
       const selectedPoll = polls.find((poll) => poll.id === pollId);
       url.searchParams.set("date", selectedPoll ? dateInTimezone(selectedPoll.scheduledAt, timezone) : startLocal.slice(0, 10));
 
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
       const body = await response.json();
+      if (requestRef.current !== controller) return;
 
       if (!response.ok) {
-        setSearch({
+        const message = body.kind === "not_configured"
+          ? "지금은 장소 검색을 사용할 수 없습니다. 직접 입력으로 일정을 추가해 주세요."
+          : body.error ?? "장소를 검색하지 못했습니다.";
+        if (previous) setPageError(message);
+        else setSearch({
           status: "error",
-          message: body.error ?? "장소를 검색하지 못했습니다.",
+          message,
           // 설정 누락은 사용자가 재시도해도 소용없다.
           retryable: body.kind !== "not_configured",
         });
         return;
       }
 
+      const results = new Map<string, PlaceSearchResult>();
+      for (const place of [...(previous?.results ?? []), ...body.results] as PlaceSearchResult[]) {
+        results.set(`${place.provider}:${place.providerPlaceId}`, place);
+      }
       setSearch({
         status: "done",
-        results: body.results,
+        results: [...results.values()],
         reachableCount: body.reachableCount,
         totalCount: body.totalCount,
+        page,
+        hasMore: Boolean(body.hasMore) && page < 3,
       });
     } catch {
-      setSearch({
+      if (requestRef.current !== controller) return;
+      const message = controller.signal.aborted
+        ? "검색 응답이 늦어지고 있습니다. 다시 검색하거나 직접 입력해 주세요."
+        : "검색 요청이 실패했습니다. 네트워크를 확인하세요.";
+      if (previous) setPageError(message);
+      else setSearch({
         status: "error",
-        message: "검색 요청이 실패했습니다. 네트워크를 확인하세요.",
+        message,
         retryable: true,
       });
+    } finally {
+      window.clearTimeout(timer);
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setLoadingMore(false);
+      }
     }
   }
 
@@ -129,7 +171,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
         <div className="flex gap-2">
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => { cancelSearch(); setQuery(event.target.value); }}
             placeholder="이치란 라멘, 신주쿠 호텔…"
             aria-label="장소 검색어"
             maxLength={80}
@@ -138,7 +180,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
           <button
             type="submit"
             disabled={search.status === "loading"}
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             검색
           </button>
@@ -152,7 +194,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
                 key={filter.code}
                 type="button"
                 aria-pressed={active}
-                onClick={() => setCategory(active ? null : filter.code)}
+                onClick={() => { cancelSearch(); setCategory(active ? null : filter.code); }}
                 className={`rounded-full border px-3 py-1 text-sm transition-colors ${
                   active
                     ? "border-primary bg-primary text-primary-foreground"
@@ -167,7 +209,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
       </form>
 
       {search.status === "loading" ? (
-        <p className="text-sm text-muted-foreground">검색 중…</p>
+        <div className="flex items-center gap-3"><p role="status" className="text-sm text-muted-foreground">검색 중…</p><button type="button" onClick={cancelSearch} className="min-h-10 rounded-lg border border-border px-3 text-sm">검색 취소</button></div>
       ) : null}
 
       {search.status === "error" ? (
@@ -186,7 +228,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
       ) : null}
 
       {addState.status === "success" && addState.message ? (
-        <p role="status" className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm text-primary">
+        <p role="status" className="rounded-lg border border-border bg-muted/60 px-3 py-2 text-sm text-primary">
           {addState.message}
         </p>
       ) : null}
@@ -204,7 +246,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
             <ul className="space-y-2">
               {search.results.map((place) => (
                 <li
-                  key={place.providerPlaceId}
+                  key={`${place.provider}:${place.providerPlaceId}`}
                   className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2"
                 >
                   <div className="min-w-0">
@@ -229,20 +271,22 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
                         sectionRef.current?.querySelector<HTMLInputElement>('input[type="datetime-local"]')?.focus({ preventScroll: true });
                       });
                     }}
-                    className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
+                    className="shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
                   >
                     선택
                   </button>
                 </li>
               ))}
             </ul>
+            {pageError ? <p role="alert" className="text-sm text-danger">{pageError}</p> : null}
+            {search.hasMore ? <button type="button" disabled={loadingMore} onClick={() => void runSearch(undefined, search.page + 1)} className="min-h-11 w-full rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{loadingMore ? "더 불러오는 중…" : "검색 결과 더보기"}</button> : null}
           </div>
         )
       ) : null}
 
       </> : null}
       {selected ? (
-        <form action={addAction} className="space-y-3 rounded-lg border border-primary px-3 py-3">
+        <form action={addAction} className="space-y-3 rounded-xl border border-foreground/40 bg-card px-3.5 py-3.5">
           <p className="text-sm">
             <span className="font-medium">{selected.name}</span> 을(를) 일정에 추가합니다.
           </p>
@@ -293,7 +337,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
               name="intent"
               value="schedule"
               disabled={adding}
-              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="flex-1 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {adding ? "추가 중…" : "일정에 추가"}
             </button>
@@ -311,7 +355,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
             <button
               type="button"
               onClick={() => setSelected(null)}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
             >
               장소 다시 선택
             </button>

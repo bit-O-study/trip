@@ -68,7 +68,9 @@ export async function searchPlacesWith(
       );
     }
     throw new PlaceSearchError(
-      `장소 검색 서버에 연결하지 못했습니다: ${(error as Error).message}`,
+      error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")
+        ? "장소 검색 응답이 늦어지고 있습니다. 다시 시도하거나 직접 입력해 주세요."
+        : "장소 검색 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
       "network",
     );
   }

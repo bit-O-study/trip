@@ -35,6 +35,22 @@ function siblingsOf(items: ItineraryItem[], dateKey: string, timezone: string): 
   return items.filter((item) => zonedDateKey(item.startAt, timezone) === dateKey);
 }
 
+/**
+ * siblings[index] 바로 앞에 서기 위한 move_item 기준 항목.
+ *
+ * move_item 은 기준 항목의 sort_order 와 그 날짜에서 그보다 큰 가장 작은 sort_order
+ * 사이에 끼운다. sort_order 는 하루 전체에서 시각 순서와 단조롭지 않을 수 있으므로
+ * (새 항목은 시각과 무관하게 그날 max+1000 을 받는다) **시각이 다른 항목을 기준으로 삼으면
+ * 목표 항목보다 큰 sort_order 가 나와 아무 변화가 없다.** 같은 시각의 바로 앞 항목만
+ * 기준으로 쓰고, 없으면 null(그날 최소 sort_order 의 절반 → 같은 시각 그룹의 맨 앞)이다.
+ */
+function anchorBefore(siblings: ItineraryItem[], index: number): string | null {
+  if (index <= 0) return null;
+  const target = siblings[index];
+  const before = siblings[index - 1];
+  return epoch(before.startAt) === epoch(target.startAt) ? before.id : null;
+}
+
 /** 위로 한 칸. 맨 위이거나 항목이 없으면 null — 호출부는 무시하면 된다. */
 export function planMoveUp(
   items: ItineraryItem[],
@@ -49,9 +65,7 @@ export function planMoveUp(
   if (index <= 0) return null;
 
   const previous = siblings[index - 1];
-  // 이전 항목의 앞에 서려면 그 앞 항목을 기준으로 삼는다.
-  const anchor = index >= 2 ? siblings[index - 2].id : null;
-  return { startAt: previous.startAt, afterItemId: anchor };
+  return { startAt: previous.startAt, afterItemId: anchorBefore(siblings, index - 1) };
 }
 
 /** 아래로 한 칸. 맨 아래면 null. */
@@ -89,7 +103,7 @@ export function planMoveBefore(items: ItineraryItem[], itemId: string, targetId:
   if (!target) return null;
   const siblings = siblingsOf(items, zonedDateKey(target.startAt, timezone), timezone).filter((item) => item.id !== itemId);
   const index = siblings.findIndex((item) => item.id === targetId);
-  return { startAt: target.startAt, afterItemId: index > 0 ? siblings[index - 1].id : null };
+  return { startAt: target.startAt, afterItemId: anchorBefore(siblings, index) };
 }
 
 /**
@@ -130,4 +144,41 @@ export function planMoveToDay(
   }
 
   return { startAt, afterItemId: anchor };
+}
+
+/**
+ * 이동 결과. 서버 액션이 돌려주고 화면이 메시지·되돌리기에 쓴다.
+ *
+ * - `unchanged`: 이미 그 자리였다. "이동했습니다" 라고 말하지 않는다.
+ * - `moved`: 시각이 바뀌었으면 `fromStartAt`/`toStartAt` 이 다르다. `undo` 로
+ *   원래 시각·자리로 되돌릴 수 있다.
+ */
+export type MoveResult =
+  | { status: "unchanged" }
+  | { status: "moved"; fromStartAt: string; toStartAt: string; undo: MovePlan }
+  | { status: "error"; message: string };
+
+/** 지금 자리로 되돌리는 계획. 이동 **전** 목록으로 계산해야 한다. */
+export function planRestore(
+  items: ItineraryItem[],
+  itemId: string,
+  timezone: string,
+): MovePlan | null {
+  const target = items.find((item) => item.id === itemId);
+  if (!target) return null;
+  const siblings = siblingsOf(items, zonedDateKey(target.startAt, timezone), timezone);
+  const index = siblings.findIndex((item) => item.id === itemId);
+  return { startAt: target.startAt, afterItemId: anchorBefore(siblings, index) };
+}
+
+/** 계획을 적용해도 시각과 자리가 그대로인가. */
+export function isNoopMove(
+  items: ItineraryItem[],
+  itemId: string,
+  plan: MovePlan,
+  timezone: string,
+): boolean {
+  const current = planRestore(items, itemId, timezone);
+  if (!current) return false;
+  return epoch(current.startAt) === epoch(plan.startAt) && current.afterItemId === plan.afterItemId;
 }

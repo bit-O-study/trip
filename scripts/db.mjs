@@ -59,11 +59,52 @@ function loadEnv(envFile) {
   return merged;
 }
 
+/**
+ * TLS 설정. 기본은 **인증서 검증**(verify-full)이다.
+ *
+ * 예전에는 `rejectUnauthorized: false` 라 중간자가 끼어들어도 그대로 접속해
+ * DB 비밀번호와 마이그레이션 SQL 을 넘겼다.
+ *
+ *   - SUPABASE_DB_CA_FILE (또는 PGSSLROOTCERT): Supabase 대시보드
+ *     (Settings → Database → SSL Configuration)에서 받은 CA 인증서 경로.
+ *     Supabase 서버 인증서는 공용 CA 가 아니라 이 CA 로 서명돼 있어 보통 필요하다.
+ *   - DB_TLS_INSECURE=1: 검증을 끈다. 로컬 DB·자체 서명 개발 환경 전용이며
+ *     실행할 때마다 경고를 찍는다.
+ *   - DB_TLS_DISABLE=1: TLS 를 아예 쓰지 않는다(로컬 Postgres 전용, localhost 만 허용).
+ */
+function tlsOptions(env, host) {
+  if (env.DB_TLS_DISABLE === "1") {
+    if (!["localhost", "127.0.0.1", "::1"].includes(host)) {
+      throw new Error("DB_TLS_DISABLE=1 은 localhost 접속에서만 쓸 수 있습니다.");
+    }
+    return false;
+  }
+  if (env.DB_TLS_INSECURE === "1") {
+    console.warn(
+      "⚠ DB_TLS_INSECURE=1: 서버 인증서를 검증하지 않습니다. 로컬 개발 외에는 쓰지 마세요.",
+    );
+    return { rejectUnauthorized: false };
+  }
+  const caFile = env.SUPABASE_DB_CA_FILE ?? env.PGSSLROOTCERT;
+  if (caFile) {
+    return { rejectUnauthorized: true, ca: readFileSync(resolve(caFile), "utf8"), servername: host };
+  }
+  return { rejectUnauthorized: true, servername: host };
+}
+
 function makeClient(env) {
   if (env.SUPABASE_DB_URL) {
+    /*
+     * 연결 문자열의 sslmode/sslrootcert 등은 pg 가 `ssl` 옵션보다 우선해 덮어쓴다.
+     * 위의 TLS 설정이 항상 적용되도록 떼어 낸다.
+     */
+    const url = new URL(env.SUPABASE_DB_URL);
+    for (const key of ["sslmode", "sslrootcert", "sslcert", "sslkey", "ssl", "uselibpqcompat"]) {
+      url.searchParams.delete(key);
+    }
     return new pg.Client({
-      connectionString: env.SUPABASE_DB_URL,
-      ssl: { rejectUnauthorized: false },
+      connectionString: url.toString(),
+      ssl: tlsOptions(env, url.hostname),
       connectionTimeoutMillis: 20_000,
     });
   }
@@ -74,7 +115,7 @@ function makeClient(env) {
       user: `postgres.${env.SUPA_DB_REF}`,
       password: env.SUPA_DB_PW,
       database: "postgres",
-      ssl: { rejectUnauthorized: false },
+      ssl: tlsOptions(env, env.SUPA_DB_HOST),
       connectionTimeoutMillis: 20_000,
     });
   }

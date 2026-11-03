@@ -24,7 +24,7 @@ import {
  */
 
 const ENDPOINT =
-  "http://apis.data.go.kr/B551177/StatusOfPassengerFlightsDSOdp/getPassengerDeparturesDSOdp";
+  "https://apis.data.go.kr/B551177/StatusOfPassengerFlightsDSOdp/getPassengerDeparturesDSOdp";
 
 type KacItem = {
   airline?: string;

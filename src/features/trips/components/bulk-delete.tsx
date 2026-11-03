@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useActionState, useContext, useMemo, useState } from "react";
+import { IDLE } from "@/features/trips/action-state";
 
 import { deleteItemsAction } from "@/features/trips/actions";
 import { DeleteSubmitButton } from "@/features/trips/components/delete-submit-button";
@@ -58,13 +59,15 @@ export function BulkDeleteProvider({ tripId, itemIds, children }: Props) {
 
 export function BulkDeleteToolbar() {
   const context = useBulkItemSelection();
+  const [state, action, pending] = useActionState(deleteItemsAction, IDLE);
   if (!context || context.itemIds.length === 0) return null;
   const { tripId, itemIds, selected, setSelected } = context;
   const allSelected = selected.size === itemIds.length;
 
   return (
         <form
-          action={deleteItemsAction}
+          action={action}
+          aria-busy={pending}
           onSubmit={(event) => {
             if (!window.confirm(`선택한 일정 ${selected.size}개를 삭제하시겠습니까?`)) {
               event.preventDefault();
@@ -78,11 +81,13 @@ export function BulkDeleteToolbar() {
             <input
               type="checkbox"
               checked={allSelected}
+              disabled={pending}
               onChange={() => setSelected(allSelected ? new Set() : new Set(itemIds))}
             />
             전체 선택
           </label>
           <span className="text-sm text-muted-foreground">{selected.size}개 선택</span>
+          {state.message ? <p role={state.status === "error" ? "alert" : "status"} className="w-full text-sm">{state.message}</p> : null}
           <DeleteSubmitButton
             idleLabel="선택 일정 삭제"
             pendingLabel="일괄 삭제 중…"
