@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -33,7 +33,36 @@ export function friendlyAuthError(caught: unknown): { message: string; unconfirm
   return { message: "로그인하지 못했습니다. 잠시 뒤에 다시 시도하세요.", unconfirmed: false };
 }
 
+/**
+ * 이 Supabase 프로젝트에서 켜져 있는 소셜 로그인 공급자.
+ *
+ * 콘솔에서 공급자를 켜지 않았는데 버튼만 보이면, 누른 사람은 앱이 아니라 Supabase 의
+ * 원시 JSON 오류 화면("Unsupported provider")으로 떨어진다. 공개 설정을 읽어 켜진 것만 보여 준다.
+ * 읽지 못하면(네트워크·설정 오류) 버튼을 숨긴다 — 이메일 로그인은 그대로 쓸 수 있다.
+ */
+function useEnabledProviders(): ReadonlySet<string> | null {
+  const [enabled, setEnabled] = useState<ReadonlySet<string> | null>(null);
+  useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const controller = new AbortController();
+    const request = url && key
+      ? fetch(`${url}/auth/v1/settings`, { headers: { apikey: key }, signal: controller.signal })
+      : Promise.reject(new Error("no supabase env"));
+    request
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("settings"))))
+      .then((settings: { external?: Record<string, boolean> }) => {
+        setEnabled(new Set(Object.entries(settings.external ?? {}).filter(([, on]) => on).map(([name]) => name)));
+      })
+      .catch(() => { if (!controller.signal.aborted) setEnabled(new Set()); });
+    return () => controller.abort();
+  }, []);
+  return enabled;
+}
+
 export function LoginForm({ next }: Props) {
+  const providers = useEnabledProviders();
+  const visibleProviders = OAUTH_PROVIDERS.filter((provider) => providers?.has(provider.id));
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -215,14 +244,16 @@ export function LoginForm({ next }: Props) {
         </button>
       </form>
 
+      {visibleProviders.length > 0 ? (
       <div className="flex items-center gap-3">
         <span className="h-px flex-1 bg-border" />
         <span className="text-xs text-muted-foreground">또는</span>
         <span className="h-px flex-1 bg-border" />
       </div>
+      ) : null}
 
       <div className="space-y-2">
-        {OAUTH_PROVIDERS.map((provider) => (
+        {visibleProviders.map((provider) => (
           <button
             key={provider.id}
             type="button"
