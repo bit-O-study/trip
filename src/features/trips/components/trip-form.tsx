@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { IDLE, valueOr, type ActionState } from "@/features/trips/action-state";
+import { hintForDestination } from "@/features/trips/destination-hints";
 import { openDatePicker } from "@/lib/date-picker";
 import { tripDurationLabel } from "@/lib/datetime";
 
@@ -61,6 +62,19 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
   const [startDate, setStartDate] = useState(defaults?.startDate ?? "");
   const [endDate, setEndDate] = useState(defaults?.endDate ?? "");
   const [timezone, setTimezone] = useState(defaults?.timezone ?? "Asia/Seoul");
+  const [currency, setCurrency] = useState(defaults?.baseCurrency ?? "KRW");
+  /** 사용자가 시간대·통화를 직접 고르면 도시 이름으로 바꾸지 않는다. */
+  const [zoneTouched, setZoneTouched] = useState(Boolean(defaults?.tripId));
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+
+  function suggestFor(destination: string) {
+    if (zoneTouched) return;
+    const hint = hintForDestination(destination);
+    if (!hint) { setSuggestion(null); return; }
+    setTimezone(hint.timezone);
+    setCurrency(hint.currency);
+    setSuggestion(`${hint.label} 여행으로 보고 시간대(${hint.timezone})와 통화(${hint.currency})를 맞췄어요. 다르면 아래에서 바꾸세요.`);
+  }
 
   return (
     <form action={formAction} aria-busy={pending} className="space-y-5">
@@ -94,6 +108,7 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
           name="destinationName"
           maxLength={120}
           defaultValue={valueOr(state, "destinationName", defaults?.destinationName)}
+          onChange={(event) => suggestFor(event.target.value)}
           placeholder="도쿄"
           className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base"
         />
@@ -145,21 +160,20 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
           <label htmlFor="timezone" className="text-sm font-medium">
             현지 시간대
           </label>
-          <input
+          <select
             id="timezone"
             name="timezone"
-            list="timezone-options"
             required
             value={timezone}
-            onChange={(event) => setTimezone(event.target.value)}
+            onChange={(event) => { setTimezone(event.target.value); setZoneTouched(true); setSuggestion(null); }}
             className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base"
-          />
-          <datalist id="timezone-options">
-            {COMMON_TIMEZONES.map((zone) => (
-              <option key={zone} value={zone} />
+          >
+            {/* 목록에 없는 기존 값(직접 입력해 둔 시간대)도 잃지 않도록 항상 포함한다. */}
+            {(COMMON_TIMEZONES.includes(timezone) ? COMMON_TIMEZONES : [timezone, ...COMMON_TIMEZONES]).map((zone) => (
+              <option key={zone} value={zone}>{zone}</option>
             ))}
-          </datalist>
-          <p className="text-xs text-muted-foreground">일정 시각을 이 시간대로 표시합니다.</p>
+          </select>
+          <p className="text-xs text-muted-foreground">모든 일정 시각이 이 시간대로 표시됩니다. 해외 여행이면 현지 시간대를 고르세요.</p>
           <FieldError errors={errors.timezone} />
         </div>
         <div className="space-y-1.5">
@@ -171,12 +185,15 @@ export function TripForm({ action, submitLabel, defaults }: Props) {
             name="baseCurrency"
             maxLength={3}
             required
-            defaultValue={valueOr(state, "baseCurrency", defaults?.baseCurrency ?? "KRW")}
+            value={currency}
+            onChange={(event) => { setCurrency(event.target.value.toUpperCase()); setZoneTouched(true); }}
             className="w-full rounded-lg border border-border bg-card px-3.5 py-3 text-base uppercase"
           />
           <FieldError errors={errors.baseCurrency} />
         </div>
       </div>
+
+      {suggestion ? <p role="status" className="rounded-lg bg-muted px-3 py-2 text-xs">{suggestion}</p> : null}
 
       {defaults?.tripId && timezone !== defaults.timezone ? (
         <fieldset className="space-y-3 rounded-lg border border-border p-4">

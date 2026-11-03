@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BulkDeleteProvider, BulkDeleteToolbar } from "@/features/trips/components/bulk-delete";
 import { ItemRow } from "@/features/trips/components/item-row";
 import { TripBoard } from "@/features/trips/components/trip-board";
+import { ToastProvider } from "@/components/ui/toast";
 import type { ItineraryItem } from "@/features/trips/types";
 import { tripDays } from "@/lib/datetime";
 
@@ -16,6 +17,8 @@ vi.mock("@/features/trips/actions", () => ({
   moveItemUpAction: vi.fn(),
   moveItemDownAction: vi.fn(),
   moveItemToDayAction: vi.fn(),
+  restoreItemsAction: vi.fn().mockResolvedValue({ restored: 1 }),
+  undoMoveAction: vi.fn(),
 }));
 
 vi.mock("@/features/trips/travel-actions", () => ({ saveTravelLeg: vi.fn() }));
@@ -36,13 +39,25 @@ function renderRow(overrides: Partial<ItineraryItem> = {}, props: Record<string,
 describe("ItemRow", () => {
   it("여행 시간대로 시각을 표시한다", () => { renderRow(); expect(screen.getByText("11:00")).toBeInTheDocument(); });
 
-  it("위아래 클릭 버튼 대신 카드의 키보드 조작으로 이동한다", async () => {
-    const user = userEvent.setup(); renderRow();
-    expect(screen.queryByRole("button", { name: /위로 이동|아래로 이동/ })).not.toBeInTheDocument();
+  it("카드의 키보드 조작과 위·아래 버튼 두 경로로 순서를 바꾼다", async () => {
+    const user = userEvent.setup(); renderRow({}, { isFirst: false, isLast: false });
+    await user.click(screen.getByRole("button", { name: "이치란 신주쿠 순서 이동" }));
+    expect(screen.getByRole("button", { name: "이치란 신주쿠 한 칸 위로" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "이치란 신주쿠 한 칸 아래로" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "이치란 신주쿠 한 칸 아래로" }));
+    const { moveItemDownAction, moveItemUpAction } = await import("@/features/trips/actions");
+    expect(moveItemDownAction).toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "이치란 신주쿠 순서 이동" }));
     const row = screen.getByRole("listitem"); row.focus();
     await user.keyboard("{Alt>}{ArrowUp}{/Alt}");
-    const { moveItemUpAction } = await import("@/features/trips/actions");
     expect(moveItemUpAction).toHaveBeenCalled();
+  });
+
+  it("맨 위·맨 아래 일정은 갈 수 없는 방향의 버튼이 꺼진다", async () => {
+    const user = userEvent.setup(); renderRow({}, { isFirst: true, isLast: true });
+    await user.click(screen.getByRole("button", { name: "이치란 신주쿠 순서 이동" }));
+    expect(screen.getByRole("button", { name: "이치란 신주쿠 한 칸 위로" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "이치란 신주쿠 한 칸 아래로" })).toBeDisabled();
   });
 
   it("다른 날짜로 옮기는 셀렉트를 제공한다", async () => {
@@ -66,7 +81,19 @@ describe("ItemRow", () => {
   });
 
   it("수정 폼에서 시작 날짜와 장소를 함께 바꿀 수 있다", async () => { const user = userEvent.setup(); renderRow(); await user.click(screen.getByRole("button", { name: "수정" })); expect(screen.getByLabelText("시작")).toHaveValue("2026-02-14T11:00"); expect(screen.getByLabelText("장소")).toHaveValue("신주쿠 3초메"); expect(screen.getByText(/해당 날짜의 일정으로 자동 이동/)).toBeInTheDocument(); });
-  it("삭제 전에 확인한다", async () => { const confirm = vi.spyOn(window, "confirm").mockReturnValue(false); const user = userEvent.setup(); renderRow(); await user.click(screen.getByRole("button", { name: "이치란 신주쿠 삭제" })); expect(confirm).toHaveBeenCalledWith("'이치란 신주쿠' 일정을 삭제하시겠습니까?"); confirm.mockRestore(); });
+  it("삭제하면 바로 지우고 되돌리기 알림을 준다", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm");
+    const { deleteItemAction, restoreItemsAction } = await import("@/features/trips/actions");
+    render(<ToastProvider><ol><ItemRow item={item()} order={2} dayIndex={0} timezone={TZ} tripId="trip-1" editable {...rowDefaults} /></ol></ToastProvider>);
+    await user.click(screen.getByRole("button", { name: "이치란 신주쿠 삭제" }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(deleteItemAction).toHaveBeenCalled();
+    expect(await screen.findByText(/삭제했습니다/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "되돌리기" }));
+    expect(restoreItemsAction).toHaveBeenCalledWith("trip-1", ["item-1"]);
+    confirm.mockRestore();
+  });
   it("읽기 전용이면 편집 조작이 없다", () => { renderRow({}, { editable: false }); expect(screen.queryByRole("button", { name: "수정" })).not.toBeInTheDocument(); expect(screen.queryByRole("button", { name: /삭제/ })).not.toBeInTheDocument(); expect(screen.queryByRole("button", { name: /순서 이동/ })).not.toBeInTheDocument(); });
   it("좌표가 없으면 지도 연결 버튼이 없다", () => { renderRow({ coordinate: null }); expect(screen.queryByRole("button", { name: /지도에서 보기/ })).not.toBeInTheDocument(); });
   it("다중 선택 체크박스를 제공한다", async () => { const user = userEvent.setup(); render(<BulkDeleteProvider tripId="trip-1" itemIds={["item-1"]}><BulkDeleteToolbar /><ol><ItemRow item={item()} order={1} dayIndex={0} timezone={TZ} tripId="trip-1" editable {...rowDefaults} /></ol></BulkDeleteProvider>); await user.click(screen.getByRole("checkbox", { name: "이치란 신주쿠 선택" })); expect(screen.getByText("1개 선택")).toBeInTheDocument(); expect(screen.getByRole("button", { name: "선택 일정 삭제" })).toBeEnabled(); });

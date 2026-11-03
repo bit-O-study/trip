@@ -4,11 +4,20 @@ import { listTrips } from "@/features/trips/queries";
 import { MapPinIcon, PlusIcon } from "@/components/icons";
 import { TripList } from "@/features/trips/components/trip-list";
 
-export default async function TripListPage() {
-  const trips = await listTrips();
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+export default async function TripListPage({ searchParams }: Props) {
+  const [trips, params] = await Promise.all([listTrips(), searchParams]);
+  const justTrashed = params.trashed === "1";
 
   return (
     <div className="space-y-6">
+      {justTrashed ? (
+        <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted px-4 py-3 text-sm">
+          <span>여행을 휴지통으로 옮겼습니다.</span>
+          <Link href="/trips/trash" className="font-medium underline underline-offset-4">휴지통에서 되돌리기</Link>
+        </p>
+      ) : null}
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">내 여행</h1>
@@ -16,6 +25,8 @@ export default async function TripListPage() {
             항공편과 장소를 한 타임라인에 모아 관리합니다.
           </p>
         </div>
+        <div className="flex shrink-0 items-center gap-3">
+        <Link href="/trips/trash" className="text-sm text-muted-foreground underline-offset-4 hover:underline">휴지통</Link>
         <Link
           href="/trips/new"
           className="hidden shrink-0 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-[var(--shadow-card)] transition-opacity hover:opacity-90 md:inline-flex"
@@ -23,6 +34,7 @@ export default async function TripListPage() {
           <PlusIcon className="size-4" />
           새 여행
         </Link>
+        </div>
       </div>
 
       {trips.length === 0 ? (

@@ -8,7 +8,8 @@ import type { MapPoint } from "@/features/map/trip-map";
 import { listShareLinks } from "@/features/share/queries";
 import { isShareReadable } from "@/features/share/server";
 import { ShareLinkManager } from "@/features/share/share-link-manager";
-import { softDeleteTripAction, updateTripAction } from "@/features/trips/actions";
+import { updateTripAction } from "@/features/trips/actions";
+import { DeleteTripForm } from "@/features/trips/components/delete-trip-form";
 import { BulkDeleteProvider, BulkDeleteToolbar } from "@/features/trips/components/bulk-delete";
 import { DayItemAdd } from "@/features/trips/components/day-item-add";
 import { ItemRow } from "@/features/trips/components/item-row";
@@ -21,10 +22,13 @@ import { getTrip, listTripSchedule, listTripMembers } from "@/features/trips/que
 import { canEdit, type ItineraryItem, type TripMember } from "@/features/trips/types";
 import type { CurrentUser } from "@/lib/supabase/user";
 import { InviteLink } from "@/features/voting/invite-link";
+import { ExchangeCard } from "@/features/currency/exchange-card";
+import { getExchangeRate } from "@/features/currency/rates";
+import { pollDefaults } from "@/features/voting/poll-defaults";
 import { RestaurantPoll } from "@/features/voting/restaurant-poll";
 import { dayColorVar, lineLetter } from "@/lib/day-color";
 import { getCurrentUser } from "@/lib/supabase/user";
-import { tripDays, tripDurationLabel, zonedDateKey } from "@/lib/datetime";
+import { tripDays, tripDurationLabel, utcToZonedLocal, zonedDateKey } from "@/lib/datetime";
 
 type Props = {
   params: Promise<{ tripId: string }>;
@@ -43,9 +47,36 @@ async function TripPeople({ members, viewer, tripId, manageable }: { members: Pr
     : <p role="status" className="text-sm text-muted-foreground">참여자 정보를 불러오지 못했습니다. 새로고침해 주세요.</p>;
 }
 
+/**
+ * 오늘의 참고 환율. 해외 통화일 때만 보인다. 외부 서비스가 느리거나 실패해도 일정 화면은
+ * 막히지 않도록 별도 경계(Suspense)로 분리했고, 실패하면 영역만 사라진다.
+ */
+async function ExchangeRate({ currency }: { currency: string }) {
+  const quote = await getExchangeRate(currency, "KRW");
+  if (!quote || quote.rate === 1) return null;
+  return <ExchangeCard currency={quote.from} target={quote.to} rate={quote.rate} updatedAt={quote.updatedAt} />;
+}
+
 async function MemberCount({ members }: { members: Promise<TripMember[] | null> }) {
   const people = await members;
   return <>{people?.length ?? "—"}</>;
+}
+
+/**
+ * 새 일정의 시작 시각 기본값. 그날 마지막 일정이 끝나는 시각(종료가 없으면 한 시간 뒤)을
+ * 30분 단위로 올린다. 매번 09:00 이면 여러 개를 연달아 넣을 때 순서가 뒤섞인다.
+ * 숙소(체크아웃이 다음 날)는 계산에서 뺀다.
+ */
+function nextStartTime(dayItems: ItineraryItem[], date: string, timezone: string): string {
+  const stops = dayItems.filter((item) => item.type !== "lodging");
+  if (stops.length === 0) return "09:00";
+  const lastEnd = Math.max(
+    ...stops.map((item) => (item.endAt ? Date.parse(item.endAt) : Date.parse(item.startAt) + 60 * 60 * 1000)),
+  );
+  const rounded = Math.ceil(lastEnd / (30 * 60 * 1000)) * 30 * 60 * 1000;
+  const local = utcToZonedLocal(new Date(rounded).toISOString(), timezone);
+  // 자정을 넘기면 그날 안의 늦은 시각으로 둔다. 다음 날로 넘어간 시각이 기본이면 어색하다.
+  return local.slice(0, 10) === date ? local.slice(11, 16) : "21:00";
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -174,6 +205,10 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
       </section>
       </div>
 
+      {trip.baseCurrency.toUpperCase() !== "KRW" ? (
+        <Suspense fallback={null}><ExchangeRate currency={trip.baseCurrency} /></Suspense>
+      ) : null}
+
       {/*
         지도와 타임라인이 선택 상태를 공유한다. 타임라인은 서버 컴포넌트로 남기고
         children 으로 넘긴다 — 클라이언트 경계는 지도와 선택 상태에만 둔다.
@@ -200,6 +235,8 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
             polls={restaurantPolls}
             editable={editable}
             defaultDate={pollDefaultDate}
+            defaultScheduledLocal={pollDefaults(pollDefaultDate, trip.timezone).scheduledLocal}
+            defaultClosesLocal={pollDefaults(pollDefaultDate, trip.timezone).closesLocal}
             timezone={trip.timezone}
           />
 
@@ -294,6 +331,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                     <DayItemAdd
                       tripId={trip.id}
                       date={day.date}
+                      defaultTime={nextStartTime(dayItems, day.date, trip.timezone)}
                       timezone={trip.timezone}
                       polls={restaurantPolls}
                     />
@@ -395,17 +433,9 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                   <InviteLink tripId={trip.id} tripTitle={trip.title} />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  삭제해도 30일 동안 휴지통에 남아 복구할 수 있습니다.
+                  삭제해도 휴지통에서 복구할 수 있습니다.
                 </p>
-                <form action={softDeleteTripAction}>
-                  <input type="hidden" name="tripId" value={trip.id} />
-                  <button
-                    type="submit"
-                    className="rounded-full border border-danger px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger hover:text-primary-foreground"
-                  >
-                    여행 삭제
-                  </button>
-                </form>
+                <DeleteTripForm tripId={trip.id} />
               </section>
             ) : null}
           </div>

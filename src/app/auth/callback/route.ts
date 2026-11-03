@@ -62,18 +62,22 @@ export async function GET(request: Request) {
   const next = safeRedirectPath(url.searchParams.get("next"));
   const origin = resolveOrigin(request, url);
 
+  // 실패해도 원래 가려던 곳(예: 초대 링크)을 잃지 않게 오류 화면까지 들고 간다.
+  const errorUrl = (reason: string) =>
+    `${origin}/auth/auth-code-error?reason=${reason}${next !== "/" ? `&next=${encodeURIComponent(next)}` : ""}`;
+
   if (!code) {
-    return NextResponse.redirect(`${origin}/auth/auth-code-error?reason=missing_code`);
+    return NextResponse.redirect(errorUrl("missing_code"));
   }
 
   try {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
-      return NextResponse.redirect(`${origin}/auth/auth-code-error?reason=exchange_failed`);
+      return NextResponse.redirect(errorUrl("exchange_failed"));
     }
   } catch {
-    return NextResponse.redirect(`${origin}/auth/auth-code-error?reason=not_configured`);
+    return NextResponse.redirect(errorUrl("not_configured"));
   }
 
   return NextResponse.redirect(`${origin}${next}`);

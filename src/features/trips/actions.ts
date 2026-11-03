@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { selectedPlaceSchema } from "@/features/places/schema";
 
-import { IDLE, fail, withSubmittedValues, type ActionState } from "@/features/trips/action-state";
+import { fail, withSubmittedValues, type ActionState } from "@/features/trips/action-state";
 import { dbErrorMessage } from "@/features/trips/db-error";
 import { PlaceSearchError, searchPlaces } from "@/features/places/kakao";
 import { itemFormSchema, tripFormSchema } from "@/features/trips/schema";
@@ -264,7 +264,7 @@ async function shiftItemsToWallClock(
   return { updated, failed };
 }
 
-export async function softDeleteTripAction(formData: FormData): Promise<void> {
+async function softDeleteTrip(formData: FormData): Promise<void> {
   const tripId = text(formData, "tripId");
   if (!z.uuid().safeParse(tripId).success) throw new Error("올바르지 않은 여행입니다.");
   const supabase = await createSupabaseServerClient();
@@ -284,7 +284,33 @@ export async function softDeleteTripAction(formData: FormData): Promise<void> {
 
   revalidatePath("/");
   revalidatePath("/trips/trash");
-  redirect("/");
+}
+
+export async function softDeleteTripAction(formData: FormData): Promise<void> {
+  await softDeleteTrip(formData);
+  // 삭제 직후 목록에서 "휴지통으로 옮겼습니다" 안내를 보여 주기 위한 표시.
+  redirect("/?trashed=1");
+}
+
+/** 화면용. 실패해도 던지지 않고 이유를 돌려준다(운영 빌드에서는 던진 메시지가 가려진다). */
+export async function softDeleteTripFormAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    await softDeleteTrip(formData);
+  } catch (caught) {
+    return fail(caught instanceof Error ? caught.message : "삭제하지 못했습니다.");
+  }
+  redirect("/?trashed=1");
+}
+
+export async function restoreTripFormAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const tripId = text(formData, "tripId");
+  try {
+    await restoreTripAction(formData);
+  } catch (caught) {
+    return fail(caught instanceof Error ? caught.message : "복구하지 못했습니다.");
+  }
+  // 복구한 여행을 바로 열 수 있게 휴지통에 안내를 붙인다.
+  redirect(`/trips/trash?restored=${encodeURIComponent(tripId)}`);
 }
 
 export async function restoreTripAction(formData: FormData): Promise<void> {
@@ -402,7 +428,7 @@ async function createItem(formData: FormData): Promise<ActionState> {
   if (error) return fail(dbErrorMessage("일정을 추가하지 못했습니다", error));
 
   revalidatePath(`/trips/${parsed.data.tripId}`);
-  return IDLE;
+  return { status: "success", message: "일정을 추가했습니다." };
 }
 
 export async function updateItemAction(
@@ -438,7 +464,7 @@ async function updateItem(formData: FormData): Promise<ActionState> {
     .is("deleted_at", null)
     .maybeSingle();
   if (current.error) return fail(dbErrorMessage("일정을 불러오지 못했습니다", current.error));
-  if (!current.data) return fail("다른 사람이 먼저 수정했습니다. 새로고침 후 다시 시도하세요.");
+  if (!current.data) return conflictState(supabase, itemId, parsed.data.tripId);
 
   const nextLocation = parsed.data.locationText || null;
   let nextSnapshot = current.data.place_snapshot;
@@ -480,12 +506,37 @@ async function updateItem(formData: FormData): Promise<ActionState> {
 
   if (error) return fail(dbErrorMessage("저장하지 못했습니다", error));
   if (!data || data.length === 0) {
-    return fail("다른 사람이 먼저 수정했습니다. 새로고침 후 다시 시도하세요");
+    return conflictState(supabase, itemId, parsed.data.tripId);
   }
 
   revalidatePath(`/trips/${parsed.data.tripId}`);
-  return IDLE;
+  return { status: "success", message: "저장했습니다." };
 }
+
+/**
+ * 충돌 결과. 최신 updated_at 을 폼에 돌려줘서, 사용자가 방금 입력한 내용을 확인한 뒤
+ * 그대로 다시 저장하면 이번에는 통과하게 한다. 일정이 그 사이 지워졌으면 그렇게 알린다.
+ */
+async function conflictState(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  itemId: string,
+  tripId: string,
+): Promise<ActionState> {
+  const latest = await supabase
+    .from("itinerary_items")
+    .select("updated_at")
+    .eq("id", itemId)
+    .eq("trip_id", tripId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  revalidatePath(`/trips/${tripId}`);
+  if (latest.error || !latest.data) return fail("이 일정은 이미 지워졌거나 열 수 없습니다. 목록을 확인하세요.");
+  return { ...fail(CONFLICT_MESSAGE), code: "conflict", values: { expectedUpdatedAt: String(latest.data.updated_at) } };
+}
+
+/** 같이 편집하는 사람이 먼저 저장했을 때. 화면은 최신 값으로 갱신되지만 입력한 내용은 그대로 남는다. */
+const CONFLICT_MESSAGE =
+  "다른 사람이 먼저 수정했습니다. 최신 내용으로 갱신했고 입력한 내용은 그대로예요. 확인한 뒤 다시 저장하세요.";
 
 export async function deleteItemAction(formData: FormData): Promise<void> {
   const itemId = text(formData, "itemId");
@@ -508,6 +559,33 @@ export async function deleteItemAction(formData: FormData): Promise<void> {
   if (error) throw new Error(dbErrorMessage("일정을 삭제하지 못했습니다", error));
   if (!data || data.length === 0) throw new Error("일정을 삭제할 권한이 없거나 이미 삭제되었습니다.");
   revalidatePath(`/trips/${tripId}`);
+}
+
+/**
+ * 삭제한 일정을 되살린다. 삭제는 deleted_at 만 채우는 소프트 삭제라 되돌릴 수 있다.
+ * 삭제 직후 "되돌리기" 알림이 부른다.
+ */
+export async function restoreItemsAction(tripId: string, itemIds: string[]): Promise<{ restored: number }> {
+  const ids = [...new Set(itemIds)].filter((id) => z.uuid().safeParse(id).success);
+  if (!z.uuid().safeParse(tripId).success || ids.length === 0) throw new Error("올바르지 않은 일정입니다.");
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("로그인이 필요합니다.");
+
+  let restored = 0;
+  for (let index = 0; index < ids.length; index += BULK_DELETE_CHUNK) {
+    const { data, error } = await supabase
+      .from("itinerary_items")
+      .update({ deleted_at: null })
+      .eq("trip_id", tripId)
+      .in("id", ids.slice(index, index + BULK_DELETE_CHUNK))
+      .not("deleted_at", "is", null)
+      .select("id");
+    if (error) throw new Error(dbErrorMessage("일정을 되돌리지 못했습니다", error));
+    restored += data?.length ?? 0;
+  }
+  if (restored > 0) revalidatePath(`/trips/${tripId}`);
+  return { restored };
 }
 
 /** 한 번에 받을 수 있는 최대 개수. 전체 선택이 이보다 크면 나눠서 지워 달라고 안내한다. */

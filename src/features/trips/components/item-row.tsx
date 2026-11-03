@@ -3,14 +3,18 @@
 import { ItemTime } from "./item-time";
 import { TravelLegView } from "./travel-leg";
 import { legKey, type Stop, type TravelLeg } from "../travel";
-import { useState, type CSSProperties } from "react";
+import { useState, useTransition, type CSSProperties } from "react";
+import { useToast } from "@/components/ui/toast";
+import { reportMove } from "./move-feedback";
 import { useItemDrag } from "./use-item-drag";
 import {
   deleteItemAction,
+  moveItemDownAction,
   moveItemToDayAction,
+  moveItemUpAction,
+  restoreItemsAction,
 } from "@/features/trips/actions";
 import { useBulkItemSelection } from "@/features/trips/components/bulk-delete";
-import { DeleteSubmitButton } from "@/features/trips/components/delete-submit-button";
 import { ItemEditForm } from "@/features/trips/components/item-edit-form";
 import { SubmitButton } from "@/features/trips/components/submit-button";
 import { timelineItemDomId, useItemSelection } from "@/features/trips/components/trip-board";
@@ -47,12 +51,27 @@ function ItemBody({ item, timezone }: { item: ItineraryItem; timezone: string })
 }
 
 /** 드래그 외에 키보드로 날짜를 바꾸는 경로. 순서는 카드에서 Alt+방향키로 이동한다. */
-function MoveControls({ item, tripId, days, dateKey }: Omit<Props, "order" | "dayIndex" | "timezone" | "editable">) {
+function MoveControls({ item, tripId, days, dateKey, isFirst, isLast }: Omit<Props, "order" | "dayIndex" | "timezone" | "editable">) {
   const [message, setMessage] = useState("");
+  const [busy, startMove] = useTransition();
+  const toast = useToast();
+  /** 같은 날 안에서 한 칸 위·아래로. 끌기가 어려운 사람과 키보드 사용자를 위한 버튼 경로다. */
+  function step(action: typeof moveItemUpAction) {
+    const data = new FormData();
+    data.set("itemId", item.id);
+    data.set("tripId", tripId);
+    startMove(async () => {
+      try {
+        setMessage(reportMove(await action(data), { tripId, itemId: item.id, show: toast.show }));
+      } catch {
+        setMessage("이동하지 못했습니다. 다시 시도하세요.");
+      }
+    });
+  }
   async function move(formData: FormData) {
     try {
       const result = await moveItemToDayAction(formData);
-      setMessage(result.status === "error" ? result.message : result.status === "unchanged" ? "이미 같은 날짜에 있습니다." : "일정을 이동했습니다.");
+      setMessage(result.status === "unchanged" ? "이미 같은 날짜에 있습니다." : reportMove(result, { tripId, itemId: item.id, show: toast.show }));
     } catch {
       setMessage("이동하지 못했습니다. 다시 시도하세요.");
     }
@@ -66,6 +85,11 @@ function MoveControls({ item, tripId, days, dateKey }: Omit<Props, "order" | "da
 
   return (
     <div className="mt-3 space-y-2 border-t border-border pt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">순서</span>
+        <button type="button" disabled={isFirst || busy} onClick={() => step(moveItemUpAction)} aria-label={`${item.title} 한 칸 위로`} className={CONTROL}>위로</button>
+        <button type="button" disabled={isLast || busy} onClick={() => step(moveItemDownAction)} aria-label={`${item.title} 한 칸 아래로`} className={CONTROL}>아래로</button>
+      </div>
       {days.length > 0 ? (
         <form action={move} className="flex flex-wrap items-center gap-2">
           {hidden}
@@ -106,9 +130,36 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, tra
   const [nextOpen, setNextOpen] = useState(false);
   const dragEnabled = editable && panel === null && !previousOpen && !nextOpen;
   const bulkSelection = useBulkItemSelection();
-  const { dragging, pending, message, ...dragEvents } = useItemDrag(tripId, item.id, dragEnabled);
+  const { dragging, pressing, pending, message, ...dragEvents } = useItemDrag(tripId, item.id, dragEnabled);
+  const toast = useToast();
+  const [deleting, startDelete] = useTransition();
+  /** 먼저 지우고 알림에서 되돌릴 수 있게 한다. 지우기는 소프트 삭제라 복구가 가능하다. */
+  function remove() {
+    startDelete(async () => {
+      const data = new FormData();
+      data.set("itemId", item.id);
+      data.set("tripId", tripId);
+      try {
+        await deleteItemAction(data);
+        toast.show({
+          message: `'${item.title}' 일정을 삭제했습니다.`,
+          actionLabel: "되돌리기",
+          onAction: async () => {
+            try {
+              await restoreItemsAction(tripId, [item.id]);
+              toast.show({ message: "일정을 되돌렸습니다." });
+            } catch {
+              toast.show({ message: "되돌리지 못했습니다. 다시 시도하세요.", tone: "error" });
+            }
+          },
+        });
+      } catch {
+        toast.show({ message: "삭제하지 못했습니다. 이미 삭제되었거나 권한이 없을 수 있어요.", tone: "error" });
+      }
+    });
+  }
 
-  return <li {...dragEvents} data-drag-item={editable ? item.id : undefined} data-trip-id={tripId} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.title}, 끌어서 이동. Alt와 위아래 방향키로 순서 변경` : undefined} aria-busy={pending} id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} style={{ "--line": dayIndex === null ? "var(--rail)" : dayColorVar(dayIndex) } as CSSProperties} className={`relative grid min-w-0 scroll-mt-32 grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 ${dragging ? "opacity-50" : ""} ${dragEnabled ? "touch-none cursor-grab" : ""}`}>
+  return <li {...dragEvents} data-drag-item={editable ? item.id : undefined} data-trip-id={tripId} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.title}, 끌어서 이동. Alt와 위아래 방향키로 순서 변경` : undefined} aria-busy={pending} id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} style={{ "--line": dayIndex === null ? "var(--rail)" : dayColorVar(dayIndex) } as CSSProperties} className={`relative grid min-w-0 scroll-mt-32 grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 ${dragging ? "z-10 scale-[1.02] opacity-70" : ""} ${pressing ? "scale-[0.99] transition-transform" : ""} ${dragEnabled ? "touch-pan-y cursor-grab select-none" : ""}`}>
     {/* 노선과 정거장 점. 같은 날의 일정이 하나의 선으로 이어진다. */}
     <div aria-hidden className="line-rail"><i className="line-station" /></div>
     <div className={`mb-3 min-w-0 rounded-xl border bg-card px-3.5 py-3 shadow-[var(--shadow-card)] transition-colors ${selected ? "border-foreground" : "border-border"}`}>
@@ -122,9 +173,9 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, tra
       {next && <TravelLegView key={legKey(item.id, next.id)} tripId={tripId} from={item} to={next} leg={nextLeg} editable={travelEditable} direction="next" onExpandedChange={setNextOpen} />}
     </div>}
     {editable ? <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-      <button type="button" aria-expanded={panel === "move"} aria-label={`${item.title} 순서 이동`} onClick={() => setPanel((value) => (value === "move" ? null : "move"))} className={CONTROL}>{panel === "move" ? "날짜 이동 닫기" : "날짜 이동"}</button>
+      <button type="button" aria-expanded={panel === "move"} aria-label={`${item.title} 순서 이동`} onClick={() => setPanel((value) => (value === "move" ? null : "move"))} className={CONTROL}>{panel === "move" ? "이동 닫기" : "순서·날짜 이동"}</button>
       <button type="button" aria-expanded={panel === "edit"} onClick={() => setPanel((value) => (value === "edit" ? null : "edit"))} className={CONTROL}>{panel === "edit" ? "수정 닫기" : "수정"}</button>
-      <form action={deleteItemAction} onSubmit={(event) => { if (!window.confirm(`'${item.title}' 일정을 삭제하시겠습니까?`)) event.preventDefault(); }}><input type="hidden" name="itemId" value={item.id} /><input type="hidden" name="tripId" value={tripId} /><DeleteSubmitButton idleLabel="삭제" ariaLabel={`${item.title} 삭제`} testId={`delete-item-${item.id}`} className={`${CONTROL} text-muted-foreground hover:text-danger`} /></form>
+      <button type="button" disabled={deleting} aria-busy={deleting} aria-label={`${item.title} 삭제`} data-testid={`delete-item-${item.id}`} onClick={remove} className={`${CONTROL} text-muted-foreground hover:text-danger`}>{deleting ? "삭제 중…" : "삭제"}</button>
     </div> : null}
     {editable && panel === "move" ? <MoveControls item={item} tripId={tripId} days={days} isFirst={isFirst} isLast={isLast} dateKey={dateKey} /> : null}
     {editable && panel === "edit" ? <ItemEditForm item={item} timezone={timezone} onCancel={() => setPanel(null)} /> : null}

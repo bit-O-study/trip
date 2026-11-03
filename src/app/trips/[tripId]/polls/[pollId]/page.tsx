@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { PlaceSearch } from "@/features/places/components/place-search";
+import Link from "next/link";
+
 import { getTrip, listRestaurantPolls } from "@/features/trips/queries";
 import { canEdit } from "@/features/trips/types";
 import { RestaurantPoll } from "@/features/voting/restaurant-poll";
@@ -21,7 +23,7 @@ export default async function RestaurantPollDetailPage({ params, searchParams }:
 
   return (
     <div className="space-y-6">
-      <a href={`/trips/${tripId}`} className="inline-block text-sm font-medium text-primary hover:underline">← 여행 일정</a>
+      <Link href={`/trips/${tripId}`} className="inline-block text-sm font-medium underline underline-offset-4">← 여행 일정</Link>
       <RestaurantPoll tripId={tripId} polls={[poll]} editable={canEdit(trip.role)} defaultDate={zonedDateKey(poll.scheduledAt, trip.timezone)} timezone={trip.timezone} detail />
       {canEdit(trip.role) && poll.status === "open" ? (
         <PlaceSearch tripId={tripId} defaultDate={zonedDateKey(poll.scheduledAt, trip.timezone)} timezone={trip.timezone} polls={[poll]} initialPollId={poll.id} initialQuery={q ?? ""} />

@@ -13,6 +13,9 @@ export default function SharedTripNotFound() {
         그래도 안 되면 링크를 보낸 사람에게 새 링크를 요청해 주세요.
       </p>
       <p className="text-xs text-muted-foreground">
+        이 주소를 북마크해 두었다면 다시 열 수 없어요. 링크를 받은 메시지에서 전체 주소(끝의 코드까지)를 눌러 열어 주세요.
+      </p>
+      <p className="text-xs text-muted-foreground">
         여러 공유 링크를 차례로 열었다면 마지막에 연 링크만 유효합니다. 이 일정의 링크를 다시
         눌러 주세요.
       </p>

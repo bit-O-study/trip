@@ -56,7 +56,7 @@ export function InviteLink({ tripId, tripTitle }: { tripId: string; tripTitle: s
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
           >
             <option value="editor">편집자 — 일정을 함께 고칠 수 있음</option>
-            <option value="viewer">참여자 — 보기와 투표만</option>
+            <option value="viewer">보기 전용 — 일정 보기와 투표만</option>
           </select>
         </label>
         <button
@@ -64,12 +64,13 @@ export function InviteLink({ tripId, tripTitle }: { tripId: string; tripTitle: s
           disabled={pending}
           className="rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
         >
-          참여 초대 링크 만들기
+          초대 링크 만들기
         </button>
       </form>
       {state.status === "error" ? <p className="text-sm text-danger">{state.message}</p> : null}
       {url ? (
         <div className="space-y-1">
+          <p className="text-xs font-medium">이 링크는 지금만 볼 수 있어요. 창을 닫기 전에 복사하거나 공유하세요.</p>
           <p className="text-xs text-muted-foreground">7일 동안 최대 20명이 참여할 수 있습니다. 역할은 나중에 참여자 목록에서 바꿀 수 있습니다.</p>
           <input
             readOnly

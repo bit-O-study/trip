@@ -25,8 +25,8 @@ export default function RouteError({
     <div role="alert" className="mx-auto max-w-md space-y-4 py-16 text-center">
       <h1 className="text-3xl font-bold tracking-tight">문제가 생겼습니다</h1>
       <p className="text-sm text-muted-foreground">
-        요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요. 같은 문제가 반복되면
-        새로고침하거나 여행 목록에서 다시 열어 주세요.
+        요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요. 방금 한 작업은 이미
+        반영됐을 수 있으니, 같은 문제가 반복되면 여행 목록에서 상태를 먼저 확인해 주세요.
       </p>
       {error.digest ? (
         <p className="text-xs text-muted-foreground">오류 코드: {error.digest}</p>

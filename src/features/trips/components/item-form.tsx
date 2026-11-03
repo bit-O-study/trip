@@ -2,7 +2,8 @@
 
 import { useActionState, useState } from "react";
 
-import { IDLE, type ActionState } from "@/features/trips/action-state";
+import { IDLE, valueOr, type ActionState } from "@/features/trips/action-state";
+import { useToast } from "@/components/ui/toast";
 import { createItemAction } from "@/features/trips/actions";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, type ItemType } from "@/features/trips/types";
 import { openDatePicker } from "@/lib/date-picker";
@@ -11,6 +12,8 @@ type Props = {
   tripId: string;
   /** 기본 날짜 ("2026-02-14"). 지금 보고 있는 Day 를 넣는다. */
   defaultDate: string;
+  /** 시작 시각 기본값("HH:MM"). 그날 마지막 일정이 끝나는 시각을 넣어 주면 연달아 추가할 때 순서가 맞는다. */
+  defaultTime?: string;
   timezone: string;
   defaultOpen?: boolean;
   onCancel?: () => void;
@@ -25,11 +28,21 @@ function FieldError({ errors }: { errors?: string[] }) {
   );
 }
 
-export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, onCancel }: Props) {
+export function ItemForm({ tripId, defaultDate, defaultTime = "09:00", timezone, defaultOpen = false, onCancel }: Props) {
   const [type, setType] = useState<ItemType>("activity");
   const [open, setOpen] = useState(defaultOpen);
+  const toast = useToast();
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    createItemAction,
+    async (previous, formData) => {
+      const result = await createItemAction(previous, formData);
+      if (result.status === "success") {
+        // 성공하면 폼을 닫고 알린다. 열어 둔 채 입력만 비워지면 추가됐는지 알 수 없다.
+        toast.show({ message: result.message ?? "일정을 추가했습니다." });
+        if (onCancel) onCancel();
+        else setOpen(false);
+      }
+      return result;
+    },
     IDLE,
   );
   const errors = state.fieldErrors ?? {};
@@ -86,6 +99,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
           required
           maxLength={200}
           placeholder="이치란 라멘"
+          defaultValue={valueOr(state, "title", "")}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
         />
         <FieldError errors={errors.title} />
@@ -102,7 +116,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
             type="datetime-local"
             onClick={openDatePicker}
             required
-            defaultValue={`${defaultDate}T09:00`}
+            defaultValue={valueOr(state, "startLocal", `${defaultDate}T${defaultTime}`)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
           />
           <FieldError errors={errors.startLocal} />
@@ -117,6 +131,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
             required={type === "lodging"}
             type="datetime-local"
             onClick={openDatePicker}
+            defaultValue={valueOr(state, "endLocal", "")}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
           />
           <FieldError errors={errors.endLocal} />
@@ -134,6 +149,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
           name="locationText"
           maxLength={200}
           placeholder="신주쿠 3초메"
+          defaultValue={valueOr(state, "locationText", "")}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
         />
         <p className="text-xs text-muted-foreground">
@@ -152,6 +168,7 @@ export function ItemForm({ tripId, defaultDate, timezone, defaultOpen = false, o
           name="note"
           maxLength={2000}
           placeholder="예약번호, 준비물, 가는 길 안내…"
+          defaultValue={valueOr(state, "note", "")}
           className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
         />
         <FieldError errors={errors.note} />

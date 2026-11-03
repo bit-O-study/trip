@@ -19,6 +19,8 @@ type Props = {
   tripId: string;
   /** 추가할 때 기본으로 채울 날짜 */
   defaultDate: string;
+  /** 시작 시각 기본값("HH:MM"). 그날 마지막 일정이 끝나는 시각. */
+  defaultTime?: string;
   timezone: string;
   polls: RestaurantPollView[];
   initialPollId?: string;
@@ -43,7 +45,7 @@ function dateInTimezone(iso: string, timezone: string): string {
   return `${read("year")}-${read("month")}-${read("day")}`;
 }
 
-export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollId, initialQuery = "", onSelect }: Props) {
+export function PlaceSearch({ tripId, defaultDate, defaultTime = "09:00", timezone, polls, initialPollId, initialQuery = "", onSelect }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const startId = useId();
   const requestRef = useRef<AbortController | null>(null);
@@ -56,7 +58,7 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
   const [selected, setSelected] = useState<PlaceSearchResult | null>(null);
   const [note, setNote] = useState("");
   const [endLocal, setEndLocal] = useState("");
-  const [startLocal, setStartLocal] = useState(`${defaultDate}T09:00`);
+  const [startLocal, setStartLocal] = useState(`${defaultDate}T${defaultTime}`);
   const openPolls = polls.filter((poll) => poll.status === "open");
   /*
    * 투표가 여럿이면 기본 선택을 두지 않는다. 첫 투표를 미리 골라 두면
@@ -265,7 +267,11 @@ export function PlaceSearch({ tripId, defaultDate, timezone, polls, initialPollI
                         setStartLocal(defaultDate + "T15:00");
                         const tomorrow = new Date(defaultDate + "T12:00:00Z"); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
                         setEndLocal(tomorrow.toISOString().slice(0, 10) + "T11:00");
-                      } else setEndLocal("");
+                      } else {
+                        // 숙소를 고르며 바뀐 15:00 이 다음 장소에 남지 않게, 비숙소는 기본 시각으로 되돌린다.
+                        setStartLocal(`${defaultDate}T${defaultTime}`);
+                        setEndLocal("");
+                      }
                       requestAnimationFrame(() => {
                         sectionRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
                         sectionRef.current?.querySelector<HTMLInputElement>('input[type="datetime-local"]')?.focus({ preventScroll: true });

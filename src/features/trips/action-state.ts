@@ -17,6 +17,8 @@ export type ActionState = {
    * defaultValue 를 이 값으로 바꿔 리셋이 "제출한 값" 으로 일어나게 한다.
    */
   values?: Record<string, string>;
+  /** 화면이 오류 종류에 따라 다르게 반응해야 할 때 쓰는 기계용 코드. */
+  code?: "conflict";
 };
 
 export const IDLE: ActionState = { status: "idle" };
@@ -40,7 +42,8 @@ export function submittedValues(formData: FormData): Record<string, string> {
 
 /** 실패한 결과에만 제출 값을 붙인다. 성공하면 폼이 비워지는 게 맞다. */
 export function withSubmittedValues(state: ActionState, formData: FormData): ActionState {
-  return state.status === "error" ? { ...state, values: submittedValues(formData) } : state;
+  // 액션이 일부러 바꿔 돌려준 값(예: 충돌 후 최신 버전)은 제출 값보다 우선한다.
+  return state.status === "error" ? { ...state, values: { ...submittedValues(formData), ...state.values } } : state;
 }
 
 /** 실패 후 폼의 기본값. 제출 값이 있으면 그것, 없으면 원래 기본값. */

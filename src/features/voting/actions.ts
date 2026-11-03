@@ -218,6 +218,23 @@ export async function revokeVoteInvitesAction(
   };
 }
 
+/**
+ * 초대 수락(화면용). 실패하면 던지지 않고 이유를 돌려준다.
+ * 던지면 운영 빌드에서 메시지가 가려지고 전체 오류 화면으로 바뀌어, 만료된 링크를
+ * 받은 사람이 무엇이 문제인지 알 수 없다.
+ */
+export async function acceptInviteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const token = value(formData, "token");
+  if (!token) return fail("초대 링크가 올바르지 않습니다.");
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("accept_invite", { p_token_hash: tokenHash(token) });
+  if (error || typeof data !== "string") {
+    return fail("이 초대 링크는 만료되었거나 취소되었거나 이미 사용되었습니다.");
+  }
+  revalidatePath(`/trips/${data}`);
+  redirect(`/trips/${data}`);
+}
+
 export async function acceptVoteInviteAction(formData: FormData): Promise<void> {
   const token = value(formData, "token");
   const supabase = await createSupabaseServerClient();

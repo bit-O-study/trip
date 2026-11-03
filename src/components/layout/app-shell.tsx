@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { MainNav } from "@/components/layout/main-nav";
+import { ToastProvider } from "@/components/ui/toast";
 import type { CurrentUser } from "@/lib/supabase/user";
 
 type Props = {
@@ -20,6 +21,7 @@ export function AppShell({ children, user }: Props) {
   const isAuthenticated = user !== null;
 
   return (
+    <ToastProvider>
     <div className="flex min-h-dvh flex-col">
       <a
         href="#main"
@@ -88,5 +90,6 @@ export function AppShell({ children, user }: Props) {
 
       {isAuthenticated ? <MainNav variant="tab" /> : null}
     </div>
+    </ToastProvider>
   );
 }

@@ -7,7 +7,7 @@ import { createRestaurantPollAction } from "@/features/voting/actions";
 import { PollSubmitButton } from "@/features/voting/poll-submit-button";
 import { openDatePicker } from "@/lib/date-picker";
 
-type Props = { tripId: string; defaultDate: string; timezone: string };
+type Props = { tripId: string; defaultDate: string; timezone: string; defaultScheduledLocal?: string; defaultClosesLocal?: string };
 
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.length) return null;
@@ -23,7 +23,7 @@ const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2";
  * 서버 액션이 그냥 throw 하면 Next 오류 화면으로 튕겨 나가 사용자는 무엇이
  * 잘못됐는지도, 방금 입력한 값도 잃는다.
  */
-export function PollCreateForm({ tripId, defaultDate, timezone }: Props) {
+export function PollCreateForm({ tripId, defaultDate, timezone, defaultScheduledLocal, defaultClosesLocal }: Props) {
   const [state, action] = useActionState<ActionState, FormData>(createRestaurantPollAction, IDLE);
   const errors = state.fieldErrors ?? {};
 
@@ -47,7 +47,7 @@ export function PollCreateForm({ tripId, defaultDate, timezone }: Props) {
           name="scheduledLocal"
           onClick={openDatePicker}
           required
-          defaultValue={`${defaultDate}T12:00`}
+          defaultValue={defaultScheduledLocal ?? `${defaultDate}T12:00`}
           className={FIELD}
         />
         <FieldError errors={errors.scheduledLocal} />
@@ -59,7 +59,7 @@ export function PollCreateForm({ tripId, defaultDate, timezone }: Props) {
           name="closesLocal"
           onClick={openDatePicker}
           required
-          defaultValue={`${defaultDate}T10:00`}
+          defaultValue={defaultClosesLocal ?? `${defaultDate}T10:00`}
           className={FIELD}
         />
         <FieldError errors={errors.closesLocal} />

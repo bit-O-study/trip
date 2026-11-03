@@ -3,7 +3,8 @@
 import { createContext, useActionState, useContext, useMemo, useState } from "react";
 import { IDLE } from "@/features/trips/action-state";
 
-import { deleteItemsAction } from "@/features/trips/actions";
+import { useToast } from "@/components/ui/toast";
+import { deleteItemsAction, restoreItemsAction } from "@/features/trips/actions";
 import { DeleteSubmitButton } from "@/features/trips/components/delete-submit-button";
 
 type SelectionContextValue = {
@@ -59,7 +60,33 @@ export function BulkDeleteProvider({ tripId, itemIds, children }: Props) {
 
 export function BulkDeleteToolbar() {
   const context = useBulkItemSelection();
-  const [state, action, pending] = useActionState(deleteItemsAction, IDLE);
+  const toast = useToast();
+  const setSelectedRef = context?.setSelected;
+  const [state, action, pending] = useActionState(
+    async (previous: Parameters<typeof deleteItemsAction>[0], formData: FormData) => {
+      const ids = formData.getAll("itemId").map(String);
+      const tripIdValue = String(formData.get("tripId") ?? "");
+      const result = await deleteItemsAction(previous, formData);
+      if (result.status === "success") {
+        // 확인창 대신 먼저 지우고 되돌릴 기회를 준다. 소프트 삭제라 복구할 수 있다.
+        setSelectedRef?.(new Set());
+        toast.show({
+          message: result.message ?? "선택한 일정을 삭제했습니다.",
+          actionLabel: "되돌리기",
+          onAction: async () => {
+            try {
+              await restoreItemsAction(tripIdValue, ids);
+              toast.show({ message: "일정을 되돌렸습니다." });
+            } catch {
+              toast.show({ message: "되돌리지 못했습니다. 다시 시도하세요.", tone: "error" });
+            }
+          },
+        });
+      }
+      return result;
+    },
+    IDLE,
+  );
   if (!context || context.itemIds.length === 0) return null;
   const { tripId, itemIds, selected, setSelected } = context;
   const allSelected = selected.size === itemIds.length;
@@ -68,12 +95,7 @@ export function BulkDeleteToolbar() {
         <form
           action={action}
           aria-busy={pending}
-          onSubmit={(event) => {
-            if (!window.confirm(`선택한 일정 ${selected.size}개를 삭제하시겠습니까?`)) {
-              event.preventDefault();
-            }
-          }}
-          className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2"
+          className={`mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 ${selected.size > 0 ? "sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 shadow-[var(--shadow-lift)] md:bottom-4" : ""}`}
         >
           <input type="hidden" name="tripId" value={tripId} />
           {[...selected].map((id) => <input key={id} type="hidden" name="itemId" value={id} />)}
@@ -92,7 +114,7 @@ export function BulkDeleteToolbar() {
             idleLabel="선택 일정 삭제"
             pendingLabel="일괄 삭제 중…"
             disabled={selected.size === 0}
-            className="ml-auto rounded-lg border border-danger px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40"
+            className="ml-auto rounded-full border border-danger px-4 py-1.5 text-sm font-medium text-danger hover:bg-danger hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40"
           />
         </form>
   );

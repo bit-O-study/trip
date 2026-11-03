@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { requiresAuth } from "@/lib/auth/paths";
-import { buildLoginUrl } from "@/lib/auth/redirect";
+import { buildLoginUrl, safeRedirectPath } from "@/lib/auth/redirect";
 import { allowsUnconfiguredAuth, readSupabaseEnv } from "@/lib/supabase/env";
 
 /**
@@ -85,7 +85,9 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && pathname === "/login") {
-    return redirectWithCookies(new URL("/", request.url), response);
+    // 이미 로그인했다면 가려던 곳(next)으로 보낸다. 항상 홈으로 보내면 초대 링크 같은 목적지를 잃는다.
+    const next = safeRedirectPath(request.nextUrl.searchParams.get("next"));
+    return redirectWithCookies(new URL(next, request.url), response);
   }
 
   return withShareHeaders(pathname, response);
