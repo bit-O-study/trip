@@ -18,7 +18,7 @@ test("초대 공유는 다른 앱 연결 없이 Trip 웹 주소를 전달한다"
   await page.getByRole("button", { name: "여행 만들기" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible({ timeout: 15000 });
   await page.getByText("여행 관리", { exact: true }).click();
-  await page.getByRole("button", { name: "참여 초대 링크 만들기" }).click();
+  await page.getByRole("button", { name: "초대 링크 만들기", exact: true }).click();
   const input = page.getByRole("textbox", { name: "참여 초대 링크" });
   await expect(input).toBeVisible({ timeout: 15000 });
   const inviteUrl = await input.inputValue();
@@ -40,5 +40,7 @@ test("초대 공유는 다른 앱 연결 없이 Trip 웹 주소를 전달한다"
   expect(payload.title).toContain("Trip Planner");
   await expect(page.locator('script[data-kakao-sdk="share"]')).toHaveCount(0);
   await page.getByRole("button", { name: "여행 삭제", exact: true }).click();
+  // 삭제는 한 번 더 확인한다(실수로 휴지통으로 보내지 않도록).
+  await page.getByRole("button", { name: "휴지통으로 옮기기" }).click();
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
 });

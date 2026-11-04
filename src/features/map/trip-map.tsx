@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 const GoogleTripMap = dynamic(() => import("./google-map").then((m) => m.GoogleTripMap));
 const KakaoTripMap = dynamic(() => import("./kakao-map").then((m) => m.KakaoTripMap));
 const OsmTripMap = dynamic(() => import("./osm-map").then((m) => m.OsmTripMap));
+import { defaultCenterForTimezone } from "./default-center";
 import { pickProvider, type MapProvider } from "./provider";
 import { isDomesticTrip } from "./region";
 import type { TripMapProps } from "./types";
@@ -31,6 +32,8 @@ export function TripMap({ timezone, ...props }: Props) {
    * 실패만 읽는다. 기본 지도가 실패하면 키·결제가 필요 없는 OpenStreetMap 으로 넘어간다.
    */
   const [failures, setFailures] = useState<Map<MapProvider, MapLoadError>>(() => new Map());
+  // 일정이 없으면 여행 시간대의 대표 도시에서 시작한다(없으면 지도 기본값).
+  const startCenter = props.initialCenter ?? (props.points.length === 0 ? (defaultCenterForTimezone(timezone) ?? undefined) : undefined);
   const provider = pickProvider(primary, new Set(failures.keys()));
   const error = provider === "osm" ? (failures.get("osm") ?? null) : null;
   const usingFallback = provider === "osm" && failures.has(primary);
@@ -55,7 +58,7 @@ export function TripMap({ timezone, ...props }: Props) {
   return (
     <div className="space-y-2">
       <div className={props.className ?? "h-64 md:h-80"}>
-      <Provider key={provider} {...props} onError={handleError} />
+      <Provider key={provider} {...props} initialCenter={startCenter} onError={handleError} />
       </div>
       {usingFallback ? (
         <p role="status" className="text-xs text-muted-foreground">

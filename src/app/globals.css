@@ -251,3 +251,43 @@ input[type="radio"] {
   margin-left: -0.75rem;
   box-shadow: 0 0 0 3px var(--background), 0 0 0 5px var(--line, var(--rail));
 }
+
+/* ---- 로딩 화면(귀여운 기차) — components/ui/loading-train.tsx ---- */
+.loader-rail { stroke: var(--rail); }
+.loader-sleepers { stroke: var(--rail); animation: loader-ties 0.55s linear infinite; }
+.loader-body { fill: var(--day-1); }
+.loader-cabin { fill: color-mix(in srgb, var(--day-1) 82%, black); }
+.loader-window { fill: color-mix(in srgb, var(--day-1) 35%, white); }
+.loader-chimney { fill: color-mix(in srgb, var(--day-1) 60%, black); }
+.loader-car { fill: var(--day-2); }
+.loader-bag { fill: color-mix(in srgb, var(--day-2) 40%, white); }
+.loader-bag-handle { stroke: color-mix(in srgb, var(--day-2) 40%, white); }
+.loader-link { stroke: var(--foreground); opacity: 0.55; }
+.loader-wheel { fill: var(--foreground); }
+.loader-hub { fill: var(--card); }
+.loader-spoke { stroke: var(--card); }
+.loader-eye { fill: var(--foreground); }
+.loader-glint { fill: #fff; }
+.loader-blush { fill: #e7a8a0; opacity: 0.55; }
+.loader-smile { stroke: var(--foreground); }
+.loader-lamp { fill: #f1d58a; }
+.loader-puff { fill: var(--rail); opacity: 0; }
+.loader-bob { animation: loader-bob 0.5s ease-in-out infinite alternate; }
+.loader-spin { transform-box: fill-box; transform-origin: center; animation: loader-spin 0.7s linear infinite; }
+.loader-face { animation: loader-blink 3.2s infinite; transform-box: fill-box; transform-origin: center; }
+.loader-puff-1 { animation: loader-puff 1.6s ease-out infinite; }
+.loader-puff-2 { animation: loader-puff 1.6s ease-out 0.5s infinite; }
+.loader-puff-3 { animation: loader-puff 1.6s ease-out 1s infinite; }
+.loader-dots i { font-style: normal; animation: loader-dot 1.2s infinite; }
+.loader-dots i:nth-child(2) { animation-delay: 0.2s; }
+.loader-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes loader-ties { to { stroke-dashoffset: -16; } }
+@keyframes loader-bob { from { transform: translateY(0); } to { transform: translateY(-2.5px); } }
+@keyframes loader-spin { to { transform: rotate(360deg); } }
+@keyframes loader-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes loader-puff { 0% { transform: translate(0, 0) scale(0.6); opacity: 0.8; } 100% { transform: translate(-22px, -26px) scale(1.7); opacity: 0; } }
+@keyframes loader-dot { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .loader-sleepers, .loader-bob, .loader-spin, .loader-face, .loader-dots i { animation: none; }
+  .loader-puff { animation: none; opacity: 0.5; transform: translate(-6px, -8px); }
+}
