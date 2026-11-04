@@ -42,30 +42,19 @@ export function osmCategoryGroup(category: string | undefined, type: string | un
   return "etc";
 }
 
-const CATEGORY_QUERY: Partial<Record<PlaceCategoryGroup, string>> = {
-  food: "restaurant",
-  cafe: "cafe",
-  lodging: "hotel",
-  attraction: "attraction",
-};
-
-export async function searchOsmPlaces(input: {
-  query: string;
-  category?: PlaceCategoryGroup;
-  center?: { latitude: number; longitude: number };
-}): Promise<PlaceSearchResponse> {
+async function requestNominatim(
+  query: string,
+  center?: { latitude: number; longitude: number },
+): Promise<NominatimItem[]> {
   const params = new URLSearchParams({
-    q: input.query,
+    q: query,
     format: "jsonv2",
-    limit: "12",
+    limit: "15",
     addressdetails: "0",
     "accept-language": "ko,en,zh",
   });
-  // 분류를 고르면 검색어에 덧붙여 결과를 좁힌다. Nominatim 은 분류 필터가 없다.
-  const hint = input.category ? CATEGORY_QUERY[input.category] : undefined;
-  if (hint) params.set("q", `${input.query} ${hint}`);
-  if (input.center) {
-    const { latitude: lat, longitude: lon } = input.center;
+  if (center) {
+    const { latitude: lat, longitude: lon } = center;
     // 중심 주변을 우선한다. bounded 는 쓰지 않는다 — 구역 밖 정답을 잘라 버린다.
     params.set("viewbox", `${lon - 0.6},${lat + 0.6},${lon + 0.6},${lat - 0.6}`);
   }
@@ -81,9 +70,27 @@ export async function searchOsmPlaces(input: {
     throw new OsmPlaceSearchError("무료 장소 검색 서버에 연결하지 못했습니다.", "network");
   }
   if (!response.ok) throw new OsmPlaceSearchError("무료 장소 검색을 일시적으로 이용할 수 없습니다.", "provider");
-
   const items = (await response.json()) as NominatimItem[];
-  const results = (Array.isArray(items) ? items : []).flatMap((item): PlaceSearchResult[] => {
+  return Array.isArray(items) ? items : [];
+}
+
+export async function searchOsmPlaces(input: {
+  query: string;
+  category?: PlaceCategoryGroup;
+  center?: { latitude: number; longitude: number };
+}): Promise<PlaceSearchResponse> {
+  /*
+   * 분류 단어를 검색어에 덧붙이면 안 된다 — "스린 야시장 restaurant" 는 0건이다(Nominatim 은 이름 전체가
+   * 맞아야 한다). 이름 그대로 찾고, 분류는 결과의 순서에만 쓴다.
+   * 한국어는 띄어쓰기가 OSM 표기와 어긋나기 쉬워("타이베이 역" 0건, "타이베이역" 4건) 0건이면 붙여서 한 번 더 찾는다.
+   */
+  const query = input.query.trim();
+  let items = await requestNominatim(query, input.center);
+  if (items.length === 0 && /\s/.test(query)) {
+    items = await requestNominatim(query.replace(/\s+/g, ""), input.center);
+  }
+
+  const results = items.flatMap((item): PlaceSearchResult[] => {
     const latitude = Number(item.lat);
     const longitude = Number(item.lon);
     if (!item.osm_type || !item.osm_id || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
@@ -109,5 +116,10 @@ export async function searchOsmPlaces(input: {
     }];
   });
 
+  // 고른 분류와 맞는 것을 앞으로(그 안의 순서는 유지). 맞는 게 없어도 결과를 비우지 않는다.
+  if (input.category) {
+    const wanted = input.category;
+    results.sort((a, b) => Number(b.categoryGroup === wanted) - Number(a.categoryGroup === wanted));
+  }
   return { results, hasMore: false, reachableCount: results.length, totalCount: results.length };
 }
