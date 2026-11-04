@@ -3,6 +3,7 @@
 import { useActionState, useState, type FormEvent } from "react";
 
 import { addFlightToTripAction, addManualFlightAction } from "@/features/flights/actions";
+import { AirportField } from "@/features/flights/components/airport-field";
 import type { FlightSearchResult } from "@/features/flights/provider";
 import { IDLE, type ActionState } from "@/features/trips/action-state";
 import { openDatePicker } from "@/lib/date-picker";
@@ -238,16 +239,8 @@ export function FlightAdd({ tripId, defaultDate, timezone }: Props) {
             <input name="flightNumber" required maxLength={12} placeholder="KE703" className={FIELD} />
             <FieldError errors={manualErrors.flightNumber} />
           </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">출발 공항</span>
-            <input name="departureAirport" required maxLength={3} placeholder="ICN" className={`${FIELD} uppercase`} />
-            <FieldError errors={manualErrors.departureAirport} />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">도착 공항</span>
-            <input name="arrivalAirport" required maxLength={3} placeholder="NRT" className={`${FIELD} uppercase`} />
-            <FieldError errors={manualErrors.arrivalAirport} />
-          </label>
+          <AirportField name="departureAirport" label="출발 공항" placeholder="ICN" errors={manualErrors.departureAirport} />
+          <AirportField name="arrivalAirport" label="도착 공항" placeholder="TPE" errors={manualErrors.arrivalAirport} />
           <label className="space-y-1 text-sm">
             <span className="font-medium">출발 (현지 시각)</span>
             <input

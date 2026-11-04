@@ -1,3 +1,5 @@
+import airportData from "./airport-data.json";
+
 /**
  * 공항 코드 → IANA 시간대.
  *
@@ -146,10 +148,21 @@ export const AIRPORT_TIMEZONES: Readonly<Record<string, string>> = {
   LIM: "America/Lima",
 };
 
-/** 표에 있으면 IANA 이름, 없으면 null. 없을 때 임의로 채우지 않는다. */
+let datasetTimezones: Map<string, string> | null = null;
+
+/**
+ * 직접 고른 표 → 내장 공항 데이터(airport-data.json) 순으로 본다. 둘 다 없으면 null —
+ * 없을 때 임의로 채우지 않는다. 서버에서만 부른다(데이터가 크다).
+ */
 export function airportTimezone(iata: string | null | undefined): string | null {
   if (!iata) return null;
-  return AIRPORT_TIMEZONES[iata.trim().toUpperCase()] ?? null;
+  const code = iata.trim().toUpperCase();
+  const curated = AIRPORT_TIMEZONES[code];
+  if (curated) return curated;
+  if (!datasetTimezones) {
+    datasetTimezones = new Map((airportData as readonly (readonly string[])[]).map((row) => [row[0], row[4]] as [string, string]));
+  }
+  return datasetTimezones.get(code) ?? null;
 }
 
 /** 값이 실제로 쓸 수 있는 IANA 시간대인지. 사용자가 직접 입력한 값 검증용. */
