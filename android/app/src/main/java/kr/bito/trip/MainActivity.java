@@ -31,7 +31,9 @@ public final class MainActivity extends Activity {
                 android.graphics.Insets edges = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime());
                 view.setPadding(edges.left, edges.top, edges.right, edges.bottom);
             } else view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
-            return insets;
+            // 루트에서 이미 반영한 안전 영역이 WebView에 다시 적용되지 않게 소비한다.
+            if (android.os.Build.VERSION.SDK_INT >= 30) return WindowInsets.CONSUMED;
+            return insets.consumeSystemWindowInsets();
         });
         setContentView(root);
         if (android.os.Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, () -> { if (web != null && web.canGoBack()) web.goBack(); else finish(); });

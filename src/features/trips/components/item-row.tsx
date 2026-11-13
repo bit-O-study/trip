@@ -1,185 +1,108 @@
 "use client";
 
+import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
+import { useToast } from "@/components/ui/toast";
+import { deleteItemAction, restoreItemsAction } from "@/features/trips/actions";
+import { useBulkItemSelection } from "./bulk-delete";
+import { ItemEditForm } from "./item-edit-form";
 import { ItemTime } from "./item-time";
 import { TravelLegView } from "./travel-leg";
-import { legKey, type Stop, type TravelLeg } from "../travel";
-import { useState, useTransition, type CSSProperties } from "react";
-import { useToast } from "@/components/ui/toast";
-import { reportMove } from "./move-feedback";
-import { useItemDrag } from "./use-item-drag";
-import {
-  deleteItemAction,
-  moveItemDownAction,
-  moveItemToDayAction,
-  moveItemUpAction,
-  restoreItemsAction,
-} from "@/features/trips/actions";
-import { useBulkItemSelection } from "@/features/trips/components/bulk-delete";
-import { ItemEditForm } from "@/features/trips/components/item-edit-form";
-import { SubmitButton } from "@/features/trips/components/submit-button";
-import { timelineItemDomId, useItemSelection } from "@/features/trips/components/trip-board";
-import { ITEM_TYPE_LABELS, type ItineraryItem } from "@/features/trips/types";
+import { timelineItemDomId, useItemSelection, useItineraryView } from "./trip-board";
+import { ITEM_TYPE_LABELS, type ItineraryItem } from "../types";
+import { durationLabel, TRAVEL_LABELS, type Stop, type TravelLeg } from "../travel";
 import { dayColorVar, lineLetter } from "@/lib/day-color";
-import { type TripDay } from "@/lib/datetime";
+import type { TripDay } from "@/lib/datetime";
 
 type Props = {
-  item: ItineraryItem;
-  previous?: Stop;
-  next?: Stop;
-  previousLeg?: TravelLeg;
-  nextLeg?: TravelLeg;
-  order: number;
-  dayIndex: number | null;
-  timezone: string;
-  tripId: string;
-  editable: boolean;
-  travelEditable?: boolean;
-  /** 날짜 이동 대상 목록. 여행 기간의 모든 날. */
-  days: readonly TripDay[];
-  /** 그 날의 첫 항목인가 — "위로" 를 비활성화한다. */
-  isFirst: boolean;
-  /** 그 날의 마지막 항목인가 — "아래로" 를 비활성화한다. */
-  isLast: boolean;
-  /** 이 항목이 속한 날짜 키. 날짜 이동 셀렉트의 기본값. */
-  dateKey: string;
+  item: ItineraryItem; previous?: Stop; next?: Stop; previousLeg?: TravelLeg; nextLeg?: TravelLeg;
+  order: number; dayIndex: number | null; timezone: string; tripId: string;
+  editable: boolean; travelEditable?: boolean;
+  days: readonly TripDay[]; isFirst: boolean; isLast: boolean; dateKey: string;
 };
+const CONTROL = "min-h-11 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-40";
 
-const CONTROL = "rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40";
-
-function ItemBody({ item, timezone }: { item: ItineraryItem; timezone: string }) {
-  return <><span className="flex min-w-0 flex-col gap-0.5"><ItemTime item={item} timezone={timezone} /><span className="min-w-0 break-words text-base font-semibold leading-snug"><span className="sr-only">{ITEM_TYPE_LABELS[item.type]}</span>{item.title}</span></span>{item.locationText ? <span className="mt-0.5 block truncate text-sm text-muted-foreground">{item.locationText}</span> : null}{item.note ? <span className="mt-1 block break-words whitespace-pre-wrap text-sm text-muted-foreground">{item.note}</span> : null}</>;
-}
-
-/** 드래그 외에 키보드로 날짜를 바꾸는 경로. 순서는 카드에서 Alt+방향키로 이동한다. */
-function MoveControls({ item, tripId, days, dateKey, isFirst, isLast }: Omit<Props, "order" | "dayIndex" | "timezone" | "editable">) {
-  const [message, setMessage] = useState("");
-  const [busy, startMove] = useTransition();
-  const toast = useToast();
-  /** 같은 날 안에서 한 칸 위·아래로. 끌기가 어려운 사람과 키보드 사용자를 위한 버튼 경로다. */
-  function step(action: typeof moveItemUpAction) {
-    const data = new FormData();
-    data.set("itemId", item.id);
-    data.set("tripId", tripId);
-    startMove(async () => {
-      try {
-        setMessage(reportMove(await action(data), { tripId, itemId: item.id, show: toast.show }));
-      } catch {
-        setMessage("이동하지 못했습니다. 다시 시도하세요.");
-      }
-    });
-  }
-  async function move(formData: FormData) {
-    try {
-      const result = await moveItemToDayAction(formData);
-      setMessage(result.status === "unchanged" ? "이미 같은 날짜에 있습니다." : reportMove(result, { tripId, itemId: item.id, show: toast.show }));
-    } catch {
-      setMessage("이동하지 못했습니다. 다시 시도하세요.");
-    }
-  }
-  const hidden = (
-    <>
-      <input type="hidden" name="itemId" value={item.id} />
-      <input type="hidden" name="tripId" value={tripId} />
-    </>
-  );
-
-  return (
-    <div className="mt-3 space-y-2 border-t border-border pt-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted-foreground">순서</span>
-        <button type="button" disabled={isFirst || busy} onClick={() => step(moveItemUpAction)} aria-label={`${item.title} 한 칸 위로`} className={CONTROL}>위로</button>
-        <button type="button" disabled={isLast || busy} onClick={() => step(moveItemDownAction)} aria-label={`${item.title} 한 칸 아래로`} className={CONTROL}>아래로</button>
+function DetailDialog({ item, timezone, editable, onClose, onDelete, deleting, children }: {
+  item: ItineraryItem; timezone: string; editable: boolean; onClose: () => void;
+  onDelete: () => void; deleting: boolean; children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    const dialog = ref.current;
+    const opener = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    dialog?.showModal();
+    document.body.style.overflow = "hidden";
+    return () => { dialog?.close(); document.body.style.overflow = overflow; opener?.focus(); };
+  }, []);
+  // 네이티브 모달로 포커스를 가두고 Esc·배경 클릭·닫기 모두 같은 경로를 쓴다.
+  return createPortal(<dialog ref={ref} onKeyDown={(event) => {
+    if (event.key !== "Tab") return;
+    const nodes = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), a[href], summary, [tabindex="0"]')).filter(node => node.getClientRects().length > 0);
+    const first = nodes[0], last = nodes.at(-1);
+    if (!first) { event.preventDefault(); return; }
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }} aria-labelledby={`detail-title-${item.id}`} onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%_-_1rem)] max-w-xl overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card p-0 text-foreground shadow-[var(--shadow-lift)] backdrop:bg-black/45">
+    <div className="p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0"><p className="text-xs text-muted-foreground">일정 상세 · {ITEM_TYPE_LABELS[item.type]}</p><h3 id={`detail-title-${item.id}`} className="mt-1 break-words text-lg font-semibold">{item.title}</h3></div>
+        <button type="button" onClick={onClose} aria-label="일정 상세 닫기" className={`${CONTROL} shrink-0`}>닫기</button>
       </div>
-      {days.length > 0 ? (
-        <form action={move} className="flex flex-wrap items-center gap-2">
-          {hidden}
-          <label htmlFor={`move-day-${item.id}`} className="text-xs font-medium text-muted-foreground">
-            날짜 이동
-          </label>
-          <select
-            id={`move-day-${item.id}`}
-            name="date"
-            defaultValue={dateKey}
-            className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
-          >
-            {days.map((day) => (
-              <option key={day.date} value={day.date}>
-                Day {day.index + 1} · {day.shortLabel}({day.weekday})
-              </option>
-            ))}
-          </select>
-          <SubmitButton
-            idleLabel="이동"
-            pendingLabel="이동 중…"
-            ariaLabel={`${item.title} 다른 날짜로 이동`}
-            testId={`move-day-submit-${item.id}`}
-            className={CONTROL}
-          />
-        </form>
-      ) : null}
-      {message ? <p role="status" className="text-xs text-muted-foreground">{message}</p> : null}
+      {editing ? <ItemEditForm item={item} timezone={timezone} onCancel={() => setEditing(false)} /> : <div className="mt-4 space-y-3">
+        <ItemTime item={item} timezone={timezone} />
+        {item.locationText ? <p className="break-words text-sm">{item.locationText}</p> : null}
+        {item.note ? <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{item.note}</p> : null}
+        {children}
+        {editable ? <div className="flex flex-wrap gap-2 border-t border-border pt-3"><button type="button" onClick={() => setEditing(true)} className={CONTROL}>수정</button><button type="button" disabled={deleting} onClick={onDelete} aria-label={`${item.title} 삭제`} className={`${CONTROL} text-danger`}>{deleting ? "삭제 중…" : "삭제"}</button><p className="w-full text-xs text-muted-foreground">수정에서 날짜·시간을 바꾸면 시간순으로 자동 정렬됩니다.</p></div> : null}
+      </div>}
     </div>
-  );
+  </dialog>, document.body);
 }
 
-export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, travelEditable = editable, days, isFirst, isLast, dateKey, previous, next, previousLeg, nextLeg }: Props) {
+export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, travelEditable = editable, previous, next, previousLeg, nextLeg }: Props) {
   const { selectedId, select } = useItemSelection();
+  const view = useItineraryView();
   const selected = selectedId === item.id;
-  const [panel, setPanel] = useState<"edit" | "move" | null>(null);
-  const [previousOpen, setPreviousOpen] = useState(false);
-  const [nextOpen, setNextOpen] = useState(false);
-  const dragEnabled = editable && panel === null && !previousOpen && !nextOpen;
-  const bulkSelection = useBulkItemSelection();
-  const { dragging, pressing, pending, message, ...dragEvents } = useItemDrag(tripId, item.id, dragEnabled);
+  const [open, setOpen] = useState(false);
+  const bulk = useBulkItemSelection();
   const toast = useToast();
   const [deleting, startDelete] = useTransition();
-  /** 먼저 지우고 알림에서 되돌릴 수 있게 한다. 지우기는 소프트 삭제라 복구가 가능하다. */
   function remove() {
     startDelete(async () => {
-      const data = new FormData();
-      data.set("itemId", item.id);
-      data.set("tripId", tripId);
+      const data = new FormData(); data.set("itemId", item.id); data.set("tripId", tripId);
       try {
-        await deleteItemAction(data);
-        toast.show({
-          message: `'${item.title}' 일정을 삭제했습니다.`,
-          actionLabel: "되돌리기",
-          onAction: async () => {
-            try {
-              await restoreItemsAction(tripId, [item.id]);
-              toast.show({ message: "일정을 되돌렸습니다." });
-            } catch {
-              toast.show({ message: "되돌리지 못했습니다. 다시 시도하세요.", tone: "error" });
-            }
-          },
-        });
-      } catch {
-        toast.show({ message: "삭제하지 못했습니다. 이미 삭제되었거나 권한이 없을 수 있어요.", tone: "error" });
-      }
+        await deleteItemAction(data); setOpen(false);
+        toast.show({ message: `'${item.title}' 일정을 삭제했습니다.`, actionLabel: "되돌리기", onAction: async () => {
+          try { await restoreItemsAction(tripId, [item.id]); toast.show({ message: "일정을 되돌렸습니다." }); }
+          catch { toast.show({ message: "되돌리지 못했습니다. 다시 시도하세요.", tone: "error" }); }
+        } });
+      } catch { toast.show({ message: "삭제하지 못했습니다. 다시 시도하세요.", tone: "error" }); }
     });
   }
-
-  return <li {...dragEvents} data-drag-item={editable ? item.id : undefined} data-trip-id={tripId} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.title}, 끌어서 이동. Alt와 위아래 방향키로 순서 변경` : undefined} aria-busy={pending} id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} style={{ "--line": dayIndex === null ? "var(--rail)" : dayColorVar(dayIndex) } as CSSProperties} className={`relative grid min-w-0 scroll-mt-32 grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 ${dragging ? "z-10 scale-[1.02] opacity-70" : ""} ${pressing ? "scale-[0.99] transition-transform" : ""} ${dragEnabled ? "touch-pan-y cursor-grab select-none" : ""}`}>
-    {/* 노선과 정거장 점. 같은 날의 일정이 하나의 선으로 이어진다. */}
+  const travel = <>
+    {previous ? <TravelLegView tripId={tripId} from={previous} to={item} leg={previousLeg} editable={travelEditable} direction="previous" /> : null}
+    {next ? <TravelLegView tripId={tripId} from={item} to={next} leg={nextLeg} editable={travelEditable} direction="next" /> : null}
+  </>;
+  return <li id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} data-item-id={item.id} style={{ "--line": dayIndex === null ? "var(--rail)" : dayColorVar(dayIndex) } as CSSProperties} className="relative grid min-w-0 scroll-mt-28 grid-cols-[1rem_minmax(0,1fr)] gap-x-2">
     <div aria-hidden className="line-rail"><i className="line-station" /></div>
-    <div className={`mb-3 min-w-0 rounded-xl border bg-card px-3.5 py-3 shadow-[var(--shadow-card)] transition-colors ${selected ? "border-foreground" : "border-border"}`}>
-    <div className="flex min-w-0 items-start gap-3">
-      {editable && bulkSelection ? <input type="checkbox" checked={bulkSelection.selected.has(item.id)} onChange={() => bulkSelection.toggle(item.id)} aria-label={`${item.title} 선택`} className="mt-1 size-4 shrink-0" /> : null}
-      <span aria-hidden className="line-code size-11 shrink-0" style={dayIndex === null ? { background: "var(--muted)", color: "var(--muted-foreground)" } : undefined}><small className="text-[9px] font-semibold tracking-wider opacity-90">{dayIndex === null ? "·" : lineLetter(dayIndex)}</small><b className="mt-0.5 text-[17px] font-semibold">{String(order).padStart(2, "0")}</b></span>
-      {item.coordinate ? <button type="button" data-select-item aria-pressed={selected} onClick={() => select(item.id, "timeline")} className="min-w-0 flex-1 rounded text-left"><span className="sr-only">지도에서 보기: </span><ItemBody item={item} timezone={timezone} /></button> : <div className="min-w-0 flex-1"><ItemBody item={item} timezone={timezone} /></div>}
+    <div className={`mb-2 min-w-0 rounded-xl border bg-card p-3 shadow-[var(--shadow-card)] ${selected ? "border-foreground" : "border-border"}`}>
+      <div className="flex min-w-0 items-start gap-2">
+        {editable && bulk ? <input type="checkbox" checked={bulk.selected.has(item.id)} onChange={() => bulk.toggle(item.id)} aria-label={`${item.title} 선택`} className="mt-3 size-4 shrink-0" /> : null}
+        <span aria-hidden className="line-code mt-1 size-8 shrink-0 text-xs" style={dayIndex === null ? { background: "var(--muted)", color: "var(--muted-foreground)" } : undefined}>{dayIndex === null ? "·" : lineLetter(dayIndex)}{order}</span>
+        <button type="button" data-select-item aria-label={`${item.title} 상세 보기`} aria-haspopup="dialog" onClick={() => { setOpen(true); if (item.coordinate && !selected) select(item.id, "timeline"); }} className="min-h-11 min-w-0 flex-1 rounded text-left">
+          <ItemTime item={item} timezone={timezone} />
+          <span className="block break-words text-sm font-semibold leading-snug">{item.title}</span>
+          {item.locationText ? <span className={`mt-1 block text-xs text-muted-foreground ${view === "detailed" ? "break-words" : "truncate"}`}>{item.locationText}</span> : null}
+          {view === "detailed" && item.note ? <span className="mt-2 block whitespace-pre-wrap break-words text-sm text-muted-foreground">{item.note}</span> : null}
+        </button>
+        {item.coordinate ? <button type="button" aria-label={`지도에서 보기: ${item.title}`} aria-pressed={selected} onClick={() => select(item.id, "timeline")} className="min-h-11 shrink-0 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted">지도</button> : null}
+      </div>
+      {view === "travel" && next ? <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">{nextLeg?.mode ? TRAVEL_LABELS[nextLeg.mode] : "이동수단 미입력"}{nextLeg?.minutes != null ? ` · ${durationLabel(nextLeg.minutes)}` : ""} → {next.title}</p> : null}
+      {view === "detailed" && (previous || next) ? <div className="mt-3 space-y-2">{next ? <TravelLegView tripId={tripId} from={item} to={next} leg={nextLeg} editable={false} direction="next" /> : null}</div> : null}
     </div>
-    {(previous || next) && <div className="mt-3 space-y-2">
-      {previous && <TravelLegView key={legKey(previous.id, item.id)} tripId={tripId} from={previous} to={item} leg={previousLeg} editable={travelEditable} direction="previous" onExpandedChange={setPreviousOpen} />}
-      {next && <TravelLegView key={legKey(item.id, next.id)} tripId={tripId} from={item} to={next} leg={nextLeg} editable={travelEditable} direction="next" onExpandedChange={setNextOpen} />}
-    </div>}
-    {editable ? <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-      <button type="button" aria-expanded={panel === "move"} aria-label={`${item.title} 순서 이동`} onClick={() => setPanel((value) => (value === "move" ? null : "move"))} className={CONTROL}>{panel === "move" ? "이동 닫기" : "순서·날짜 이동"}</button>
-      <button type="button" aria-expanded={panel === "edit"} onClick={() => setPanel((value) => (value === "edit" ? null : "edit"))} className={CONTROL}>{panel === "edit" ? "수정 닫기" : "수정"}</button>
-      <button type="button" disabled={deleting} aria-busy={deleting} aria-label={`${item.title} 삭제`} data-testid={`delete-item-${item.id}`} onClick={remove} className={`${CONTROL} text-muted-foreground hover:text-danger`}>{deleting ? "삭제 중…" : "삭제"}</button>
-    </div> : null}
-    {editable && panel === "move" ? <MoveControls item={item} tripId={tripId} days={days} isFirst={isFirst} isLast={isLast} dateKey={dateKey} /> : null}
-    {editable && panel === "edit" ? <ItemEditForm item={item} timezone={timezone} onCancel={() => setPanel(null)} /> : null}
-    {message || pending ? <p role="status" className="mt-2 text-xs text-muted-foreground">{pending ? "이동 중…" : message}</p> : null}
-    </div>
+    {open ? <DetailDialog item={item} timezone={timezone} editable={editable} onClose={() => setOpen(false)} onDelete={remove} deleting={deleting}><div className="space-y-2">{travel}</div></DetailDialog> : null}
   </li>;
 }

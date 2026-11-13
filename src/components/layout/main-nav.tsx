@@ -77,8 +77,8 @@ export function MainNav({ variant }: Props) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 title={item.description}
-                /* min-h-14: 터치 타깃 최소 크기 확보 */
-                className={`relative flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors ${
+                /* 48px 높이 안에서 터치 타깃을 유지한다. */
+                className={`relative flex min-h-12 flex-row items-center justify-center gap-2 text-xs font-medium transition-colors ${
                   active
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -86,7 +86,7 @@ export function MainNav({ variant }: Props) {
               >
                 {/* 현재 정거장 표시: 위쪽의 짧은 노선 막대 */}
                 {active ? <span aria-hidden className="absolute top-0 h-1 w-10 rounded-b-full bg-foreground" /> : null}
-                {Icon ? <Icon className="size-6" /> : null}
+                {Icon ? <Icon className="size-5" /> : null}
                 <span>{item.label}</span>
               </Link>
             </li>

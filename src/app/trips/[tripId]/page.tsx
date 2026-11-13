@@ -97,7 +97,8 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
     listTripSchedule(tripId),
     listTravelLegs(tripId).catch(() => null),
   ]);
-  const { items, polls: restaurantPolls } = schedule;
+  const { polls: restaurantPolls } = schedule;
+  const items = [...schedule.items].sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt) || a.id.localeCompare(b.id));
   const legs = new Map((travelLegs ?? []).map((leg) => [legKey(leg.fromId, leg.toId), leg]));
   const neighbors = neighborMap(items);
   const days = tripDays(trip.startDate, trip.endDate);
@@ -241,12 +242,11 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
           />
 
           <BulkDeleteToolbar />
-          {editable ? <p className="text-xs text-muted-foreground">일정을 끌어 순서를 바꿀 수 있습니다. 휴대폰에서는 길게 누른 뒤 이동하세요. 키보드는 일정에 포커스한 뒤 Alt + 위·아래 방향키를 사용하세요.</p> : null}
 
           {days.length > 1 ? (
             <nav
               aria-label="날짜 이동"
-              className="sticky top-14 z-20 -mx-4 border-b border-border bg-background/90 px-4 py-2.5 backdrop-blur-md"
+              className="sticky top-[calc(3rem+env(safe-area-inset-top))] z-20 -mx-4 border-b border-border bg-background/90 px-4 py-1.5 backdrop-blur-md"
             >
               <ul className="flex gap-2 overflow-x-auto pb-1">
                 <li><a href="#all-events" className="flex shrink-0 items-center whitespace-nowrap rounded-full border border-foreground bg-foreground px-3.5 py-1.5 text-sm font-medium text-background">모두</a></li>
@@ -278,7 +278,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
               const dayItems = byDay.get(day.date) ?? [];
               const stays = staysByDate.get(day.date) ?? [];
               return (
-                <section data-drop-day={editable ? day.date : undefined} data-trip-id={trip.id} key={day.date} id={`day-${day.date}`} className="scroll-mt-32 space-y-3">
+                <section data-trip-id={trip.id} key={day.date} id={`day-${day.date}`} className="scroll-mt-32 space-y-3">
                   <h2 className="flex items-center gap-2.5 text-lg font-bold">
                     <span
                       aria-hidden
@@ -345,7 +345,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
             <section className="space-y-3">
               <h2 className="text-base font-semibold">여행 기간 밖</h2>
               <p className="text-sm text-muted-foreground">
-                여행 기간을 벗어난 일정입니다. 아래 날짜 이동으로 여행 기간 안에 넣거나, 여행
+                여행 기간을 벗어난 일정입니다. 일정을 눌러 상세창에서 날짜를 수정하거나, 여행
                 기간을 넓히세요.
               </p>
               {orphans.map(([date, dayItems]) => (

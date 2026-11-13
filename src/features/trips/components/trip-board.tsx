@@ -18,6 +18,10 @@ import { TripMap, type MapPoint } from "@/features/map/trip-map";
  * 지도와 선택 상태에만 두면 일정 목록은 계속 서버에서 렌더된다.
  */
 
+type ItineraryView = "compact" | "travel" | "detailed";
+const ViewContext = createContext<ItineraryView>("compact");
+export function useItineraryView() { return useContext(ViewContext); }
+
 type Origin = "map" | "timeline";
 
 type SelectionValue = {
@@ -50,6 +54,7 @@ type Props = {
 };
 
 export function TripBoard({ points, mapClassName, children, initialCenter, timezone }: Props) {
+  const [view, setView] = useState<ItineraryView>("compact");
   const [selected, setSelected] = useState<{ id: string; origin: Origin } | null>(null);
 
   const select = useCallback((id: string | null, origin: Origin) => {
@@ -92,6 +97,17 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
 
   return (
     <SelectionContext.Provider value={value}>
+    <ViewContext.Provider value={view}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <label className="flex items-center gap-2 text-sm font-medium">보기 방식
+          <select aria-label="일정 보기 방식" value={view} onChange={(event) => setView(event.target.value as ItineraryView)} className="min-h-11 max-w-full rounded-lg border border-border bg-card px-3 py-2 text-sm">
+            <option value="compact">시간·장소</option>
+            <option value="travel">시간·장소·이동수단</option>
+            <option value="detailed">자세히</option>
+          </select>
+        </label>
+        <span className="text-xs text-muted-foreground">시간순 · 일정을 누르면 상세 보기</span>
+      </div>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <aside aria-label="여행 지도" className="min-w-0 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1">
       <TripMap
@@ -108,6 +124,7 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
       </aside>
       <div className="min-w-0 lg:col-start-1 lg:row-start-1">{children}</div>
       </div>
+    </ViewContext.Provider>
     </SelectionContext.Provider>
   );
 }
