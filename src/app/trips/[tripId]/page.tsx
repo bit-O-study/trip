@@ -15,6 +15,7 @@ import { DayItemAdd } from "@/features/trips/components/day-item-add";
 import { ItemRow } from "@/features/trips/components/item-row";
 import { TripBoard, DayFilter, DayContent } from "@/features/trips/components/trip-board";
 import { ItineraryFinder } from "@/features/trips/components/itinerary-finder";
+import { ItineraryDownload } from "@/features/trips/components/itinerary-download";
 import { indexContinuingStays } from "@/features/trips/overview";
 import { TripForm } from "@/features/trips/components/trip-form";
 import { TripMembers } from "@/features/trips/components/trip-members";
@@ -246,6 +247,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
           <BulkDeleteToolbar />
 
           <DayFilter days={days} today={todayKey} />
+          <ItineraryDownload trip={trip} items={items} />
 
           <div id="all-events" className="scroll-mt-32 space-y-8">
             {days.map((day) => {

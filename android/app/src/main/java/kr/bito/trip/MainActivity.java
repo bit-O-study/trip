@@ -19,6 +19,7 @@ import android.view.WindowInsets;
  */
 public final class MainActivity extends Activity {
     private WebView web;
+    private ItineraryFileExport fileExport;
     // 서버의 여행 도메인(Cloudflare 터널 → 서버 4102). 공개 HTTPS 라 Tailscale 없이 열린다.
     private static final String origin = "https://trip.helthssu.co.kr";
     private LinearLayout root;
@@ -48,6 +49,7 @@ public final class MainActivity extends Activity {
         config.setAllowFileAccess(false); config.setAllowContentAccess(false);
         config.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         CookieManager.getInstance().setAcceptCookie(true);
+        fileExport = new ItineraryFileExport(this, web, origin, state);
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
@@ -64,7 +66,8 @@ public final class MainActivity extends Activity {
         });
         if (state == null || web.restoreState(state) == null) web.loadUrl(origin);
     }
-    @Override protected void onSaveInstanceState(Bundle state) { if (web != null) web.saveState(state); super.onSaveInstanceState(state); }
+    @Override protected void onSaveInstanceState(Bundle state) { if (web != null) web.saveState(state); if (fileExport != null) fileExport.saveState(state); super.onSaveInstanceState(state); }
+    @Override protected void onActivityResult(int request, int result, Intent data) { super.onActivityResult(request, result, data); if (fileExport != null) fileExport.onResult(request, result, data); }
     @Override protected void onPause() { CookieManager.getInstance().flush(); super.onPause(); }
     @Override public void onBackPressed() { if (web != null && web.canGoBack()) web.goBack(); else super.onBackPressed(); }
     @Override protected void onDestroy() { if (web != null) web.destroy(); super.onDestroy(); }
