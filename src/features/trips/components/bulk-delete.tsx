@@ -2,6 +2,7 @@
 
 import { createContext, useActionState, useContext, useMemo, useState } from "react";
 import { IDLE } from "@/features/trips/action-state";
+import { useTripDay } from "./trip-board";
 
 import { useToast } from "@/components/ui/toast";
 import { deleteItemsAction, restoreItemsAction } from "@/features/trips/actions";
@@ -25,9 +26,12 @@ type Props = {
   tripId: string;
   itemIds: string[];
   children: React.ReactNode;
+  itemDates?: Record<string, string>;
 };
 
-export function BulkDeleteProvider({ tripId, itemIds, children }: Props) {
+export function BulkDeleteProvider({ tripId, itemIds: allItemIds, itemDates, children }: Props) {
+  const { date } = useTripDay();
+  const itemIds = useMemo(() => date === null || !itemDates ? allItemIds : allItemIds.filter((id) => itemDates[id] === date), [allItemIds, itemDates, date]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const activeSelected = useMemo(() => {
     const available = new Set(itemIds);

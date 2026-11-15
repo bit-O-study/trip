@@ -13,7 +13,7 @@ import { DeleteTripForm } from "@/features/trips/components/delete-trip-form";
 import { BulkDeleteProvider, BulkDeleteToolbar } from "@/features/trips/components/bulk-delete";
 import { DayItemAdd } from "@/features/trips/components/day-item-add";
 import { ItemRow } from "@/features/trips/components/item-row";
-import { TripBoard } from "@/features/trips/components/trip-board";
+import { TripBoard, DayFilter, DayContent } from "@/features/trips/components/trip-board";
 import { ItineraryFinder } from "@/features/trips/components/itinerary-finder";
 import { indexContinuingStays } from "@/features/trips/overview";
 import { TripForm } from "@/features/trips/components/trip-form";
@@ -147,6 +147,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
         latitude: item.coordinate.latitude,
         longitude: item.coordinate.longitude,
         dayIndex,
+        date: dateKey,
         order: index + 1,
       });
     });
@@ -164,6 +165,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
         dayIndex: days.length + pollIndex,
         order: index + 1,
         kind: "candidate",
+        date: zonedDateKey(poll.scheduledAt, trip.timezone),
         badgeLabel: `${poll.title} · ${candidate.cuisineType}${rating} · ${candidate.voteCount}표`,
         warning: candidate.closedOnDate === true ? "쉬는 날입니다" : undefined,
       });
@@ -226,7 +228,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
         initialCenter={mapPoints[0] ? { latitude: mapPoints[0].latitude, longitude: mapPoints[0].longitude } : undefined}
         timezone={trip.timezone}
       >
-        <BulkDeleteProvider tripId={trip.id} itemIds={editable ? items.map((item) => item.id) : []}>
+        <BulkDeleteProvider itemDates={Object.fromEntries(items.map((item) => [item.id, zonedDateKey(item.startAt, trip.timezone)]))} tripId={trip.id} itemIds={editable ? items.map((item) => item.id) : []}>
         <div className="space-y-6">
           <ItineraryFinder items={items} timezone={trip.timezone} />
           {schedule.pollError ? <p role="status" className="rounded-xl border border-border bg-card p-3 text-sm">투표 정보를 불러오지 못했습니다. 새로고침해 다시 확인해 주세요. 일정은 계속 이용할 수 있습니다.</p> : null}
@@ -243,42 +245,15 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
 
           <BulkDeleteToolbar />
 
-          {days.length > 1 ? (
-            <nav
-              aria-label="날짜 이동"
-              className="sticky top-[calc(3rem+env(safe-area-inset-top))] z-20 -mx-4 border-b border-border bg-background/90 px-4 py-1.5 backdrop-blur-md"
-            >
-              <ul className="flex gap-2 overflow-x-auto pb-1">
-                <li><a href="#all-events" className="flex shrink-0 items-center whitespace-nowrap rounded-full border border-foreground bg-foreground px-3.5 py-1.5 text-sm font-medium text-background">모두</a></li>
-                {dayKeys.has(todayKey) ? <li><a href={`#day-${todayKey}`} className="flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-foreground px-3.5 py-1.5 text-sm font-medium">오늘</a></li> : null}
-                {days.map((day) => (
-                  <li key={day.date}>
-                    <a
-                      href={`#day-${day.date}`}
-                      className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-card px-3.5 py-1.5 text-sm transition-colors hover:bg-muted"
-                    >
-                      <span
-                        aria-hidden
-                        className="size-3.5 rounded-full border-[3.5px] bg-card"
-                        style={{ borderColor: dayColorVar(day.index) }}
-                      />
-                      Day {day.index + 1}
-                      <span className="text-muted-foreground">
-                        {day.shortLabel}({day.weekday})
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ) : null}
+          <DayFilter days={days} today={todayKey} />
 
           <div id="all-events" className="scroll-mt-32 space-y-8">
             {days.map((day) => {
               const dayItems = byDay.get(day.date) ?? [];
               const stays = staysByDate.get(day.date) ?? [];
               return (
-                <section data-trip-id={trip.id} key={day.date} id={`day-${day.date}`} className="scroll-mt-32 space-y-3">
+                <DayContent key={day.date} date={day.date}>
+                <section data-trip-id={trip.id} id={`day-${day.date}`} className="scroll-mt-32 space-y-3">
                   <h2 className="flex items-center gap-2.5 text-lg font-bold">
                     <span
                       aria-hidden
@@ -337,10 +312,12 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                     />
                   ) : null}
                 </section>
+                </DayContent>
               );
             })}
           </div>
 
+          <DayContent date={null}>
           {orphans.length > 0 ? (
             <section className="space-y-3">
               <h2 className="text-base font-semibold">여행 기간 밖</h2>
@@ -377,6 +354,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
               ))}
             </section>
           ) : null}
+          </DayContent>
         </div>
         </BulkDeleteProvider>
       </TripBoard>

@@ -5,6 +5,8 @@ export type MapPoint = {
   longitude: number;
   /** 0-based. 색상을 정한다. */
   dayIndex: number;
+  /** 여행 시간대 기준 날짜. 날짜 필터에 사용한다. */
+  date?: string;
   /** 그 날의 방문 순번 (1-based) */
   order: number;
   /**

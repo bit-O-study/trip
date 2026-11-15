@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { ITEM_TYPE_LABELS, type ItineraryItem } from "../types";
 import { zonedDateKey, zonedTimeLabel } from "@/lib/datetime";
-import { timelineItemDomId, useItemSelection } from "./trip-board";
+import { timelineItemDomId, useItemSelection, useTripDay } from "./trip-board";
 
 export function ItineraryFinder({ items, timezone }: { items: ItineraryItem[]; timezone: string }) {
   const [query, setQuery] = useState("");
   const { select } = useItemSelection();
+  const { date } = useTripDay();
+  items = date === null ? items : items.filter((item) => zonedDateKey(item.startAt, timezone) === date);
   const matches = query.trim() ? items.filter((item) => `${item.title} ${item.locationText ?? ""} ${item.note ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) : [];
   return <section className="space-y-2 rounded-xl border border-border p-4" aria-label="일정 빠른 찾기">
     <label htmlFor="itinerary-search" className="text-sm font-medium">일정 빠른 찾기</label>
@@ -21,6 +23,6 @@ export function ItineraryFinder({ items, timezone }: { items: ItineraryItem[]; t
         <span className="block break-words text-sm font-medium">{item.title}</span>
         <span className="text-xs text-muted-foreground">{zonedDateKey(item.startAt, timezone)} · {item.allDay ? "종일" : zonedTimeLabel(item.startAt, timezone)} · {ITEM_TYPE_LABELS[item.type]}</span>
       </a></li>)}</ul>
-    </> : <p className="text-xs text-muted-foreground">여행 기간 밖에 있는 일정도 함께 검색합니다.</p>}
+    </> : <p className="text-xs text-muted-foreground">{date === null ? "여행 기간 밖에 있는 일정도 함께 검색합니다." : "선택한 날짜의 일정을 검색합니다."}</p>}
   </section>;
 }

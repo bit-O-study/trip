@@ -3,6 +3,29 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { TripMap, type MapPoint } from "@/features/map/trip-map";
+import { dayColorVar } from "@/lib/day-color";
+import type { TripDay } from "@/lib/datetime";
+
+const DayContext = createContext<{ date: string | null; setDate: (date: string | null) => void }>({ date: null, setDate: () => {} });
+export function useTripDay() { return useContext(DayContext); }
+
+export function DayFilter({ days, today }: { days: TripDay[]; today: string }) {
+  const { date, setDate } = useTripDay();
+  const choices = [{ date: null, label: "모두" }, ...(days.some((day) => day.date === today) ? [{ date: today, label: "오늘" }] : []), ...days.map((day) => ({ date: day.date, label: `Day ${day.index + 1} ${day.shortLabel}(${day.weekday})`, index: day.index }))];
+  return <nav aria-label="날짜 이동" className="sticky top-[calc(3rem+env(safe-area-inset-top))] z-20 -mx-4 border-b border-border bg-background/90 px-4 py-1.5 backdrop-blur-md">
+    <ul className="flex gap-2 overflow-x-auto pb-1">{choices.map((choice) => <li key={choice.label}>
+      <button type="button" aria-pressed={date === choice.date} onClick={() => setDate(choice.date)} className={`flex min-h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm transition-colors ${date === choice.date ? "border-foreground bg-foreground text-background" : "border-border bg-card hover:bg-muted"}`}>
+        {"index" in choice ? <span aria-hidden className="size-3.5 rounded-full border-[3.5px] bg-card" style={{ borderColor: dayColorVar(choice.index as number) }} /> : null}
+        {choice.label}
+      </button>
+    </li>)}</ul>
+  </nav>;
+}
+
+export function DayContent({ date, children }: { date: string | null; children: React.ReactNode }) {
+  const selected = useTripDay().date;
+  return selected === null || selected === date ? children : null;
+}
 
 /**
  * 타임라인 ↔ 지도 양방향 하이라이트.
@@ -55,7 +78,10 @@ type Props = {
 
 export function TripBoard({ points, mapClassName, children, initialCenter, timezone }: Props) {
   const [view, setView] = useState<ItineraryView>("compact");
+  const [date, setDate] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ id: string; origin: Origin } | null>(null);
+  const dayValue = useMemo(() => ({ date, setDate: (next: string | null) => { setDate(next); setSelected(null); } }), [date]);
+  const visiblePoints = useMemo(() => date === null ? points : points.filter((point) => point.date === date), [date, points]);
 
   const select = useCallback((id: string | null, origin: Origin) => {
     setSelected((current) => {
@@ -97,6 +123,7 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
 
   return (
     <SelectionContext.Provider value={value}>
+    <DayContext.Provider value={dayValue}>
     <ViewContext.Provider value={view}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-2 text-sm font-medium">보기 방식
@@ -111,7 +138,7 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <aside aria-label="여행 지도" className="min-w-0 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1">
       <TripMap
-        points={points}
+        points={visiblePoints}
         className={mapClassName}
         selectedId={selected?.id ?? null}
         /* 지도가 이미 그 항목을 보여 주고 있으므로 지도 쪽에서 시작한 선택은
@@ -125,6 +152,7 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
       <div className="min-w-0 lg:col-start-1 lg:row-start-1">{children}</div>
       </div>
     </ViewContext.Provider>
+    </DayContext.Provider>
     </SelectionContext.Provider>
   );
 }
