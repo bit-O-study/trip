@@ -35,4 +35,3 @@ export async function manageRestaurant(input: unknown): Promise<{ ok: boolean; m
   revalidatePath(`/trips/${tripId}/restaurants`);
   return { ok: true, message: action === "delete" ? "보관함에서 삭제했습니다. 기존 일정은 유지됩니다." : action === "unschedule" ? "일정에서 뺐습니다. 보관함에는 남아 있습니다." : "저장했습니다." };
 }
-

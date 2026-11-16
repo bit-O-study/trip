@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -143,4 +143,3 @@ function MealForm({trip,value,busy,onSubmit}:{trip:TripDetail;value:SavedRestaur
     <p className="rl-muted">일정에 추가해도 보관함에 남습니다.</p><button className="rl-primary rl-confirm" type="submit">{busy?"저장 중…":"식사 일정에 연결"}</button>
   </fieldset></form>;
 }
-

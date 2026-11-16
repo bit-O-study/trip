@@ -10,4 +10,3 @@ export async function listSavedRestaurants(tripId: string): Promise<SavedRestaur
   if (error) throw new Error("맛집 보관함을 불러오지 못했습니다. 새로고침해 주세요.");
   return data as unknown as SavedRestaurant[];
 }
-
