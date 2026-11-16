@@ -34,7 +34,10 @@ describe("일정 보기와 상세창", () => {
     expect(within(dialog).getByText("신주쿠 3초메")).toBeInTheDocument();
     expect(within(dialog).getByText("상세 메모")).toBeInTheDocument();
     expect(within(dialog).getByRole("region", {name:"다음 장소로 이동"})).toBeInTheDocument();
-    expect(within(dialog).queryByText("이전 장소")).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/출발: 이전 장소 → 도착: 이치란 신주쿠/)).toBeInTheDocument();
+    const mapLink = new URL(within(dialog).getByRole("link", {name:"구글지도 열기"}).getAttribute("href")!);
+    expect(mapLink.pathname).toBe("/maps/dir/");
+    expect(mapLink.searchParams.get("destination")).toBe("35.69,139.7");
   });
   it("마지막 일정에는 다음 이동 입력을 노출하지 않는다", async () => {
     const user = userEvent.setup();

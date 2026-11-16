@@ -20,6 +20,7 @@ import { ITEM_TYPE_LABELS, type ItineraryItem } from "../types";
 import { travelSummary, type Stop, type TravelLeg } from "../travel";
 import { dayColorVar, lineLetter } from "@/lib/day-color";
 import type { TripDay } from "@/lib/datetime";
+import { detailMapUrl } from "@/features/map/detail-map-url";
 
 type Props = {
   item: ItineraryItem; previous?: Stop; next?: Stop; previousLeg?: TravelLeg; nextLeg?: TravelLeg;
@@ -29,7 +30,8 @@ type Props = {
 };
 const CONTROL = "min-h-11 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-40";
 
-function DetailDialog({ item, timezone, editable, onClose, onDelete, deleting, children }: {
+function DetailDialog({ item, previous, previousLeg, timezone, editable, onClose, onDelete, deleting, children }: {
+  previous?: Stop; previousLeg?: TravelLeg;
   item: ItineraryItem; timezone: string; editable: boolean; onClose: () => void;
   onDelete: () => void; deleting: boolean; children: React.ReactNode;
 }) {
@@ -37,6 +39,7 @@ function DetailDialog({ item, timezone, editable, onClose, onDelete, deleting, c
   const [editing, setEditing] = useState(false);
   const [copying, setCopying] = useState(false);
   const [copyMessage, setCopyMessage] = useState("");
+  const mapUrl = detailMapUrl(item, previous, previousLeg, timezone);
   async function copyAddress() {
     if (!item.locationText?.trim()) return;
     setCopying(true);
@@ -76,11 +79,13 @@ function DetailDialog({ item, timezone, editable, onClose, onDelete, deleting, c
       {editing ? <ItemEditForm item={item} timezone={timezone} onCancel={() => setEditing(false)} /> : <div className="mt-4 space-y-3">
         <ItemTime item={item} timezone={timezone} />
         {item.locationText?.trim() ? <div className="rounded-xl border border-border p-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">주소 · 위치</p>
+          <p className="text-xs text-muted-foreground">주소 · 위치</p>
+          <p className="mt-2 select-text break-words text-sm">{item.locationText}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a href={mapUrl} className={CONTROL}>구글지도 열기</a>
             <button type="button" onClick={copyAddress} disabled={copying} className={CONTROL}>{copying ? "복사 중…" : "주소 복사"}</button>
           </div>
-          <p className="mt-2 select-text break-words text-sm">{item.locationText}</p>
+          {previous && (previous.coordinate || previous.locationText?.trim()) ? <p className="mt-2 break-words text-xs text-muted-foreground">출발: {previous.title} → 도착: {item.title}</p> : null}
           <p role="status" className="text-xs text-muted-foreground">{copyMessage}</p>
         </div> : null}
         {item.note ? <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{item.note}</p> : null}
@@ -91,7 +96,7 @@ function DetailDialog({ item, timezone, editable, onClose, onDelete, deleting, c
   </dialog>, document.body);
 }
 
-export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, travelEditable = editable, next, nextLeg }: Props) {
+export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, travelEditable = editable, previous, previousLeg, next, nextLeg }: Props) {
   const { selectedId, select } = useItemSelection();
   const view = useItineraryView();
   const selected = selectedId === item.id;
@@ -129,6 +134,6 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, tra
       </div>
       {view === "travel" && next && travelSummary(nextLeg) ? <p className="mt-2 truncate border-t border-border pt-2 text-xs text-muted-foreground">다음 이동 · {travelSummary(nextLeg)}</p> : null}
     </div>
-    {open ? <DetailDialog item={item} timezone={timezone} editable={editable} onClose={() => setOpen(false)} onDelete={remove} deleting={deleting}><div className="space-y-2">{travel}</div></DetailDialog> : null}
+    {open ? <DetailDialog item={item} previous={previous} previousLeg={previousLeg} timezone={timezone} editable={editable} onClose={() => setOpen(false)} onDelete={remove} deleting={deleting}><div className="space-y-2">{travel}</div></DetailDialog> : null}
   </li>;
 }
