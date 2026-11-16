@@ -41,7 +41,7 @@ export function DayContent({ date, children }: { date: string | null; children: 
  * 지도와 선택 상태에만 두면 일정 목록은 계속 서버에서 렌더된다.
  */
 
-type ItineraryView = "compact" | "travel" | "detailed";
+type ItineraryView = "compact" | "travel";
 const ViewContext = createContext<ItineraryView>("compact");
 export function useItineraryView() { return useContext(ViewContext); }
 
@@ -128,12 +128,11 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-2 text-sm font-medium">보기 방식
           <select aria-label="일정 보기 방식" value={view} onChange={(event) => setView(event.target.value as ItineraryView)} className="min-h-11 max-w-full rounded-lg border border-border bg-card px-3 py-2 text-sm">
-            <option value="compact">시간·장소</option>
-            <option value="travel">시간·장소·이동수단</option>
-            <option value="detailed">자세히</option>
+            <option value="compact">간단히</option>
+            <option value="travel">이동수단 함께</option>
           </select>
         </label>
-        <span className="text-xs text-muted-foreground">시간순 · 일정을 누르면 상세 보기</span>
+        <span className="text-xs text-muted-foreground">일정을 눌러 상세 보기</span>
       </div>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <aside aria-label="여행 지도" className="min-w-0 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1">

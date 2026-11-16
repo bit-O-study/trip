@@ -10,6 +10,7 @@ export const travelInput = z.object({
   tripId: z.uuid(), fromId: z.uuid(), toId: z.uuid(),
   version: z.coerce.number().int().min(0),
   mode: z.enum(TRAVEL_MODES).nullable(),
+  routeLabel: z.preprocess(v => typeof v === "string" ? v.trim() || null : v ?? null, z.string().max(100).nullable()),
   minutes: optionalNumber(z.coerce.number().int().min(0).max(43200)),
   distanceKm: optionalNumber(z.coerce.number().min(0).max(50000)),
 }).refine((v) => v.fromId !== v.toId, { message: "서로 다른 일정을 선택하세요." });
@@ -18,7 +19,11 @@ export type TravelLeg = {
   tripId: string; fromId: string; toId: string; mode: typeof TRAVEL_MODES[number] | null;
   minutes: number | null; distanceKm: number | null; version: number;
   fromLocationKey: string; toLocationKey: string;
+  routeLabel?: string | null;
 };
+export function travelSummary(leg?: TravelLeg): string {
+  return [leg?.mode ? TRAVEL_LABELS[leg.mode] : null, leg?.routeLabel, leg?.minutes != null ? durationLabel(leg.minutes) : null].filter(Boolean).join(" · ");
+}
 export type Stop = Pick<ItineraryItem, "id" | "title" | "coordinate" | "locationText"> & Partial<Pick<ItineraryItem, "startAt" | "endAt" | "allDay">>;
 export function locationKey(item: Stop): string {
   return item.coordinate ? `${item.coordinate.latitude},${item.coordinate.longitude}` : (item.locationText ?? item.title);

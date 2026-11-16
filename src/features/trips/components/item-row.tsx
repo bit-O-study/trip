@@ -10,11 +10,14 @@ import { LoadingStatus } from "@/components/ui/loading-status";
 const ItemEditForm = dynamic(() => import("./item-edit-form").then(m => m.ItemEditForm), {
   loading: () => <LoadingStatus label="수정 화면 불러오는 중…" className="py-6" />,
 });
+const TravelDirections = dynamic(() => import("@/features/map/travel-directions").then(m => m.TravelDirections), {
+  loading: () => <LoadingStatus label="이동 지도 불러오는 중…" className="py-4" />,
+});
 import { ItemTime } from "./item-time";
 import { TravelLegView } from "./travel-leg";
 import { timelineItemDomId, useItemSelection, useItineraryView } from "./trip-board";
 import { ITEM_TYPE_LABELS, type ItineraryItem } from "../types";
-import { durationLabel, TRAVEL_LABELS, type Stop, type TravelLeg } from "../travel";
+import { travelSummary, type Stop, type TravelLeg } from "../travel";
 import { dayColorVar, lineLetter } from "@/lib/day-color";
 import type { TripDay } from "@/lib/datetime";
 
@@ -66,7 +69,7 @@ function DetailDialog({ item, timezone, editable, onClose, onDelete, deleting, c
   </dialog>, document.body);
 }
 
-export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, travelEditable = editable, previous, next, previousLeg, nextLeg }: Props) {
+export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, travelEditable = editable, next, nextLeg }: Props) {
   const { selectedId, select } = useItemSelection();
   const view = useItineraryView();
   const selected = selectedId === item.id;
@@ -87,8 +90,8 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, tra
     });
   }
   const travel = <>
-    {previous ? <TravelLegView tripId={tripId} from={previous} to={item} leg={previousLeg} editable={travelEditable} direction="previous" /> : null}
-    {next ? <TravelLegView tripId={tripId} from={item} to={next} leg={nextLeg} editable={travelEditable} direction="next" /> : null}
+    {next ? <TravelLegView tripId={tripId} from={item} to={next} leg={nextLeg} editable={travelEditable} /> : null}
+    {next ? <TravelDirections from={item} to={next} leg={nextLeg} /> : null}
   </>;
   return <li id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} data-item-id={item.id} style={{ "--line": dayIndex === null ? "var(--rail)" : dayColorVar(dayIndex) } as CSSProperties} className="relative grid min-w-0 scroll-mt-28 grid-cols-[1rem_minmax(0,1fr)] gap-x-2">
     <div aria-hidden className="line-rail"><i className="line-station" /></div>
@@ -99,13 +102,10 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, tra
         <button type="button" data-select-item aria-label={`${item.title} 상세 보기`} aria-haspopup="dialog" onClick={() => { setOpen(true); if (item.coordinate && !selected) select(item.id, "timeline"); }} className="min-h-11 min-w-0 flex-1 rounded text-left">
           <ItemTime item={item} timezone={timezone} />
           <span className="block break-words text-sm font-semibold leading-snug">{item.title}</span>
-          {item.locationText ? <span className={`mt-1 block text-xs text-muted-foreground ${view === "detailed" ? "break-words" : "truncate"}`}>{item.locationText}</span> : null}
-          {view === "detailed" && item.note ? <span className="mt-2 block whitespace-pre-wrap break-words text-sm text-muted-foreground">{item.note}</span> : null}
         </button>
         {item.coordinate ? <button type="button" aria-label={`지도에서 보기: ${item.title}`} aria-pressed={selected} onClick={() => select(item.id, "timeline")} className="min-h-11 shrink-0 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted">지도</button> : null}
       </div>
-      {view === "travel" && next ? <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">{nextLeg?.mode ? TRAVEL_LABELS[nextLeg.mode] : "이동수단 미입력"}{nextLeg?.minutes != null ? ` · ${durationLabel(nextLeg.minutes)}` : ""} → {next.title}</p> : null}
-      {view === "detailed" && (previous || next) ? <div className="mt-3 space-y-2">{next ? <TravelLegView tripId={tripId} from={item} to={next} leg={nextLeg} editable={false} direction="next" /> : null}</div> : null}
+      {view === "travel" && next && travelSummary(nextLeg) ? <p className="mt-2 truncate border-t border-border pt-2 text-xs text-muted-foreground">다음 이동 · {travelSummary(nextLeg)}</p> : null}
     </div>
     {open ? <DetailDialog item={item} timezone={timezone} editable={editable} onClose={() => setOpen(false)} onDelete={remove} deleting={deleting}><div className="space-y-2">{travel}</div></DetailDialog> : null}
   </li>;

@@ -20,19 +20,27 @@ function setup(editable = true) {
   return render(<ToastProvider><TripBoard points={[]}><ol><ItemRow {...defaults} editable={editable} next={{ ...item, id: "next", title: "다음 장소" }} /></ol></TripBoard></ToastProvider>);
 }
 describe("일정 보기와 상세창", () => {
-  it("세 보기에서 시간·장소를 유지하고 이동 정보와 메모만 구분한다", async () => {
-    const user = userEvent.setup(); setup();
+  it("주소와 메모는 상세에서만 보이고 다음 이동만 편집한다", async () => {
+    const user = userEvent.setup();
+    render(<ToastProvider><TripBoard points={[]}><ol><ItemRow {...defaults} previous={{...item, id:"previous", title:"이전 장소"}} next={{...item, id:"next", title:"다음 장소"}} nextLeg={{tripId:"trip-1",fromId:item.id,toId:"next",mode:"bus",routeLabel:"88번",minutes:20,distanceKm:null,version:1,fromLocationKey:"",toLocationKey:""}} /></ol></TripBoard></ToastProvider>);
     expect(screen.getByText("11:00")).toBeInTheDocument();
-    expect(screen.getByText("신주쿠 3초메")).toBeInTheDocument();
+    expect(screen.queryByText("신주쿠 3초메")).not.toBeInTheDocument();
     expect(screen.queryByText("상세 메모")).not.toBeInTheDocument();
-    expect(screen.queryByText(/이동수단 미입력/)).not.toBeInTheDocument();
-    const select = screen.getByRole("combobox", { name: "일정 보기 방식" });
-    await user.selectOptions(select, "travel");
-    expect(screen.getByText(/이동수단 미입력/)).toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox", {name:"일정 보기 방식"}), "travel");
+    expect(screen.getByText("다음 이동 · 버스 · 88번 · 20분")).toBeInTheDocument();
     expect(screen.queryByText("상세 메모")).not.toBeInTheDocument();
-    await user.selectOptions(select, "detailed");
-    expect(screen.getByText("상세 메모")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "다음 일정과 이동" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", {name:"이치란 신주쿠 상세 보기"}));
+    const dialog=screen.getByRole("dialog");
+    expect(within(dialog).getByText("신주쿠 3초메")).toBeInTheDocument();
+    expect(within(dialog).getByText("상세 메모")).toBeInTheDocument();
+    expect(within(dialog).getByRole("region", {name:"다음 장소로 이동"})).toBeInTheDocument();
+    expect(within(dialog).queryByText("이전 장소")).not.toBeInTheDocument();
+  });
+  it("마지막 일정에는 다음 이동 입력을 노출하지 않는다", async () => {
+    const user = userEvent.setup();
+    render(<ToastProvider><ol><ItemRow {...defaults} previous={{...item,id:"previous"}} /></ol></ToastProvider>);
+    await user.click(screen.getByRole("button", {name:"이치란 신주쿠 상세 보기"}));
+    expect(screen.queryByRole("region", {name:"다음 장소로 이동"})).not.toBeInTheDocument();
   });
   it("목록에서 이동 조작을 제거하고 상세창 안에서 날짜와 시간을 수정한다", async () => {
     const user = userEvent.setup(); setup();

@@ -11,7 +11,7 @@ const fromId = "00000000-0000-4000-8000-000000000002";
 const toId = "00000000-0000-4000-8000-000000000003";
 function form(version = 0) {
   const f = new FormData();
-  Object.entries({ tripId, fromId, toId, version: String(version), mode: "train", minutes: "90", distanceKm: "" }).forEach(([k,v]) => f.set(k,v));
+  Object.entries({ tripId, fromId, toId, version: String(version), mode: "train", routeLabel: "  2호선  ", minutes: "90", distanceKm: "" }).forEach(([k,v]) => f.set(k,v));
   return f;
 }
 function client(result = { data: [{ version: 1 }], error: null } as { data: unknown[] | null; error: { code: string } | null }) {
@@ -29,7 +29,7 @@ describe("saveTravelLeg", () => {
   it("stores directional endpoints and server-derived location snapshots", async () => {
     const q = client();
     expect((await saveTravelLeg(IDLE, form())).status).toBe("success");
-    expect(q.insert).toHaveBeenCalledWith(expect.objectContaining({ trip_id: tripId, from_item_id: fromId, to_item_id: toId, mode: "train", minutes: 90, distance_km: null, from_location_key: "37,127", to_location_key: "38,128", version: 1 }));
+    expect(q.insert).toHaveBeenCalledWith(expect.objectContaining({ trip_id: tripId, from_item_id: fromId, to_item_id: toId, mode: "train", route_label: "2호선", minutes: 90, distance_km: null, from_location_key: "37,127", to_location_key: "38,128", version: 1 }));
     expect(mocks.revalidate).toHaveBeenCalledWith(`/trips/${tripId}`);
   });
   it("rejects viewers and deleted trips before writing", async () => {
@@ -61,5 +61,13 @@ describe("saveTravelLeg", () => {
     const f = form(); f.set("minutes", "-1");
     expect((await saveTravelLeg(IDLE, f)).status).toBe("error");
     expect(mocks.trip).not.toHaveBeenCalled();
+  });
+  it("rejects oversized route labels and clears an emptied label", async () => {
+    const f = form(); f.set("routeLabel", "a".repeat(101));
+    expect((await saveTravelLeg(IDLE, f)).status).toBe("error");
+    expect(mocks.client).not.toHaveBeenCalled();
+    const q = client(); f.set("routeLabel", "  ");
+    expect((await saveTravelLeg(IDLE, f)).status).toBe("success");
+    expect(q.insert).toHaveBeenCalledWith(expect.objectContaining({route_label:null}));
   });
 });

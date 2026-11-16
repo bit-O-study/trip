@@ -27,7 +27,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-release
-          path: release.tar
+          path: |
+            release.tar
+            scripts/deploy/apply-travel-route.ps1
+            supabase/migrations/20261116000003_travel_route_label.sql
           retention-days: 1
           if-no-files-found: error
   deploy:
@@ -41,6 +44,9 @@ jobs:
         with:
           name: windows-release
           path: ${{ runner.temp }}/bito-release-${{ github.run_id }}
+      - name: Apply travel route migration
+        shell: powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
+        run: '& "${{ runner.temp }}/bito-release-${{ github.run_id }}/scripts/deploy/apply-travel-route.ps1"'
       - name: Activate release and verify health
         shell: powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
         env:

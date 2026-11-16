@@ -15,19 +15,16 @@ it("warns only when known times and current locations prove a conflict", () => {
   expect(travelConflictMinutes(departure, arrival, { ...leg, minutes: null })).toBeNull();
   expect(travelConflictMinutes(departure, arrival, { ...leg, fromLocationKey: "old" })).toBeNull();
   expect(travelConflictMinutes(departure, { ...arrival, startAt: "2026-11-03T03:00:00Z" }, leg)).toBeNull();
-  render(<TravelLegView tripId="trip" from={departure} to={arrival} leg={leg} editable={false} direction="next" />);
+  render(<TravelLegView tripId="trip" from={departure} to={arrival} leg={leg} editable={false} />);
   expect(screen.getByRole("status")).toHaveTextContent("30분 부족합니다");
 });
 it("shows saved travel distance, mode and duration without edit controls for viewers", () => {
-  render(<TravelLegView tripId="trip" from={from} to={to} leg={leg} editable={false} direction="next" />);
-  expect(screen.getByText("입력한 이동거리 200km")).toBeInTheDocument();
-  expect(screen.getByText("기차")).toBeInTheDocument();
-  expect(screen.getByText("1시간 30분")).toBeInTheDocument();
+  render(<TravelLegView tripId="trip" from={from} to={to} leg={leg} editable={false} />);
+  expect(screen.getByText("기차 · 1시간 30분")).toBeInTheDocument();
   expect(screen.queryByText("이동 정보 수정")).not.toBeInTheDocument();
 });
 it("invalidates manually entered distance when an endpoint changes", () => {
-  render(<TravelLegView tripId="trip" from={from} to={{ ...to, coordinate: from.coordinate }} leg={leg} editable direction="previous" />);
-  expect(screen.getByText("직선거리 0m")).toBeInTheDocument();
+  render(<TravelLegView tripId="trip" from={from} to={{ ...to, coordinate: from.coordinate }} leg={leg} editable />);
   expect(screen.getByText(/장소가 바뀌었습니다/)).toBeInTheDocument();
   expect(screen.queryByText("입력한 이동거리 200km")).not.toBeInTheDocument();
 });

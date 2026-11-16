@@ -1085,9 +1085,11 @@ describe("일정 구간별 이동 정보", () => {
   it("소유자·편집자는 저장하고 조회자는 읽기만 한다", async () => {
     const t = await seedLeg(); await insert(t);
     await db.asUser(USER.editor);
-    await db.pg.query("update trip.travel_legs set minutes=120 where trip_id=$1", [t.tripId]);
+    await db.pg.query("update trip.travel_legs set minutes=120, route_label='2호선' where trip_id=$1", [t.tripId]);
     await db.asUser(USER.viewer);
     expect((await db.pg.query<{minutes:number}>("select minutes from trip.travel_legs")).rows[0].minutes).toBe(120);
+    expect((await db.pg.query<{route_label:string}>("select route_label from trip.travel_legs")).rows[0].route_label).toBe("2호선");
+    expect((await db.pg.query("update trip.travel_legs set route_label='변경' returning *")).rows).toHaveLength(0);
     expect((await db.pg.query("update trip.travel_legs set minutes=1 returning *")).rows).toHaveLength(0);
     expect((await db.pg.query("delete from trip.travel_legs returning *")).rows).toHaveLength(0);
     await expectDenied(() => insert({ ...t, from:t.to, to:t.from }));
