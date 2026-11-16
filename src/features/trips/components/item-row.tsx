@@ -35,6 +35,21 @@ function DetailDialog({ item, timezone, editable, onClose, onDelete, deleting, c
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [editing, setEditing] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyMessage, setCopyMessage] = useState("");
+  async function copyAddress() {
+    if (!item.locationText?.trim()) return;
+    setCopying(true);
+    setCopyMessage("");
+    try {
+      await navigator.clipboard.writeText(item.locationText.trim());
+      setCopyMessage("주소를 복사했습니다.");
+    } catch {
+      setCopyMessage("복사하지 못했습니다. 주소를 길게 눌러 복사해 주세요.");
+    } finally {
+      setCopying(false);
+    }
+  }
   useEffect(() => {
     const dialog = ref.current;
     const opener = document.activeElement as HTMLElement | null;
@@ -60,7 +75,14 @@ function DetailDialog({ item, timezone, editable, onClose, onDelete, deleting, c
       </div>
       {editing ? <ItemEditForm item={item} timezone={timezone} onCancel={() => setEditing(false)} /> : <div className="mt-4 space-y-3">
         <ItemTime item={item} timezone={timezone} />
-        {item.locationText ? <p className="break-words text-sm">{item.locationText}</p> : null}
+        {item.locationText?.trim() ? <div className="rounded-xl border border-border p-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">주소 · 위치</p>
+            <button type="button" onClick={copyAddress} disabled={copying} className={CONTROL}>{copying ? "복사 중…" : "주소 복사"}</button>
+          </div>
+          <p className="mt-2 select-text break-words text-sm">{item.locationText}</p>
+          <p role="status" className="text-xs text-muted-foreground">{copyMessage}</p>
+        </div> : null}
         {item.note ? <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{item.note}</p> : null}
         {children}
         {editable ? <div className="flex flex-wrap gap-2 border-t border-border pt-3"><button type="button" onClick={() => setEditing(true)} className={CONTROL}>수정</button><button type="button" disabled={deleting} onClick={onDelete} aria-label={`${item.title} 삭제`} className={`${CONTROL} text-danger`}>{deleting ? "삭제 중…" : "삭제"}</button><p className="w-full text-xs text-muted-foreground">수정에서 날짜·시간을 바꾸면 시간순으로 자동 정렬됩니다.</p></div> : null}
