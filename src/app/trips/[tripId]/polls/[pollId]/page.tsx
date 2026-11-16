@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { PlaceSearch } from "@/features/places/components/place-search";
-import Link from "next/link";
+import Link from "@/components/ui/navigation-link";
 
 import { getTrip, listRestaurantPolls } from "@/features/trips/queries";
 import { canEdit } from "@/features/trips/types";

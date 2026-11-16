@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition, type FormEvent } from "react";
+import { LoadingStatus } from "@/components/ui/loading-status";
 import { useRouter } from "next/navigation";
 import { TripMap, type MapPoint } from "@/features/map/trip-map";
-import { PlaceSearch } from "@/features/places/components/place-search";
+import dynamic from "next/dynamic";
+const PlaceSearch = dynamic(() => import("@/features/places/components/place-search").then(m => m.PlaceSearch), {
+  loading: () => <LoadingStatus label="검색 화면 불러오는 중…" className="py-6" />,
+});
 import type { PlaceSearchResult } from "@/features/places/types";
 import { canEdit, type TripDetail } from "@/features/trips/types";
 import { tripDays, utcToZonedLocal, zonedDateKey, zonedTimeLabel } from "@/lib/datetime";
@@ -13,6 +17,13 @@ import "./restaurant-library.css";
 
 type Props = { trip: TripDetail; restaurants: SavedRestaurant[] };
 type Modal = { mode: "save" | "schedule" | "delete" | "unschedule"; restaurant: SavedRestaurant | null };
+function subscribeDesktop(listener: () => void) {
+  const media = window.matchMedia("(min-width: 761px)");
+  media.addEventListener("change", listener);
+  return () => media.removeEventListener("change", listener);
+}
+const desktopSnapshot = () => window.matchMedia("(min-width: 761px)").matches;
+const serverSnapshot = () => false;
 export function RestaurantLibrary({ trip, restaurants }: Props) {
   const router = useRouter();
   const [region, setRegion] = useState("");
@@ -22,7 +33,10 @@ export function RestaurantLibrary({ trip, restaurants }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [mapView, setMapView] = useState(false);
   const [modal, setModal] = useState<Modal | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [saving, setBusy] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
+  const busy = saving || refreshing;
+  const desktop = useSyncExternalStore(subscribeDesktop, desktopSnapshot, serverSnapshot);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
@@ -43,26 +57,32 @@ export function RestaurantLibrary({ trip, restaurants }: Props) {
     dayIndex: Math.max(0,days.findIndex(d => d.date === (scheduledItem(r) ? zonedDateKey(scheduledItem(r)!.start_at,trip.timezone) : ""))),
   }]);
   const current = visible.find(r => r.id === selected);
-  useEffect(() => { if(modal) dialog.current?.showModal(); else dialog.current?.close(); },[modal]);
+  useEffect(() => {
+    if (!modal) { dialog.current?.close(); return; }
+    const previous = document.body.style.overflow;
+    dialog.current?.showModal();
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [modal]);
   function mealLabel(r: SavedRestaurant) {
     const item=scheduledItem(r);if(!item)return "가고 싶은 곳";
     const key=zonedDateKey(item.start_at,trip.timezone), index=days.findIndex(d=>d.date===key);
     return `${index<0?key:`Day ${index+1}`} · ${r.meal ?? "식사"} · ${zonedTimeLabel(item.start_at,trip.timezone)}`;
   }
-  function open(mode: Modal["mode"], restaurant: SavedRestaurant | null = null) { setError("");setModal({mode,restaurant}); }
+  function open(mode: Modal["mode"], restaurant: SavedRestaurant | null = null) { if(busy)return;setError("");setModal({mode,restaurant}); }
   async function submit(action: "save" | "schedule" | "delete" | "unschedule", data: Record<string,unknown>) {
     if(busy)return;setBusy(true);setError("");
     try {
       const r=modal?.restaurant;
       const result=await manageRestaurant({tripId:trip.id,action,id:r?.id??null,expected:r?.updated_at??null,data:{...data,itemUpdatedAt:r?.itinerary_items?.updated_at??null}});
       if(!result.ok){setError(result.message);return;}
-      setMessage(result.message);setModal(null);router.refresh();
+      setMessage(result.message);setModal(null);startRefresh(()=>router.refresh());
     } catch { setError("연결을 확인하고 다시 시도하세요. 입력 내용은 유지됩니다."); }
     finally { setBusy(false); }
   }
   function selectOnMap(id: string) { setSelected(id);setMapView(true); }
-  return <div className="restaurant-library">
-    {message && <p className="rl-feedback" role="status">{message}</p>}
+  return <div className="restaurant-library" aria-busy={busy}>
+    {refreshing ? <LoadingStatus label="저장한 내용 반영 중…" className="rl-feedback" /> : message && <p className="rl-feedback" role="status">{message}</p>}
     {!editable && <p className="rl-muted">읽기 전용입니다.</p>}
     <div className="rl-mobile-switch"><button aria-pressed={!mapView} onClick={()=>setMapView(false)}>목록 보기</button><button aria-pressed={mapView} onClick={()=>setMapView(true)}>지도 보기</button></div>
     <div className="rl-layout">
@@ -88,7 +108,7 @@ export function RestaurantLibrary({ trip, restaurants }: Props) {
       </section>
       <aside className={`rl-map ${mapView?"":"rl-mobile-hidden"}`} aria-label="맛집 지도">
         <div className="rl-map-header"><h2>{activeRegion||"전체"} 맛집 위치</h2><span>{points.length}곳 표시</span></div>
-        <div className="rl-map-canvas"><TripMap key={mapView?"mobile-map":"list-map"} points={points} timezone={trip.timezone} className="h-[400px]" selectedId={current?.id??null} recenter onSelect={id=>{setSelected(id);document.getElementById(`restaurant-${id}`)?.scrollIntoView({behavior:"smooth",block:"nearest"});}} caption="restaurant"/></div>
+        <div className="rl-map-canvas">{(desktop || mapView) && <TripMap points={points} timezone={trip.timezone} className="h-[400px]" selectedId={current?.id??null} recenter onSelect={id=>{setSelected(id);document.getElementById(`restaurant-${id}`)?.scrollIntoView({behavior:"smooth",block:"nearest"});}} caption="restaurant"/>}</div>
         <div className="rl-map-detail">{current?<><h3>{restaurantName(current)}</h3><p>{current.address||regionName(current.region)}</p><p>{mealLabel(current)}</p>{editable&&<button onClick={()=>open("schedule",current)}>{scheduledItem(current)?"식사 일정 변경":"식사 일정에 추가"}</button>}</>:<p>목록이나 지도에서 맛집을 선택하세요.</p>}</div>
         <div className="rl-map-date"><label>방문 날짜<select aria-label="지도 방문 날짜" value={date} onChange={e=>setDate(e.target.value)}><option value="">모두</option>{days.map(d=><option key={d.date} value={d.date}>Day {d.index+1} · {d.shortLabel}</option>)}</select></label></div>
       </aside>
@@ -96,6 +116,7 @@ export function RestaurantLibrary({ trip, restaurants }: Props) {
     <dialog ref={dialog} className="rl-dialog" onCancel={e=>{if(busy)e.preventDefault();else setModal(null);}}>
       {modal&&<><div className="rl-heading"><h2>{modal.mode==="save"?(modal.restaurant?"맛집 정보 수정":"맛집 저장"):modal.mode==="schedule"?"식사 일정 연결":modal.mode==="delete"?"보관함에서 삭제":"일정에서 빼기"}</h2><button disabled={busy} onClick={()=>setModal(null)}>닫기</button></div>
         {error&&<p role="alert" className="rl-error">{error}</p>}
+        {saving&&<LoadingStatus label="저장 중…" className="py-3" />}
         {modal.mode==="save"?<RestaurantForm key={modal.restaurant?.id??"new"} trip={trip} value={modal.restaurant} defaultRegion={activeRegion} regions={regions} busy={busy} onSubmit={data=>submit("save",data)}/>:modal.mode==="schedule"&&modal.restaurant?<MealForm key={modal.restaurant.id} trip={trip} value={modal.restaurant} busy={busy} onSubmit={data=>submit("schedule",data)}/>:<><p>{modal.restaurant&&restaurantName(modal.restaurant)}</p><p className="rl-muted">{modal.mode==="delete"?"보관함에서만 삭제합니다. 이미 추가한 일정은 유지됩니다.":"연결된 식사 일정은 삭제하고 맛집은 보관함에 남깁니다."}</p><button disabled={busy} className="rl-primary rl-confirm" onClick={()=>submit(modal.mode as "delete"|"unschedule",{})}>{busy?"처리 중…":"확인"}</button></>}
       </>}
     </dialog>

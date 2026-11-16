@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/navigation-link";
 
 export function TripTabs({ tripId, active }: { tripId: string; active: "schedule" | "restaurants" }) {
   return <nav aria-label="여행 메뉴" className="flex gap-7 border-b border-border">

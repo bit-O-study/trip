@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/navigation-link";
 
 import type { RestaurantPollView } from "@/features/trips/types";
 import { deleteRestaurantPollAction, toggleRestaurantVoteAction } from "@/features/voting/actions";

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/navigation-link";
 import type { ReactNode } from "react";
 
 import { MainNav } from "@/components/layout/main-nav";
@@ -31,7 +31,7 @@ export function AppShell({ children, user }: Props) {
       </a>
 
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-md">
-        <div className="mx-auto flex h-12 max-w-5xl items-center justify-between gap-4 px-4">
+        <div className="mx-auto flex h-12 max-w-[1400px] items-center justify-between gap-4 px-4">
           <Link href="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight">
             {/* 노선도 모양 로고: 두 정거장을 잇는 선 */}
             <span aria-hidden className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
@@ -79,7 +79,7 @@ export function AppShell({ children, user }: Props) {
         법적 고지는 로그인 여부와 무관하게 어디서나 닿을 수 있어야 한다.
         모바일에서는 하단 탭바에 가리지 않도록 여백을 둔다.
       */}
-      <footer className={`mx-auto w-full max-w-5xl px-4 ${isAuthenticated ? "pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6" : "pb-6"}`}>
+      <footer className={`mx-auto w-full max-w-[1400px] px-4 ${isAuthenticated ? "pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6" : "pb-6"}`}>
         <nav aria-label="약관" className="flex flex-wrap gap-4 border-t border-border pt-4 text-xs text-muted-foreground">
           <Link href="/legal/privacy" className="hover:underline">개인정보처리방침</Link>
           <Link href="/legal/location" className="hover:underline">위치정보 이용 고지</Link>

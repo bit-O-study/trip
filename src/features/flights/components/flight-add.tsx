@@ -125,6 +125,7 @@ export function FlightAdd({ tripId, defaultDate, timezone }: Props) {
         </button>
       </form>
 
+      {search.status === "loading" ? <p role="status" className="text-sm text-muted-foreground">항공편 정보를 불러오는 중…</p> : null}
       {search.status === "error" ? (
         <div role="alert" className="space-y-1 rounded-lg border border-border px-3 py-3">
           <p className="text-sm text-danger">{search.message}</p>

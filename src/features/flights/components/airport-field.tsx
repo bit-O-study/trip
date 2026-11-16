@@ -85,6 +85,7 @@ export function AirportField({ name, label, placeholder, errors }: Props) {
           {state.status === "loading" ? "찾는 중…" : "찾기"}
         </button>
       </div>
+      {state.status === "loading" ? <p role="status" className="text-xs text-muted-foreground">공항 검색 중…</p> : null}
       {state.status === "error" ? <p role="alert" className="text-xs text-danger">{state.message}</p> : null}
       {state.status === "done" ? (
         state.hits.length === 0 ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/navigation-link";
 import { useMemo, useState } from "react";
 import type { TripSummary } from "../types";
 import { departureLabel, PHASE_LABELS, travelPhase, type TravelPhase } from "../overview";

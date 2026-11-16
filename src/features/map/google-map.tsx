@@ -1,4 +1,5 @@
 "use client";
+import { MapLoading } from "./map-loading";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -209,6 +210,8 @@ export function GoogleTripMap({
   }, [selectedId, recenter, maps, points]);
 
   return (
+    <div className="relative size-full">
+    {!maps && <div className="absolute inset-0 z-10"><MapLoading /></div>}
     <div
       ref={containerRef}
       data-testid="trip-map"
@@ -217,5 +220,6 @@ export function GoogleTripMap({
       aria-label="여행 일정 지도"
       className="size-full min-h-64 rounded-xl border border-border bg-muted"
     />
+  </div>
   );
 }

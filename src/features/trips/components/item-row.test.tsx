@@ -42,7 +42,7 @@ describe("일정 보기와 상세창", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("상세 메모")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "수정" }));
-    expect(within(dialog).getByLabelText("시작")).toHaveValue("2026-02-14T11:00");
+    expect(await within(dialog).findByLabelText("시작", {}, { timeout: 10000 })).toHaveValue("2026-02-14T11:00");
     expect(within(dialog).getByLabelText("장소")).toHaveValue("신주쿠 3초메");
     await user.click(within(dialog).getByRole("button", { name: "일정 상세 닫기" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

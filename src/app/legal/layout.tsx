@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/navigation-link";
 
 /**
  * 법적 고지 공통 틀.

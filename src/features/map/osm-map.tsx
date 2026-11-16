@@ -1,4 +1,5 @@
 "use client";
+import { MapLoading } from "./map-loading";
 
 import { useEffect, useRef, useState } from "react";
 import type { LatLngBounds, Map as LeafletMap, Marker, Polyline } from "leaflet";
@@ -142,6 +143,8 @@ export function OsmTripMap({ points, selectedId, recenter, onSelect, initialCent
   }, [selectedId, recenter, points, ready]);
 
   return (
+    <div className="relative size-full">
+    {!ready && <div className="absolute inset-0 z-10"><MapLoading /></div>}
     <div
       ref={containerRef}
       data-testid="trip-map"
@@ -150,5 +153,6 @@ export function OsmTripMap({ points, selectedId, recenter, onSelect, initialCent
       aria-label="여행 일정 지도"
       className="size-full min-h-64 rounded-xl border border-border bg-muted"
     />
+  </div>
   );
 }

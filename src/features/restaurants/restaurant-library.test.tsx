@@ -1,0 +1,40 @@
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, expect, it, vi } from "vitest";
+import { RestaurantLibrary } from "./restaurant-library";
+import type { TripDetail } from "@/features/trips/types";
+const mocks = vi.hoisted(() => ({ save:vi.fn(), refresh:vi.fn(), desktop:false }));
+vi.mock("next/navigation", () => ({ useRouter:()=>({refresh:mocks.refresh}) }));
+vi.mock("./actions", () => ({ manageRestaurant:mocks.save }));
+vi.mock("@/features/map/trip-map", () => ({ TripMap:()=> <div data-testid="loaded-map">지도</div> }));
+const trip:TripDetail={id:"test",ownerId:"owner",title:"여행",destinationName:"대만",startDate:"2026-11-19",endDate:"2026-11-23",timezone:"Asia/Taipei",status:"planning",coverImageUrl:null,deletedAt:null,description:null,baseCurrency:"TWD",updatedAt:"2026-11-01",role:"owner"};
+beforeEach(()=>{
+  mocks.desktop=false;mocks.save.mockReset();mocks.refresh.mockClear();
+  vi.stubGlobal("matchMedia",()=>({matches:mocks.desktop,addEventListener:vi.fn(),removeEventListener:vi.fn()}));
+  HTMLDialogElement.prototype.showModal=function(){this.setAttribute("open","");};
+  HTMLDialogElement.prototype.close=function(){this.removeAttribute("open");};
+});
+it("모바일 목록은 지도 모듈을 로드하지 않고 지도 보기에서만 연다",()=>{
+  render(<RestaurantLibrary trip={trip} restaurants={[]} />);
+  expect(screen.queryByTestId("loaded-map")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button",{name:"지도 보기"}));
+  expect(screen.getByTestId("loaded-map")).toBeInTheDocument();
+});
+it("데스크톱은 지도를 유지하고 저장 응답 대기 중 표시·중복 제출 방지가 작동한다",async()=>{
+  mocks.desktop=true;
+  let finish!:(result:{ok:boolean;message:string})=>void;
+  mocks.save.mockImplementation(()=>new Promise(resolve=>{finish=resolve;}));
+  render(<RestaurantLibrary trip={trip} restaurants={[]} />);
+  expect(screen.getByTestId("loaded-map")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button",{name:"맛집 저장"}));
+  const dialog=screen.getByRole("dialog");
+  fireEvent.change(within(dialog).getByLabelText("맛집 이름 · 한글"),{target:{value:"식당"}});
+  fireEvent.change(within(dialog).getByLabelText("지역",{exact:true}),{target:{value:"타이난"}});
+  fireEvent.submit(dialog.querySelector("form")!);
+  expect(within(dialog).getByRole("status")).toHaveTextContent("저장 중");
+  expect(within(dialog).getByRole("button",{name:"저장 중…"})).toBeDisabled();
+  fireEvent.submit(dialog.querySelector("form")!);expect(mocks.save).toHaveBeenCalledTimes(1);
+  await act(async()=>finish({ok:false,message:"연결을 확인하세요"}));
+  expect(within(dialog).getByRole("alert")).toHaveTextContent("연결을 확인하세요");
+  expect(within(dialog).getByLabelText("맛집 이름 · 한글")).toHaveValue("식당");
+  expect(within(dialog).getByRole("button",{name:"보관함에 저장"})).toBeEnabled();
+});

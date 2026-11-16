@@ -4,9 +4,10 @@ import { useCallback, useState } from "react";
 
 import type { MapLoadError } from "./errors";
 import dynamic from "next/dynamic";
-const GoogleTripMap = dynamic(() => import("./google-map").then((m) => m.GoogleTripMap));
-const KakaoTripMap = dynamic(() => import("./kakao-map").then((m) => m.KakaoTripMap));
-const OsmTripMap = dynamic(() => import("./osm-map").then((m) => m.OsmTripMap));
+import { MapLoading } from "./map-loading";
+const GoogleTripMap = dynamic(() => import("./google-map").then((m) => m.GoogleTripMap), { loading: MapLoading });
+const KakaoTripMap = dynamic(() => import("./kakao-map").then((m) => m.KakaoTripMap), { loading: MapLoading });
+const OsmTripMap = dynamic(() => import("./osm-map").then((m) => m.OsmTripMap), { loading: MapLoading });
 import { defaultCenterForTimezone } from "./default-center";
 import { pickProvider, type MapProvider } from "./provider";
 import { isDomesticTrip } from "./region";

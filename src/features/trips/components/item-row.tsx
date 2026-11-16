@@ -5,7 +5,11 @@ import { createPortal } from "react-dom";
 import { useToast } from "@/components/ui/toast";
 import { deleteItemAction, restoreItemsAction } from "@/features/trips/actions";
 import { useBulkItemSelection } from "./bulk-delete";
-import { ItemEditForm } from "./item-edit-form";
+import dynamic from "next/dynamic";
+import { LoadingStatus } from "@/components/ui/loading-status";
+const ItemEditForm = dynamic(() => import("./item-edit-form").then(m => m.ItemEditForm), {
+  loading: () => <LoadingStatus label="수정 화면 불러오는 중…" className="py-6" />,
+});
 import { ItemTime } from "./item-time";
 import { TravelLegView } from "./travel-leg";
 import { timelineItemDomId, useItemSelection, useItineraryView } from "./trip-board";

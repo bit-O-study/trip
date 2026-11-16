@@ -7,9 +7,8 @@ import { TripTabs } from "@/features/restaurants/trip-tabs";
 export const metadata = { title: "맛집 보관함" };
 export default async function RestaurantPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
-  const trip = await getTrip(tripId);
+  const [trip, restaurants] = await Promise.all([getTrip(tripId), listSavedRestaurants(tripId)]);
   if (!trip) notFound();
-  const restaurants = await listSavedRestaurants(tripId);
   return <div className="space-y-7">
     <header className="pt-3"><p className="mb-2 text-xs text-muted-foreground">{trip.destinationName || "나의 여행"}</p><h1 className="text-3xl font-semibold tracking-tight">{trip.title}</h1><p className="mt-2 text-xs text-muted-foreground">{trip.startDate} — {trip.endDate} · {trip.timezone}</p></header>
     <TripTabs tripId={tripId} active="restaurants" />

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/navigation-link";
 
 import { TrashRestoreForm } from "@/features/trips/components/trash-restore-form";
 import { listTrips } from "@/features/trips/queries";

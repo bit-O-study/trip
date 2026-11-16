@@ -90,15 +90,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function TripDetailPage({ params, searchParams }: Props) {
   const { tripId } = await params;
   await searchParams;
-  const trip = await getTrip(tripId);
-  if (!trip) notFound();
-
   const members = listTripMembers(tripId).catch(() => null);
   const viewer = getCurrentUser();
-  const [schedule, travelLegs] = await Promise.all([
+  const [trip, schedule, travelLegs] = await Promise.all([
+    getTrip(tripId),
     listTripSchedule(tripId),
     listTravelLegs(tripId).catch(() => null),
   ]);
+  if (!trip) notFound();
   const { polls: restaurantPolls } = schedule;
   const items = [...schedule.items].sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt) || a.id.localeCompare(b.id));
   const legs = new Map((travelLegs ?? []).map((leg) => [legKey(leg.fromId, leg.toId), leg]));

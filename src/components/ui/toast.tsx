@@ -43,10 +43,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!toast) return;
+    if (!toast || busy) return;
     const timer = window.setTimeout(() => setToast((current) => (current?.id === toast.id ? null : current)), toast.duration ?? 7000);
     return () => window.clearTimeout(timer);
-  }, [toast]);
+  }, [toast, busy]);
 
   const api = useMemo<ToastApi>(() => ({ show, dismiss }), [show, dismiss]);
 
@@ -73,13 +73,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   setBusy(true);
                   try {
                     await toast.onAction?.();
-                  } finally {
                     setToast((current) => (current?.id === toast.id ? null : current));
+                  } catch {
+                    setToast(current => current?.id === toast.id ? { ...current, message: "처리하지 못했습니다. 연결을 확인하고 다시 시도하세요.", tone: "error" } : current);
+                  } finally {
+                    setBusy(false);
                   }
                 }}
                 className="shrink-0 font-semibold underline underline-offset-4 disabled:opacity-60"
               >
-                {toast.actionLabel}
+                {busy ? "처리 중…" : toast.actionLabel}
               </button>
             ) : null}
           </div>

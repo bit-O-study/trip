@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { LoadingStatus } from "@/components/ui/loading-status";
 import type { ItineraryItem, TripSummary } from "../types";
 import { itineraryDocument, itineraryFilename } from "../itinerary-document";
 import { useTripDay } from "./trip-board";
@@ -28,6 +29,6 @@ export function ItineraryDownload({ trip, items }: { trip: TripSummary; items: I
     </div>
     <label className="flex min-h-9 items-center gap-2 text-sm"><input type="checkbox" checked={includeNotes} onChange={(event) => setIncludeNotes(event.target.checked)} disabled={busy !== null} />메모 포함</label>
     <p className="text-xs text-muted-foreground">날짜·시간·장소를 담은 일정표입니다. 지도는 포함하지 않습니다.</p>
-    {message ? <p role="status" className="text-sm">{message}</p> : null}
+    {busy ? <LoadingStatus label={`${busy.toUpperCase()} 파일 만드는 중…`} className="justify-start py-2" /> : message ? <p role="status" className="text-sm">{message}</p> : null}
   </section>;
 }

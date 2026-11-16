@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/navigation-link";
 
 import { listTrips } from "@/features/trips/queries";
 import { MapPinIcon, PlusIcon } from "@/components/icons";
