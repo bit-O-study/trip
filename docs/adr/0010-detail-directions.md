@@ -7,6 +7,10 @@
 - 대중교통은 일정 종료 시각을 출발 시각으로 전달한다. 시각이 없으면 현재 기준임을 명시하고, 지원 날짜 범위 밖에서는 다른 날짜로 대체하지 않는다.
 - 운영 키 실측: Maps SDK는 로드되나 `ROUTES_COMPUTE_ROUTES: PERMISSION_DENIED` 반환. Google Cloud에서 Routes API 사용 설정 및 해당 브라우저 키의 API 제한 확인이 필요하다. 외부 Google Maps 길찾기 URL은 API 키 없이 출발·도착·수단을 전달한다.
 - 조회 실패·15초 지연은 안내와 외부 길찾기 링크로 처리한다. 신규 API 활성화나 결제 설정 변경은 수행하지 않았다.
-- 배포는 기존 이동 데이터를 보존하는 `route_label` 컬럼 추가를 먼저 적용하고 앱을 교체한다. 마이그레이션 실패 시 앱 교체를 중단한다.
+- 배포는 기존 이동 데이터를 보존하는 `route_label` 컬럼 추가를 먼저 적용하고 앱을 교체한다. 2026-11-16에는 관리자 SSH로 백업 후 `route_label`, `flight_snapshot` 마이그레이션을 적용하고 기존 배포 절차로 앱을 교체했다.
 
 근거: [Routes 안내](https://developers.google.com/maps/documentation/javascript/routes/route-class-overview), [Routes 참조](https://developers.google.com/maps/documentation/javascript/reference/route), [Maps URLs](https://developers.google.com/maps/documentation/urls/get-started).
+
+- 항공편은 편명·출발일로 기존 서버 검색 API를 조회하고 선택한 편명, 항공사, 공항, 공항별 시간대와 UTC 예정 시각을 이동 구간에 저장한다. 비행 구간 지도는 일정의 출발·도착 위치만 표시한다.
+- 운영 항공편 검색은 공급자 키 미설정으로 503 
+ot_configured를 반환한다. 공급자 설정 전에는 편명·소요시간 직접 입력이 가능하다.

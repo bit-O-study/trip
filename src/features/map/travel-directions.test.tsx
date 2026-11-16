@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { TravelDirections } from "./travel-directions";
 const mocks = vi.hoisted(() => ({compute:vi.fn(), load:vi.fn(), clear:vi.fn(), line:vi.fn()}));
 vi.mock("./google-sdk", () => ({loadGoogleMaps:mocks.load,onMapAuthFailure:()=>()=>{}}));
+vi.mock("./trip-map", () => ({TripMap: ({points}: {points:Array<{kind?:string}>}) => <div data-testid="airport-map" data-count={points.length} data-lines={points.some(point => point.kind !== "candidate")} />}));
 const from={id:"a",title:"출발 장소",coordinate:{latitude:22.6,longitude:120.2},locationText:null};
 const to={...from,id:"b",title:"다음 장소",coordinate:{latitude:22.7,longitude:120.3}};
 beforeEach(()=>{
@@ -34,5 +35,13 @@ it("좌표가 없으면 잘못된 위치를 추측해 경로를 요청하지 않
   const user=userEvent.setup();render(<TravelDirections from={{...from,coordinate:null}} to={to}/>);
   await user.click(screen.getByRole("button",{name:"이동 경로 지도 보기"}));
   await waitFor(()=>expect(screen.getByRole("status")).toHaveTextContent("위치를 먼저 등록"));
+  expect(mocks.compute).not.toHaveBeenCalled();
+});
+it("비행기는 공항 위치만 표시하며 대중교통 경로를 조회하지 않는다", async () => {
+  const user=userEvent.setup();render(<TravelDirections from={from} to={to} leg={{tripId:"t",fromId:"a",toId:"b",mode:"flight",routeLabel:"CI165",minutes:120,distanceKm:null,version:1,fromLocationKey:"",toLocationKey:""}}/>);
+  await user.click(screen.getByRole("button",{name:"이동 경로 지도 보기"}));
+  expect(screen.getByTestId("airport-map")).toHaveAttribute("data-count","2");
+  expect(screen.getByTestId("airport-map")).toHaveAttribute("data-lines","false");
+  expect(screen.queryByLabelText("길찾기 수단")).not.toBeInTheDocument();
   expect(mocks.compute).not.toHaveBeenCalled();
 });

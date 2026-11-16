@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { readLegFlight } from "@/features/flights/leg-flight";
 
 import type {
   ItineraryItem,
@@ -304,7 +305,7 @@ export async function listTravelLegs(tripId: string): Promise<TravelLeg[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("travel_legs")
-    .select("trip_id, from_item_id, to_item_id, mode, route_label, minutes, distance_km, version, from_location_key, to_location_key")
+    .select("trip_id, from_item_id, to_item_id, mode, route_label, flight_snapshot, minutes, distance_km, version, from_location_key, to_location_key")
     .eq("trip_id", tripId);
   if (error) throw new Error("이동 정보를 불러오지 못했습니다.");
   return (data ?? []).map((row) => ({
@@ -313,6 +314,7 @@ export async function listTravelLegs(tripId: string): Promise<TravelLeg[]> {
     toId: row.to_item_id,
     mode: row.mode,
     routeLabel: row.route_label,
+    flightSnapshot: readLegFlight(row.flight_snapshot),
     minutes: row.minutes,
     distanceKm: row.distance_km === null ? null : Number(row.distance_km),
     version: row.version,

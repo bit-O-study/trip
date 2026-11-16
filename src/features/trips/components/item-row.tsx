@@ -90,8 +90,8 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, tra
     });
   }
   const travel = <>
-    {next ? <TravelLegView tripId={tripId} from={item} to={next} leg={nextLeg} editable={travelEditable} /> : null}
-    {next ? <TravelDirections from={item} to={next} leg={nextLeg} /> : null}
+    {next ? <TravelLegView key={nextLeg?.version ?? 0} tripId={tripId} timezone={timezone} from={item} to={next} leg={nextLeg} editable={travelEditable} /> : null}
+    {next ? <TravelDirections key={nextLeg?.mode ?? "none"} from={item} to={next} leg={nextLeg} /> : null}
   </>;
   return <li id={timelineItemDomId(item.id)} aria-current={selected ? "true" : undefined} data-item-id={item.id} style={{ "--line": dayIndex === null ? "var(--rail)" : dayColorVar(dayIndex) } as CSSProperties} className="relative grid min-w-0 scroll-mt-28 grid-cols-[1rem_minmax(0,1fr)] gap-x-2">
     <div aria-hidden className="line-rail"><i className="line-station" /></div>

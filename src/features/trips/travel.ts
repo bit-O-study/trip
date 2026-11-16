@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ItineraryItem } from "./types";
+import { legFlightSchema, type LegFlight } from "@/features/flights/leg-flight";
 
 export const TRAVEL_MODES = ["walk", "bicycle", "car", "taxi", "bus", "subway", "train", "flight", "ferry", "other"] as const;
 export const TRAVEL_LABELS: Record<typeof TRAVEL_MODES[number], string> = {
@@ -11,6 +12,7 @@ export const travelInput = z.object({
   version: z.coerce.number().int().min(0),
   mode: z.enum(TRAVEL_MODES).nullable(),
   routeLabel: z.preprocess(v => typeof v === "string" ? v.trim() || null : v ?? null, z.string().max(100).nullable()),
+  flightSnapshot: legFlightSchema.nullable().optional(),
   minutes: optionalNumber(z.coerce.number().int().min(0).max(43200)),
   distanceKm: optionalNumber(z.coerce.number().min(0).max(50000)),
 }).refine((v) => v.fromId !== v.toId, { message: "서로 다른 일정을 선택하세요." });
@@ -20,6 +22,7 @@ export type TravelLeg = {
   minutes: number | null; distanceKm: number | null; version: number;
   fromLocationKey: string; toLocationKey: string;
   routeLabel?: string | null;
+  flightSnapshot?: LegFlight | null;
 };
 export function travelSummary(leg?: TravelLeg): string {
   return [leg?.mode ? TRAVEL_LABELS[leg.mode] : null, leg?.routeLabel, leg?.minutes != null ? durationLabel(leg.minutes) : null].filter(Boolean).join(" · ");

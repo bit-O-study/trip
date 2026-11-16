@@ -5,6 +5,7 @@ import { LoadingStatus } from "@/components/ui/loading-status";
 import { distanceLabel, durationLabel, type Stop, type TravelLeg } from "@/features/trips/travel";
 import { loadGoogleMaps, onMapAuthFailure } from "./google-sdk";
 import { directionsUrl, routeDeparture, routeLocation, routeMode, ROUTE_MODES, type RouteMode } from "./directions";
+import { TripMap } from "./trip-map";
 
 function RouteResult({ from, to, mode }: { from: Stop; to: Stop; mode: RouteMode }) {
   const container = useRef<HTMLDivElement>(null);
@@ -65,9 +66,14 @@ export function TravelDirections({ from, to, leg }: { from: Stop; to: Stop; leg?
     <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="min-h-11 w-full text-left text-sm font-medium">{open ? "이동 경로 접기" : "이동 경로 지도 보기"}</button>
     {open && <div className="space-y-3">
       <p className="break-words text-xs text-muted-foreground">{from.title} → {to.title}</p>
+      {leg?.mode === "flight" ? <>
+        <p className="text-xs text-muted-foreground">일정의 출발·도착 위치 · 실제 비행경로는 표시하지 않습니다.</p>
+        <TripMap className="h-72" points={[from,to].flatMap((stop,index) => stop.coordinate ? [{id:stop.id,title:`${index ? "도착" : "출발"} · ${stop.title}`,latitude:stop.coordinate.latitude,longitude:stop.coordinate.longitude,dayIndex:0,order:index+1,kind:"candidate" as const}] : [])} />
+      </> : <>
       <label className="flex items-center justify-between gap-2 text-sm">길찾기 수단<select aria-label="길찾기 수단" value={mode} onChange={event => setMode(event.target.value as RouteMode)} className="min-h-11 rounded-lg border border-border bg-card px-3">{Object.entries(ROUTE_MODES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <RouteResult key={`${mode}:${from.id}:${to.id}:${from.endAt}:${JSON.stringify([from.coordinate,to.coordinate])}`} from={from} to={to} mode={mode} />
       <a href={directionsUrl(from, to, mode)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm">Google 지도에서 길찾기</a>
+      </>}
     </div>}
   </section>;
 }

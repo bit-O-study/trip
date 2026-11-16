@@ -8,16 +8,23 @@ import { locationKey, travelInput } from "./travel";
 import { fail, type ActionState } from "./action-state";
 
 export async function saveTravelLeg(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const parsed = travelInput.safeParse({ tripId: form.get("tripId"), fromId: form.get("fromId"), toId: form.get("toId"), version: form.get("version"), mode: form.get("mode") || null, routeLabel: form.get("routeLabel"), minutes: form.get("minutes"), distanceKm: form.get("distanceKm") });
+  let flightSnapshot: unknown = null;
+  const flightPayload = form.get("flightSnapshot");
+  if (flightPayload) {
+    if (typeof flightPayload !== "string" || flightPayload.length > 6000) return fail("항공편 정보를 확인하세요.");
+    try { flightSnapshot = JSON.parse(flightPayload); } catch { return fail("항공편 정보를 확인하세요."); }
+  }
+  const parsed = travelInput.safeParse({ tripId: form.get("tripId"), fromId: form.get("fromId"), toId: form.get("toId"), version: form.get("version"), mode: form.get("mode") || null, routeLabel: form.get("routeLabel"), flightSnapshot, minutes: form.get("minutes"), distanceKm: form.get("distanceKm") });
   if (!parsed.success) return fail("이동수단·노선·시간·거리를 확인하세요.");
   const { tripId, fromId, toId, version, mode, routeLabel, minutes, distanceKm } = parsed.data;
+  if (mode === "flight" && parsed.data.flightSnapshot && routeLabel !== parsed.data.flightSnapshot.flightNumber) return fail("편명이 바뀌었습니다. 항공편을 다시 선택하세요.");
   const trip = await getTrip(tripId);
   if (!trip || trip.deletedAt || !canEdit(trip.role)) return fail("이동 정보를 수정할 수 없습니다.");
   const items = await listItems(tripId);
   const i = items.findIndex((item) => item.id === fromId);
   if (i < 0 || items[i + 1]?.id !== toId) return fail("일정 순서가 변경되었습니다. 새로고침 후 다시 입력하세요.");
   const db = await createSupabaseServerClient();
-  const values = { mode, route_label: routeLabel, minutes, distance_km: distanceKm, from_location_key: locationKey(items[i]), to_location_key: locationKey(items[i + 1]), version: version + 1 };
+  const values = { mode, route_label: routeLabel, flight_snapshot: mode === "flight" ? parsed.data.flightSnapshot ?? null : null, minutes, distance_km: distanceKm, from_location_key: locationKey(items[i]), to_location_key: locationKey(items[i + 1]), version: version + 1 };
   const result = version === 0
     ? await db.from("travel_legs").insert({ ...values, trip_id: tripId, from_item_id: fromId, to_item_id: toId }).select("version")
     : await db.from("travel_legs").update(values).eq("trip_id", tripId).eq("from_item_id", fromId).eq("to_item_id", toId).eq("version", version).select("version");
