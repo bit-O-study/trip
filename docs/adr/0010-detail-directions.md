@@ -12,5 +12,4 @@
 근거: [Routes 안내](https://developers.google.com/maps/documentation/javascript/routes/route-class-overview), [Routes 참조](https://developers.google.com/maps/documentation/javascript/reference/route), [Maps URLs](https://developers.google.com/maps/documentation/urls/get-started).
 
 - 항공편은 편명·출발일로 기존 서버 검색 API를 조회하고 선택한 편명, 항공사, 공항, 공항별 시간대와 UTC 예정 시각을 이동 구간에 저장한다. 비행 구간 지도는 일정의 출발·도착 위치만 표시한다.
-- 운영 항공편 검색은 공급자 키 미설정으로 503 
-ot_configured를 반환한다. 공급자 설정 전에는 편명·소요시간 직접 입력이 가능하다.
+- 운영 항공편 검색은 공급자 키 미설정으로 503 not_configured를 반환한다. 공급자 설정 전에는 편명·소요시간 직접 입력이 가능하다.
