@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requiresAuth } from "@/lib/auth/paths";
 import { buildLoginUrl, safeRedirectPath } from "@/lib/auth/redirect";
 import { allowsUnconfiguredAuth, readSupabaseEnv } from "@/lib/supabase/env";
+import { serverTransport } from "@/lib/supabase/server-transport";
 
 /**
  * Next.js 16 에서 `middleware` 규약은 `proxy` 로 바뀌었다.
@@ -49,6 +50,7 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(env.url, env.publishableKey, {
+    ...serverTransport(env.url),
     cookies: {
       getAll() {
         return request.cookies.getAll();

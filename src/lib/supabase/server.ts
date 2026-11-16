@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 import { requireSupabaseEnv } from "@/lib/supabase/env";
+import { serverTransport } from "@/lib/supabase/server-transport";
 
 /**
  * 서버(Server Component / Route Handler / Server Action)용 Supabase 클라이언트.
@@ -14,6 +15,7 @@ export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(env.url, env.publishableKey, {
+    ...serverTransport(env.url),
     // 앱 테이블은 public 이 아니라 trip 스키마에 있다.
     db: { schema: "trip" },
     cookies: {
@@ -53,6 +55,7 @@ export function createSupabaseServiceRoleClient() {
   }
 
   return createServerClient(env.url, serviceRoleKey, {
+    ...serverTransport(env.url),
     db: { schema: "trip" },
     // 서비스 역할은 사용자 세션과 무관하다. 쿠키를 읽지도 쓰지도 않는다.
     cookies: {

@@ -1,0 +1,334 @@
+{
+    "measuredAt":  "2026-11-16T05:37:45.728Z",
+    "release":  "19b16885b551bfd1531ae9f03b73fd870eaea095",
+    "method":  {
+                   "origin":  "https://trip.helthssu.co.kr",
+                   "browser":  "one desktop and one mobile viewport sample per page; normal network and desktop CPU, no phone hardware or network throttling; 2.5s observation after load",
+                   "limits":  "short closed-loop test; not distinct simultaneous users or sustained capacity certification; no writes or paid provider load",
+                   "identity":  "single authenticated session",
+                   "latency":  "complete response body in milliseconds; p95 nearest rank",
+                   "stages":  "1,5,10,20 concurrent workers; 250ms pause per completed request",
+                   "requests":  260,
+                   "workload":  "read-only mixed HTML and JSON, five routes in equal rotation"
+               },
+    "stages":  [
+                   {
+                       "concurrency":  1,
+                       "seconds":  23.82,
+                       "n":  20,
+                       "p50":  887,
+                       "p95":  1226,
+                       "max":  1234,
+                       "errors":  0,
+                       "routes":  {
+                                      "home":  {
+                                                   "n":  4,
+                                                   "p50":  887,
+                                                   "p95":  1226,
+                                                   "max":  1226,
+                                                   "errors":  0
+                                               },
+                                      "trip":  {
+                                                   "n":  4,
+                                                   "p50":  877,
+                                                   "p95":  1234,
+                                                   "max":  1234,
+                                                   "errors":  0
+                                               },
+                                      "restaurants":  {
+                                                          "n":  4,
+                                                          "p50":  748,
+                                                          "p95":  876,
+                                                          "max":  876,
+                                                          "errors":  0
+                                                      },
+                                      "trash":  {
+                                                    "n":  4,
+                                                    "p50":  819,
+                                                    "p95":  943,
+                                                    "max":  943,
+                                                    "errors":  0
+                                                },
+                                      "export":  {
+                                                     "n":  4,
+                                                     "p50":  1020,
+                                                     "p95":  1223,
+                                                     "max":  1223,
+                                                     "errors":  0
+                                                 }
+                                  }
+                   },
+                   {
+                       "concurrency":  5,
+                       "seconds":  20.52,
+                       "n":  80,
+                       "p50":  962,
+                       "p95":  1263,
+                       "max":  1380,
+                       "errors":  0,
+                       "routes":  {
+                                      "home":  {
+                                                   "n":  16,
+                                                   "p50":  740,
+                                                   "p95":  1040,
+                                                   "max":  1040,
+                                                   "errors":  0
+                                               },
+                                      "trip":  {
+                                                   "n":  16,
+                                                   "p50":  1019,
+                                                   "p95":  1228,
+                                                   "max":  1228,
+                                                   "errors":  0
+                                               },
+                                      "restaurants":  {
+                                                          "n":  16,
+                                                          "p50":  885,
+                                                          "p95":  1362,
+                                                          "max":  1362,
+                                                          "errors":  0
+                                                      },
+                                      "trash":  {
+                                                    "n":  16,
+                                                    "p50":  867,
+                                                    "p95":  1263,
+                                                    "max":  1263,
+                                                    "errors":  0
+                                                },
+                                      "export":  {
+                                                     "n":  16,
+                                                     "p50":  1132,
+                                                     "p95":  1380,
+                                                     "max":  1380,
+                                                     "errors":  0
+                                                 }
+                                  }
+                   },
+                   {
+                       "concurrency":  10,
+                       "seconds":  14.91,
+                       "n":  80,
+                       "p50":  1541,
+                       "p95":  1897,
+                       "max":  2106,
+                       "errors":  0,
+                       "routes":  {
+                                      "home":  {
+                                                   "n":  16,
+                                                   "p50":  1449,
+                                                   "p95":  1823,
+                                                   "max":  1823,
+                                                   "errors":  0
+                                               },
+                                      "trip":  {
+                                                   "n":  16,
+                                                   "p50":  1623,
+                                                   "p95":  1970,
+                                                   "max":  1970,
+                                                   "errors":  0
+                                               },
+                                      "restaurants":  {
+                                                          "n":  16,
+                                                          "p50":  1507,
+                                                          "p95":  1885,
+                                                          "max":  1885,
+                                                          "errors":  0
+                                                      },
+                                      "trash":  {
+                                                    "n":  16,
+                                                    "p50":  1454,
+                                                    "p95":  1789,
+                                                    "max":  1789,
+                                                    "errors":  0
+                                                },
+                                      "export":  {
+                                                     "n":  16,
+                                                     "p50":  1716,
+                                                     "p95":  2106,
+                                                     "max":  2106,
+                                                     "errors":  0
+                                                 }
+                                  }
+                   },
+                   {
+                       "concurrency":  20,
+                       "seconds":  14.59,
+                       "n":  80,
+                       "p50":  3329,
+                       "p95":  3572,
+                       "max":  4094,
+                       "errors":  0,
+                       "routes":  {
+                                      "home":  {
+                                                   "n":  16,
+                                                   "p50":  3307,
+                                                   "p95":  3396,
+                                                   "max":  3396,
+                                                   "errors":  0
+                                               },
+                                      "trip":  {
+                                                   "n":  16,
+                                                   "p50":  3402,
+                                                   "p95":  3651,
+                                                   "max":  3651,
+                                                   "errors":  0
+                                               },
+                                      "restaurants":  {
+                                                          "n":  16,
+                                                          "p50":  3318,
+                                                          "p95":  3506,
+                                                          "max":  3506,
+                                                          "errors":  0
+                                                      },
+                                      "trash":  {
+                                                    "n":  16,
+                                                    "p50":  3228,
+                                                    "p95":  3373,
+                                                    "max":  3373,
+                                                    "errors":  0
+                                                },
+                                      "export":  {
+                                                     "n":  16,
+                                                     "p50":  3515,
+                                                     "p95":  4094,
+                                                     "max":  4094,
+                                                     "errors":  0
+                                                 }
+                                  }
+                   }
+               ],
+    "browser":  [
+                    {
+                        "mobile":  false,
+                        "route":  "home",
+                        "ttfb":  961,
+                        "dom":  1062,
+                        "load":  1200,
+                        "lcp":  1464,
+                        "cls":  0.0554,
+                        "longTasks":  0,
+                        "blocking":  0,
+                        "resources":  31,
+                        "transferKB":  174,
+                        "overflow":  false
+                    },
+                    {
+                        "mobile":  false,
+                        "route":  "trip",
+                        "ttfb":  710,
+                        "dom":  904,
+                        "load":  978,
+                        "lcp":  1708,
+                        "cls":  0.0557,
+                        "longTasks":  1,
+                        "blocking":  30,
+                        "resources":  82,
+                        "transferKB":  444,
+                        "overflow":  false
+                    },
+                    {
+                        "mobile":  false,
+                        "route":  "restaurants",
+                        "ttfb":  791,
+                        "dom":  1017,
+                        "load":  1022,
+                        "lcp":  1856,
+                        "cls":  0.0003,
+                        "longTasks":  0,
+                        "blocking":  0,
+                        "resources":  69,
+                        "transferKB":  26,
+                        "overflow":  false
+                    },
+                    {
+                        "mobile":  true,
+                        "route":  "home",
+                        "ttfb":  859,
+                        "dom":  1026,
+                        "load":  1100,
+                        "lcp":  1348,
+                        "cls":  0,
+                        "longTasks":  0,
+                        "blocking":  0,
+                        "resources":  29,
+                        "transferKB":  173,
+                        "overflow":  false
+                    },
+                    {
+                        "mobile":  true,
+                        "route":  "trip",
+                        "ttfb":  579,
+                        "dom":  760,
+                        "load":  761,
+                        "lcp":  2440,
+                        "cls":  0,
+                        "longTasks":  1,
+                        "blocking":  27,
+                        "resources":  78,
+                        "transferKB":  444,
+                        "overflow":  false
+                    },
+                    {
+                        "mobile":  true,
+                        "route":  "restaurants",
+                        "ttfb":  563,
+                        "dom":  658,
+                        "load":  660,
+                        "lcp":  992,
+                        "cls":  0,
+                        "longTasks":  0,
+                        "blocking":  0,
+                        "resources":  25,
+                        "transferKB":  20,
+                        "overflow":  false
+                    }
+                ],
+    "dayFilterMs":  {
+                        "desktop":  44,
+                        "mobile":  41
+                    },
+    "internalComparison":  {
+                               "method":  "same temporary authenticated session; five sequential samples each, server-side PowerShell; session signed out afterward",
+                               "tripReadWithRls":  {
+                                                       "publicMs":  [
+                                                                        156,
+                                                                        148,
+                                                                        126,
+                                                                        137,
+                                                                        104
+                                                                    ],
+                                                       "internalMs":  [
+                                                                          2,
+                                                                          5,
+                                                                          2,
+                                                                          2,
+                                                                          2
+                                                                      ]
+                                                   },
+                               "authUser":  {
+                                                "publicMs":  [
+                                                                 441,
+                                                                 358,
+                                                                 356,
+                                                                 337,
+                                                                 243
+                                                             ],
+                                                "internalMs":  [
+                                                                   340,
+                                                                   143,
+                                                                   245,
+                                                                   236,
+                                                                   334
+                                                               ]
+                                            }
+                           },
+    "findings":  [
+                     "All 260 responses HTTP 200; p95 rises to 3572ms at 20 workers.",
+                     "Internal gateway supports existing auth and REST paths and enforces API keys.",
+                     "Internal auth median remains 245ms: health-check latency does not represent login verification.",
+                     "Internal REST median 2ms versus public 137ms.",
+                     "Browser performs background route prefetches including legal pages.",
+                     "No production configuration or application code changed during measurement."
+                 ],
+    "nextStep":  "Evaluate server-only internal auth and REST transport while preserving public client URL, auth cookie identity, OAuth URLs and RLS; re-run identical workload after any change."
+}
