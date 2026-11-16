@@ -1,4 +1,6 @@
 import { cache } from "react";
+import { headers } from "next/headers";
+import { decodeRequestUser, REQUEST_USER_HEADER } from "./request-user";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -20,6 +22,10 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!isSupabaseConfigured()) return null;
 
   try {
+    // Proxy verified the token for this request. Reuse only its display context;
+    // access control remains in proxy and database RLS, with no cross-request cache.
+    const context = (await headers()).get(REQUEST_USER_HEADER);
+    if (context !== null) return decodeRequestUser(context);
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) return null;

@@ -81,8 +81,8 @@ export function AppShell({ children, user }: Props) {
       */}
       <footer className={`mx-auto w-full max-w-[1400px] px-4 ${isAuthenticated ? "pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6" : "pb-6"}`}>
         <nav aria-label="약관" className="flex flex-wrap gap-4 border-t border-border pt-4 text-xs text-muted-foreground">
-          <Link href="/legal/privacy" className="hover:underline">개인정보처리방침</Link>
-          <Link href="/legal/location" className="hover:underline">위치정보 이용 고지</Link>
+          <Link href="/legal/privacy" prefetch={false} className="hover:underline">개인정보처리방침</Link>
+          <Link href="/legal/location" prefetch={false} className="hover:underline">위치정보 이용 고지</Link>
         </nav>
       </footer>
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 const mocks = vi.hoisted(() => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: mocks.createClient }));
 vi.mock("@/lib/supabase/env", () => ({ isSupabaseConfigured: () => true }));

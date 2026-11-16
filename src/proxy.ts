@@ -5,6 +5,7 @@ import { requiresAuth } from "@/lib/auth/paths";
 import { buildLoginUrl, safeRedirectPath } from "@/lib/auth/redirect";
 import { allowsUnconfiguredAuth, readSupabaseEnv } from "@/lib/supabase/env";
 import { serverTransport } from "@/lib/supabase/server-transport";
+import { encodeRequestUser, REQUEST_USER_HEADER } from "@/lib/supabase/request-user";
 
 /**
  * Next.js 16 에서 `middleware` 규약은 `proxy` 로 바뀌었다.
@@ -30,6 +31,8 @@ function redirectToLogin(request: NextRequest, response = NextResponse.next()) {
 }
 
 export async function proxy(request: NextRequest) {
+  // Never trust a browser-supplied identity. Only this request's getUser result is forwarded.
+  request.headers.set(REQUEST_USER_HEADER, encodeRequestUser(null));
   const { pathname } = request.nextUrl;
   const env = readSupabaseEnv();
 
@@ -44,7 +47,7 @@ export async function proxy(request: NextRequest) {
     // 개발 중 미설정 상태: 항상 로그아웃으로 취급한다.
     return requiresAuth(pathname)
       ? redirectToLogin(request)
-      : withShareHeaders(pathname, NextResponse.next());
+      : withShareHeaders(pathname, NextResponse.next({ request }));
   }
 
   let response = NextResponse.next({ request });
@@ -76,6 +79,9 @@ export async function proxy(request: NextRequest) {
     // getSession() 은 쿠키 값을 그대로 믿으므로 접근 제어에 쓰면 안 된다.
     const { data, error } = await supabase.auth.getUser();
     isAuthenticated = !error && Boolean(data.user);
+    if (isAuthenticated && data.user) {
+      request.headers.set(REQUEST_USER_HEADER, encodeRequestUser({ id: data.user.id, email: data.user.email ?? null }));
+    }
   } catch {
     // Supabase 가 응답하지 않으면 로그아웃으로 취급한다.
     // 열어주는 쪽으로 실패하면 장애가 곧 인증 우회가 된다.
@@ -92,7 +98,10 @@ export async function proxy(request: NextRequest) {
     return redirectWithCookies(new URL(next, request.url), response);
   }
 
-  return withShareHeaders(pathname, response);
+  // Rebuild after validation; preserve refreshed cookies on both request and response.
+  const forwarded = NextResponse.next({ request: { headers: request.headers } });
+  for (const cookie of response.cookies.getAll()) forwarded.cookies.set(cookie);
+  return withShareHeaders(pathname, forwarded);
 }
 
 /**
