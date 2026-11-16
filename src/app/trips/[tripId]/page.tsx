@@ -1,5 +1,6 @@
 import { listTravelLegs } from "@/features/trips/queries";
 import { Suspense } from "react";
+import { TripTabs } from "@/features/restaurants/trip-tabs";
 import { neighborMap, legKey } from "@/features/trips/travel";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -209,6 +210,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
       </section>
       </div>
 
+      <TripTabs tripId={trip.id} active="schedule" />
       {trip.baseCurrency.toUpperCase() !== "KRW" ? (
         <Suspense fallback={null}><ExchangeRate currency={trip.baseCurrency} /></Suspense>
       ) : null}

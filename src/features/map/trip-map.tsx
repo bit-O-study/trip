@@ -15,11 +15,12 @@ import type { TripMapProps } from "./types";
 export type { MapPoint } from "./types";
 
 type Props = TripMapProps & {
+  caption?: "restaurant";
   /** 여행의 기준 시간대. 좌표가 아직 없는 여행의 국내/해외 판정에 쓴다. */
   timezone?: string | null;
 };
 
-export function TripMap({ timezone, ...props }: Props) {
+export function TripMap({ timezone, caption, ...props }: Props) {
   const primary: "kakao" | "google" = isDomesticTrip({ points: props.points, timezone })
     ? "kakao"
     : "google";
@@ -65,7 +66,7 @@ export function TripMap({ timezone, ...props }: Props) {
           기본 지도를 불러오지 못해 OpenStreetMap 지도로 보여 드려요.
         </p>
       ) : null}
-      {props.points.length > 0 ? (
+      {caption === "restaurant" ? <p className="text-xs text-muted-foreground">{props.points.length ? "번호를 누르면 맛집 정보를 확인할 수 있습니다." : "현재 조건에 지도 위치가 등록된 맛집이 없습니다."}</p> : props.points.length > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
           점선은 방문 순서를 잇는 선이며 실제 이동 경로가 아닙니다. 마커를 누르면 아래
           타임라인에서 같은 일정을 찾아 줍니다.

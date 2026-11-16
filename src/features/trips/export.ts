@@ -1,3 +1,4 @@
+import { listSavedRestaurants } from "@/features/restaurants/queries";
 import {
   currentTravelLegs,
   getTrip,
@@ -17,7 +18,7 @@ import {
  * `schemaVersion` 을 넣는 이유: 내보낸 파일은 우리 손을 떠나 몇 년 뒤에 열린다.
  * 형태가 바뀌었을 때 어느 버전으로 읽어야 하는지 파일 자체가 말해야 한다.
  */
-export const EXPORT_SCHEMA_VERSION = 3;
+export const EXPORT_SCHEMA_VERSION = 4;
 
 export type TripExport = {
   schemaVersion: number;
@@ -27,22 +28,25 @@ export type TripExport = {
   items: Array<Record<string, unknown>>;
   travelLegs: Array<Record<string, unknown>>;
   restaurantPolls: Array<Record<string, unknown>>;
+  savedRestaurants: Array<Record<string, unknown>>;
 };
 
 export async function buildTripExport(tripId: string): Promise<TripExport | null> {
   const trip = await getTrip(tripId);
   if (!trip) return null;
 
-  const [items, members, polls, travelLegs] = await Promise.all([
+  const [items, members, polls, travelLegs, savedRestaurants] = await Promise.all([
     listItems(tripId),
     listTripMembers(tripId),
     // GET 내보내기는 읽기만 한다. 마감이 지난 투표도 여기서 확정하지 않는다.
     listRestaurantPolls(tripId, { finalize: false }),
     listTravelLegs(tripId),
+    listSavedRestaurants(tripId),
   ]);
 
   return {
     schemaVersion: EXPORT_SCHEMA_VERSION,
+    savedRestaurants: savedRestaurants.map(restaurant => ({ ...restaurant })),
     exportedAt: new Date().toISOString(),
     trip: {
       id: trip.id,

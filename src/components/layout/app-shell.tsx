@@ -70,7 +70,7 @@ export function AppShell({ children, user }: Props) {
 
       <main
         id="main"
-        className="mx-auto w-full max-w-5xl flex-1 px-4 pt-4 pb-6"
+        className="mx-auto w-full max-w-[1400px] flex-1 px-4 pt-4 pb-6"
       >
         {children}
       </main>

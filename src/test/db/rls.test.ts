@@ -39,6 +39,70 @@ async function seedTrip(): Promise<string> {
   return tripId;
 }
 
+describe("맛집 보관함", () => {
+  const payload = { name: "우육면", originalName: "牛肉麵", region: "가오슝", latitude: 22.62, longitude: 120.28 };
+  it("예약 안내를 저장하고 잘못된 상태와 위험한 링크를 거부한다", async () => {
+    const tripId = await seedTrip();
+    const save = (extra: Record<string, string>) => db.pg.query(`select trip.manage_saved_restaurant($1,'save',null,null,$2::jsonb)`, [tripId, JSON.stringify({...payload, ...extra})]);
+    await save({reservationStatus:"available", reservationNote:"전화 예약", reservationUrl:"https://example.com/booking"});
+    expect((await db.pg.query("select reservation_status,reservation_note,reservation_url from trip.saved_restaurants where trip_id=$1",[tripId])).rows).toEqual([{reservation_status:"available",reservation_note:"전화 예약",reservation_url:"https://example.com/booking"}]);
+    await expectDenied(()=>save({reservationStatus:"booked"}));
+    await expectDenied(()=>save({reservationUrl:"javascript:alert(1)"}));
+    expect((await db.pg.query("select id from trip.saved_restaurants where trip_id=$1",[tripId])).rows).toHaveLength(1);
+  });
+  async function createSaved(tripId: string) {
+    const result = await db.pg.query<{id:string}>(`select trip.manage_saved_restaurant($1,'save',null,null,$2::jsonb) id`,[tripId,JSON.stringify(payload)]);
+    return result.rows[0].id;
+  }
+  async function readSaved(id: string) {
+    return (await db.pg.query<{id:string;updated_at:string;item_id:string}>("select * from trip.saved_restaurants where id=$1",[id])).rows[0];
+  }
+  it("소유자·편집자 저장, 조회자 조회, 비멤버·익명 접근 거부",async()=>{
+    const tripId=await seedTrip(); const id=await createSaved(tripId);
+    await db.asUser(USER.editor); await createSaved(tripId);
+    await db.asUser(USER.viewer); expect(await readSaved(id)).toBeDefined();
+    for(const user of [USER.viewer,USER.stranger]){
+      await db.asUser(user); await expectDenied(()=>createSaved(tripId));
+      const row=await db.pg.query("select id from trip.saved_restaurants where id=$1",[id]);
+      expect(row.rows.length).toBe(user===USER.viewer?1:0);
+    }
+    await db.asAnon();await expectDenied(()=>readSaved(id));await expectDenied(()=>createSaved(tripId));
+  });
+  it("직접 수정과 타 여행 연결, 오래된 수정 버전, 기간 밖 예약을 거부한다",async()=>{
+    const tripId=await seedTrip(),id=await createSaved(tripId); const row=await readSaved(id);
+    await expectDenied(()=>db.pg.query("update trip.saved_restaurants set region='변경' where id=$1",[id]));
+    await expectDenied(()=>db.pg.query(`select trip.manage_saved_restaurant($1,'delete',$2,'2000-01-01', '{}')`,[tripId,id]));
+    await expectDenied(()=>db.pg.query(`select trip.manage_saved_restaurant($1,'schedule',$2,$3,$4)`,[tripId,id,row.updated_at,JSON.stringify({meal:"점심",startAt:"2026-03-01T03:00:00Z"})]));
+    const otherTrip=await seedTrip();
+    await expectDenied(()=>db.pg.query(`select trip.manage_saved_restaurant($1,'delete',$2,$3,'{}')`,[otherTrip,id,row.updated_at]));
+  });
+  it("식사 연결·변경은 한 일정을 유지하고, 연결 해제 후 보관함은 남는다",async()=>{
+    const tripId=await seedTrip(),id=await createSaved(tripId);
+    let row=await readSaved(id);
+    await db.pg.query(`select trip.manage_saved_restaurant($1,'schedule',$2,$3,$4)`,[tripId,id,row.updated_at,JSON.stringify({meal:"점심",startAt:"2026-02-14T03:00:00Z"})]);
+    row=await readSaved(id); const firstId=row.item_id;
+    let item=(await db.pg.query<{updated_at:string;title:string;start_at:string}>("select * from trip.itinerary_items where id=$1",[firstId])).rows[0];
+    expect(item.title).toBe("우육면(牛肉麵) · 점심");
+    await expectDenied(()=>db.pg.query(`select trip.manage_saved_restaurant($1,'schedule',$2,$3,$4)`,[tripId,id,row.updated_at,JSON.stringify({meal:"저녁",startAt:"2026-02-15T09:00:00Z",itemUpdatedAt:"2000-01-01"})]));
+    await db.pg.query(`select trip.manage_saved_restaurant($1,'schedule',$2,$3,$4)`,[tripId,id,row.updated_at,JSON.stringify({meal:"저녁",startAt:"2026-02-15T09:00:00Z",itemUpdatedAt:item.updated_at})]);
+    row=await readSaved(id);expect(row.item_id).toBe(firstId);
+    item=(await db.pg.query<typeof item>("select * from trip.itinerary_items where id=$1",[firstId])).rows[0];
+    expect(item.title).toBe("우육면(牛肉麵) · 저녁");
+    expect(new Date(item.start_at).toISOString()).toBe("2026-02-15T09:00:00.000Z");
+    await db.pg.query(`select trip.manage_saved_restaurant($1,'unschedule',$2,$3,$4)`,[tripId,id,row.updated_at,JSON.stringify({itemUpdatedAt:item.updated_at})]);
+    row=await readSaved(id);expect(row.item_id).toBeNull();
+    const count=await db.pg.query("select id from trip.itinerary_items where id=$1 and deleted_at is null",[firstId]);expect(count.rows).toHaveLength(0);
+  });
+  it("보관함 삭제는 이미 추가된 일정을 삭제하지 않는다",async()=>{
+    const tripId=await seedTrip(),id=await createSaved(tripId);let row=await readSaved(id);
+    await db.pg.query(`select trip.manage_saved_restaurant($1,'schedule',$2,$3,$4)`,[tripId,id,row.updated_at,JSON.stringify({meal:"점심",startAt:"2026-02-14T03:00:00Z"})]);
+    row=await readSaved(id);
+    await db.pg.query(`select trip.manage_saved_restaurant($1,'delete',$2,$3,'{}')`,[tripId,id,row.updated_at]);
+    expect(await readSaved(id)).toBeUndefined();
+    expect((await db.pg.query("select id from trip.itinerary_items where id=$1",[row.item_id])).rows).toHaveLength(1);
+  });
+});
+
 describe("여행 소유권", () => {
   it("여행을 만들면 생성자가 owner 멤버로 자동 등록된다", async () => {
     await db.asUser(USER.owner);
