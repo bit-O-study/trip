@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { TripMap, type MapPoint } from "@/features/map/trip-map";
 import { dayColorVar } from "@/lib/day-color";
 import type { TripDay } from "@/lib/datetime";
+import { useViewChoice } from "@/lib/use-view-choice";
 
 const DayContext = createContext<{ date: string | null; setDate: (date: string | null) => void }>({ date: null, setDate: () => {} });
 export function useTripDay() { return useContext(DayContext); }
@@ -68,6 +69,8 @@ export function timelineItemDomId(itemId: string): string {
 }
 
 type Props = {
+  preferenceKey?: string;
+  dates?: string[];
   points: MapPoint[];
   mapClassName?: string;
   children: React.ReactNode;
@@ -76,11 +79,12 @@ type Props = {
   timezone?: string | null;
 };
 
-export function TripBoard({ points, mapClassName, children, initialCenter, timezone }: Props) {
-  const [view, setView] = useState<ItineraryView>("compact");
-  const [date, setDate] = useState<string | null>(null);
+export function TripBoard({ points, mapClassName, children, initialCenter, timezone, preferenceKey, dates }: Props) {
+  const [view, setView] = useViewChoice(preferenceKey ? `${preferenceKey}:view` : undefined, "compact", value => value === "compact" || value === "travel");
+  const [storedDate, setDate] = useViewChoice(preferenceKey ? `${preferenceKey}:date` : undefined, "", value => !value || !dates || dates.includes(value));
+  const date = storedDate || null;
   const [selected, setSelected] = useState<{ id: string; origin: Origin } | null>(null);
-  const dayValue = useMemo(() => ({ date, setDate: (next: string | null) => { setDate(next); setSelected(null); } }), [date]);
+  const dayValue = { date, setDate: (next: string | null) => { setDate(next ?? ""); setSelected(null); } };
   const visiblePoints = useMemo(() => date === null ? points : points.filter((point) => point.date === date), [date, points]);
 
   const select = useCallback((id: string | null, origin: Origin) => {
@@ -124,7 +128,7 @@ export function TripBoard({ points, mapClassName, children, initialCenter, timez
   return (
     <SelectionContext.Provider value={value}>
     <DayContext.Provider value={dayValue}>
-    <ViewContext.Provider value={view}>
+    <ViewContext.Provider value={view as ItineraryView}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-2 text-sm font-medium">보기 방식
           <select aria-label="일정 보기 방식" value={view} onChange={(event) => setView(event.target.value as ItineraryView)} className="min-h-11 max-w-full rounded-lg border border-border bg-card px-3 py-2 text-sm">

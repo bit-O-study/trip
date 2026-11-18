@@ -14,8 +14,9 @@ import { tripDays, utcToZonedLocal, zonedTimeLabel } from "@/lib/datetime";
 import { manageRestaurant } from "./actions";
 import { RESERVATION_LABELS, MEALS, MEAL_TIMES, regionName, restaurantName, scheduledItem, mealSlot, type Meal, type SavedRestaurant } from "./model";
 import "./restaurant-library.css";
+import { useViewChoice, viewChoiceKey } from "@/lib/use-view-choice";
 
-type Props = { trip: TripDetail; restaurants: SavedRestaurant[] };
+type Props = { trip: TripDetail; restaurants: SavedRestaurant[]; preferenceOwner?: string };
 type Modal = { mode: "save" | "schedule" | "delete" | "unschedule" | "candidate" | "replace"; restaurant: SavedRestaurant | null };
 function subscribeDesktop(listener: () => void) {
   const media = window.matchMedia("(min-width: 761px)");
@@ -24,13 +25,14 @@ function subscribeDesktop(listener: () => void) {
 }
 const desktopSnapshot = () => window.matchMedia("(min-width: 761px)").matches;
 const serverSnapshot = () => false;
-export function RestaurantLibrary({ trip, restaurants }: Props) {
+export function RestaurantLibrary({ trip, restaurants, preferenceOwner }: Props) {
   const router = useRouter();
-  const [region, setRegion] = useState("");
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
-  const [date, setDate] = useState("");
-  const [mealFilter, setMealFilter] = useState("");
+  const key = (field: string) => viewChoiceKey(preferenceOwner, trip.id, `restaurants.${field}`);
+  const [region, setRegion] = useViewChoice(key("region"), "");
+  const [query, setQuery] = useViewChoice(key("query"), "", value => value.length <= 500);
+  const [status, setStatus] = useViewChoice(key("status"), "all", value => ["all", "planned", "wish"].includes(value));
+  const [date, setDate] = useViewChoice(key("date"), "", value => !value || tripDays(trip.startDate, trip.endDate).some(day => day.date === value));
+  const [mealFilter, setMealFilter] = useViewChoice(key("meal"), "", value => !value || MEALS.some(meal => meal === value));
   const [selected, setSelected] = useState<string | null>(null);
   const [mapView, setMapView] = useState(false);
   const [modal, setModal] = useState<Modal | null>(null);

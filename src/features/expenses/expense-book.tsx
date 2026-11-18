@@ -5,6 +5,7 @@ import { manageExpense } from "./actions";
 import { CATEGORIES, CURRENCIES, formatAmount, fractionDigits, parseAmount, totals, type Expense } from "./model";
 import { clearDraft, draftKey, readDraft, writeDraft, type ExpenseFields } from "./draft";
 import { CategoryManager } from "./category-manager";
+import { useViewChoice, viewChoiceKey } from "@/lib/use-view-choice";
 
 type Props = { tripId: string; draftOwner?: string; expenses: Expense[]; editable: boolean; currency: string; defaultDate: string };
 const inputClass = "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base";
@@ -13,8 +14,8 @@ function Amounts({ rows }: { rows: Expense[] }) {
 }
 export function ExpenseBook({ tripId, draftOwner, expenses, editable, currency, defaultDate }: Props) {
   const router = useRouter();
-  const [category, setCategory] = useState("");
-  const [date, setDate] = useState("");
+  const [category, setCategory] = useViewChoice(viewChoiceKey(draftOwner, tripId, "expenses.category"), "", value => !value || CATEGORIES.includes(value) || expenses.some(row => row.category === value));
+  const [date, setDate] = useViewChoice(viewChoiceKey(draftOwner, tripId, "expenses.date"), "", value => !value || /^\d{4}-\d{2}-\d{2}$/.test(value));
   const [editing, setEditing] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);

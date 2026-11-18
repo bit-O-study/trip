@@ -219,6 +219,8 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
         children 으로 넘긴다 — 클라이언트 경계는 지도와 선택 상태에만 둔다.
       */}
       <TripBoard
+        preferenceKey={(await viewer)?.id ? `trip:view:v1:${(await viewer)!.id}:${tripId}:schedule` : undefined}
+        dates={days.map(day => day.date)}
         points={mapPoints}
         mapClassName="h-64 md:h-80"
         /*
