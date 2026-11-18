@@ -20,6 +20,14 @@ function setup(editable = true) {
   return render(<ToastProvider><TripBoard points={[]}><ol><ItemRow {...defaults} editable={editable} next={{ ...item, id: "next", title: "다음 장소" }} /></ol></TripBoard></ToastProvider>);
 }
 describe("일정 보기와 상세창", () => {
+  it("상세를 열기 전에도 다음 일정과 겹치는 시간을 보여준다", () => {
+    render(<ToastProvider><TripBoard points={[]}><ol><ItemRow {...defaults}
+      item={{ ...item, endAt: "2026-02-14T03:00:00Z" }}
+      next={{ ...item, id: "next", title: "다음 식사", startAt: "2026-02-14T02:40:00Z", endAt: "2026-02-14T03:30:00Z" }}
+    /></ol></TripBoard></ToastProvider>);
+    expect(screen.getByText("‘다음 식사’ 일정과 20분 겹칩니다.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
   it("주소와 메모는 상세에서만 보이고 다음 이동만 편집한다", async () => {
     const user = userEvent.setup();
     render(<ToastProvider><TripBoard points={[]}><ol><ItemRow {...defaults} previous={{...item, id:"previous", title:"이전 장소"}} next={{...item, id:"next", title:"다음 장소"}} nextLeg={{tripId:"trip-1",fromId:item.id,toId:"next",mode:"bus",routeLabel:"88번",minutes:20,distanceKm:null,version:1,fromLocationKey:"",toLocationKey:""}} /></ol></TripBoard></ToastProvider>);

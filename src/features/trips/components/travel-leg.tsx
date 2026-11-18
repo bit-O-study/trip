@@ -7,7 +7,7 @@ import { flightTime, type LegFlight } from "@/features/flights/leg-flight";
 import { zonedDateKey } from "@/lib/datetime";
 import { IDLE } from "../action-state";
 import { saveTravelLeg } from "@/features/trips/travel-actions";
-import { distanceLabel, durationLabel, locationKey, straightDistanceKm, travelConflictMinutes, travelSummary, TRAVEL_LABELS, TRAVEL_MODES, type Stop, type TravelLeg } from "../travel";
+import { distanceLabel, durationLabel, locationKey, scheduleOverlapMinutes, straightDistanceKm, travelConflictMinutes, travelSummary, TRAVEL_LABELS, TRAVEL_MODES, type Stop, type TravelLeg } from "../travel";
 
 const field = "w-full min-w-0 rounded-lg border border-border bg-card px-3 py-2 text-base";
 const FlightLegLookup = dynamic(() => import("@/features/flights/components/flight-leg-lookup").then(m => m.FlightLegLookup), {loading: () => <LoadingStatus label="항공편 검색 준비 중…" />});
@@ -26,12 +26,14 @@ export function TravelLegView({ tripId, from, to, leg, editable, timezone = "UTC
   const manual = !stale && leg?.distanceKm != null;
   const distance = manual ? leg!.distanceKm : straightDistanceKm(from.coordinate, to.coordinate);
   const conflict = travelConflictMinutes(from, to, leg);
+  const overlap = scheduleOverlapMinutes(from, to);
   return <section className="min-w-0 rounded-xl border border-border px-3 py-3 text-sm" aria-label="다음 장소로 이동">
     <p className="text-xs text-muted-foreground">다음 장소로 이동</p>
     <p className="mt-1 break-words font-medium">{to.title}</p>
     {travelSummary(leg) && <p className="mt-2 break-words">{travelSummary(leg)}</p>}
     {leg?.mode === "flight" && leg.flightSnapshot && !expanded && <FlightDetails flight={leg.flightSnapshot} />}
     {stale && <p className="mt-2 text-xs text-danger">장소가 바뀌었습니다. 이동 정보를 확인해 주세요.</p>}
+    {overlap !== null && <p role="status" className="mt-2 text-xs text-danger">두 일정이 {durationLabel(overlap)} 겹칩니다. 시작·종료 시각을 확인해 주세요.</p>}
     {conflict !== null && <p role="status" className="mt-2 text-xs text-danger">이동시간이 {durationLabel(conflict)} 부족합니다.</p>}
     {editable && <details onToggle={event => setExpanded(event.currentTarget.open)} className="mt-2">
       <summary className="min-h-11 cursor-pointer py-3 font-medium">{leg ? "이동수단 수정" : "이동수단 추가"}</summary>

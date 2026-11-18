@@ -17,7 +17,7 @@ import { ItemTime } from "./item-time";
 import { TravelLegView } from "./travel-leg";
 import { timelineItemDomId, useItemSelection, useItineraryView } from "./trip-board";
 import { ITEM_TYPE_LABELS, type ItineraryItem } from "../types";
-import { travelSummary, type Stop, type TravelLeg } from "../travel";
+import { durationLabel, scheduleOverlapMinutes, travelSummary, type Stop, type TravelLeg } from "../travel";
 import { dayColorVar, lineLetter } from "@/lib/day-color";
 import type { TripDay } from "@/lib/datetime";
 import { detailMapUrl } from "@/features/map/detail-map-url";
@@ -104,6 +104,7 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, tra
   const bulk = useBulkItemSelection();
   const toast = useToast();
   const [deleting, startDelete] = useTransition();
+  const overlap = next ? scheduleOverlapMinutes(item, next) : null;
   function remove() {
     startDelete(async () => {
       const data = new FormData(); data.set("itemId", item.id); data.set("tripId", tripId);
@@ -133,6 +134,7 @@ export function ItemRow({ item, order, dayIndex, timezone, tripId, editable, tra
         {item.coordinate ? <button type="button" aria-label={`지도에서 보기: ${item.title}`} aria-pressed={selected} onClick={() => select(item.id, "timeline")} className="min-h-11 shrink-0 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted">지도</button> : null}
       </div>
       {view === "travel" && next && travelSummary(nextLeg) ? <p className="mt-2 truncate border-t border-border pt-2 text-xs text-muted-foreground">다음 이동 · {travelSummary(nextLeg)}</p> : null}
+      {overlap !== null && next ? <p className="mt-2 break-words text-xs text-danger">‘{next.title}’ 일정과 {durationLabel(overlap)} 겹칩니다.</p> : null}
     </div>
     {open ? <DetailDialog item={item} previous={previous} previousLeg={previousLeg} timezone={timezone} editable={editable} onClose={() => setOpen(false)} onDelete={remove} deleting={deleting}><div className="space-y-2">{travel}</div></DetailDialog> : null}
   </li>;

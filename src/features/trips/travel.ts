@@ -27,7 +27,7 @@ export type TravelLeg = {
 export function travelSummary(leg?: TravelLeg): string {
   return [leg?.mode ? TRAVEL_LABELS[leg.mode] : null, leg?.routeLabel, leg?.minutes != null ? durationLabel(leg.minutes) : null].filter(Boolean).join(" · ");
 }
-export type Stop = Pick<ItineraryItem, "id" | "title" | "coordinate" | "locationText"> & Partial<Pick<ItineraryItem, "startAt" | "endAt" | "allDay">>;
+export type Stop = Pick<ItineraryItem, "id" | "title" | "coordinate" | "locationText"> & Partial<Pick<ItineraryItem, "startAt" | "endAt" | "allDay" | "type" | "status">>;
 export function locationKey(item: Stop): string {
   return item.coordinate ? `${item.coordinate.latitude},${item.coordinate.longitude}` : (item.locationText ?? item.title);
 }
@@ -53,8 +53,19 @@ export function durationLabel(minutes: number) {
 
 /** 좌표가 없는 메모도 순서에 포함한다. 없는 위치를 건너뛰어 거리를 꾸미지 않는다. */
 export function neighborMap(items: ItineraryItem[]) {
-  const stops: Stop[] = items.map(({ id, title, coordinate, locationText, startAt, endAt, allDay }) => ({ id, title, coordinate, locationText, startAt, endAt, allDay }));
+  const stops: Stop[] = items.map(({ id, title, coordinate, locationText, startAt, endAt, allDay, type, status }) => ({ id, title, coordinate, locationText, startAt, endAt, allDay, type, status }));
   return new Map(stops.map((item, i) => [item.id, { previous: stops[i - 1], next: stops[i + 1] }]));
+}
+
+/** 두 일정의 시작·종료 시각을 모두 알 때 실제로 겹치는 시간을 반환한다. */
+export function scheduleOverlapMinutes(from: Stop, to: Stop): number | null {
+  if ([from, to].some(item => item.allDay || item.type === "lodging" || item.status === "cancelled" || item.status === "candidate")) return null;
+  if (!from.startAt || !from.endAt || !to.startAt || !to.endAt) return null;
+  const starts = [Date.parse(from.startAt), Date.parse(to.startAt)];
+  const ends = [Date.parse(from.endAt), Date.parse(to.endAt)];
+  if (![...starts, ...ends].every(Number.isFinite) || ends.some((end, index) => end <= starts[index])) return null;
+  const overlap = Math.min(...ends) - Math.max(...starts);
+  return overlap > 0 ? Math.ceil(overlap / 60_000) : null;
 }
 
 /** 종료 시각·이동시간을 모두 아는 구간만 경고한다. 추정 소요시간은 만들지 않는다. */
