@@ -131,6 +131,55 @@ describe("맛집 보관함", () => {
   async function readSaved(id: string) {
     return (await db.pg.query<{id:string;updated_at:string;item_id:string}>("select * from trip.saved_restaurants where id=$1",[id])).rows[0];
   }
+  it("식사별 대안 분류는 권한·버전·여행 기간을 검증한다", async () => {
+    const tripId=await seedTrip(), id=await createSaved(tripId), row=await readSaved(id);
+    const assign=(date: string|null="2026-02-14", meal: string|null="점심", expected=row.updated_at, trip=tripId)=>db.pg.query("select trip.set_restaurant_candidate($1,$2,$3,$4,$5)",[trip,id,expected,date,meal]);
+    for(const user of [USER.viewer,USER.stranger]){await db.asUser(user);await expectDenied(()=>assign());}
+    await db.asAnon();await expectDenied(()=>assign());
+    await db.asUser(USER.editor);
+    await expectDenied(()=>assign("2026-02-19"));
+    await expectDenied(()=>assign(null,"점심"));
+    await expectDenied(()=>assign("2026-02-14","야식"));
+    await expectDenied(()=>assign("2026-02-14","점심","2000-01-01"));
+    await assign();
+    expect((await db.pg.query<{candidate_meal:string}>("select candidate_meal from trip.saved_restaurants where id=$1",[id])).rows[0].candidate_meal).toBe("점심");
+    await assign(null,null,(await readSaved(id)).updated_at);
+    expect((await db.pg.query<{candidate_date:string|null}>("select candidate_date from trip.saved_restaurants where id=$1",[id])).rows[0].candidate_date).toBeNull();
+    await db.asUser(USER.owner);const other=await seedTrip();
+    await expectDenied(()=>assign("2026-02-14","점심",row.updated_at,other));
+    await db.pg.query("update trip.trips set deleted_at=now() where id=$1",[tripId]);
+    await expectDenied(()=>assign());
+    expect((await db.pg.query("select id from trip.saved_restaurants where trip_id=$1",[tripId])).rows).toHaveLength(0);
+  });
+  it("대안 교체는 기존 시간을 유지하고 기존 예약 기록을 보존하며 충돌·권한 위반을 거부한다", async () => {
+    const tripId=await seedTrip(), scheduledId=await createSaved(tripId), candidateId=await createSaved(tripId);
+    await db.pg.query("select trip.manage_saved_restaurant($1,'schedule',$2,$3,$4)",[tripId,scheduledId,(await readSaved(scheduledId)).updated_at,JSON.stringify({meal:"점심",startAt:"2026-02-14T03:00:00Z"})]);
+    const scheduled=await readSaved(scheduledId);
+    await db.pg.query("update trip.itinerary_items set end_at='2026-02-14T04:30:00Z',reservation_code='OLD-BOOKING',note='기존 예약 안내' where id=$1",[scheduled.item_id]);
+    await db.pg.query("select trip.set_restaurant_candidate($1,$2,$3,'2026-02-14','점심')",[tripId,candidateId,(await readSaved(candidateId)).updated_at]);
+    const candidate=await readSaved(candidateId);
+    type Item={id:string;start_at:string;end_at:string;updated_at:string;deleted_at:string|null;reservation_code:string|null;note:string|null};
+    const readItem=async(id:string)=>(await db.pg.query<Item>("select * from trip.itinerary_items where id=$1",[id])).rows[0];
+    const original=await readItem(scheduled.item_id);
+    const replace=(itemExpected=original.updated_at, candidateExpected=candidate.updated_at)=>db.pg.query<{id:string}>("select trip.replace_restaurant_meal($1,$2,$3,$4,$5,$6) id",[tripId,candidateId,candidateExpected,scheduledId,scheduled.updated_at,itemExpected]);
+    for(const user of [USER.viewer,USER.stranger]){await db.asUser(user);await expectDenied(()=>replace());}
+    await db.asAnon();await expectDenied(()=>replace());
+    await db.asUser(USER.editor);
+    await expectDenied(()=>replace("2000-01-01"));
+    await expectDenied(()=>replace(original.updated_at,"2000-01-01"));
+    expect((await readSaved(candidateId)).item_id).toBeNull();
+    expect((await readItem(original.id)).deleted_at).toBeNull();
+    const result=await replace(), next=await readItem(result.rows[0].id);
+    expect(next.id).not.toBe(original.id);
+    expect(next.start_at).toEqual(original.start_at);expect(next.end_at).toEqual(original.end_at);
+    expect(next.reservation_code).toBeNull();expect(next.note).not.toBe("기존 예약 안내");
+    expect((await readItem(original.id)).reservation_code).toBe("OLD-BOOKING");
+    expect((await readItem(original.id)).deleted_at).not.toBeNull();
+    expect((await readSaved(candidateId)).item_id).toBe(next.id);
+    expect((await readSaved(scheduledId)).item_id).toBeNull();
+    expect((await db.pg.query<{candidate_meal:string}>("select candidate_meal from trip.saved_restaurants where id=$1",[scheduledId])).rows[0].candidate_meal).toBe("점심");
+    await expectDenied(()=>replace());
+  });
   it("소유자·편집자 저장, 조회자 조회, 비멤버·익명 접근 거부",async()=>{
     const tripId=await seedTrip(); const id=await createSaved(tripId);
     await db.asUser(USER.editor); await createSaved(tripId);

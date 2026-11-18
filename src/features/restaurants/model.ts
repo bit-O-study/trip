@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zonedDateKey } from "@/lib/datetime";
 
 export const MEALS = ["아침", "점심", "저녁", "간식"] as const;
 export type Meal = typeof MEALS[number];
@@ -9,6 +10,7 @@ export type SavedRestaurant = {
   id: string; trip_id: string; name: string; original_name: string; region: string;
   menu: string; note: string; address: string; latitude: number | null; longitude: number | null;
   updated_at: string; item_id: string | null; meal: Meal | null;
+  candidate_date?: string | null; candidate_meal?: Meal | null;
   itinerary_items: { id: string; start_at: string; updated_at: string; status: string; deleted_at: string | null } | null;
 };
 export function restaurantName(value: { name: string; original_name: string }) {
@@ -18,6 +20,11 @@ const REGION_NAMES: Record<string, string> = { 高雄: "가오슝(高雄)", 高�
 export function regionName(region: string) { return REGION_NAMES[region.trim()] ?? region.trim(); }
 export function scheduledItem(value: SavedRestaurant) {
   return value.itinerary_items && !value.itinerary_items.deleted_at && value.itinerary_items.status !== "cancelled" ? value.itinerary_items : null;
+}
+export function mealSlot(value: SavedRestaurant, timezone: string): { date: string; meal: Meal | null } | null {
+  const item = scheduledItem(value);
+  if (item) return { date: zonedDateKey(item.start_at, timezone), meal: value.meal };
+  return value.candidate_date && value.candidate_meal ? { date: value.candidate_date, meal: value.candidate_meal } : null;
 }
 export const restaurantSchema = z.object({
   reservationStatus: z.enum(["unknown", "available", "unavailable"]).default("unknown"),

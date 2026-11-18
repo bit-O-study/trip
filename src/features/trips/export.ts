@@ -19,7 +19,7 @@ import {
  * `schemaVersion` 을 넣는 이유: 내보낸 파일은 우리 손을 떠나 몇 년 뒤에 열린다.
  * 형태가 바뀌었을 때 어느 버전으로 읽어야 하는지 파일 자체가 말해야 한다.
  */
-export const EXPORT_SCHEMA_VERSION = 5;
+export const EXPORT_SCHEMA_VERSION = 6;
 
 export type TripExport = {
   schemaVersion: number;

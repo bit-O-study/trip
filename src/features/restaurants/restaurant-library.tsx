@@ -10,13 +10,13 @@ const PlaceSearch = dynamic(() => import("@/features/places/components/place-sea
 });
 import type { PlaceSearchResult } from "@/features/places/types";
 import { canEdit, type TripDetail } from "@/features/trips/types";
-import { tripDays, utcToZonedLocal, zonedDateKey, zonedTimeLabel } from "@/lib/datetime";
+import { tripDays, utcToZonedLocal, zonedTimeLabel } from "@/lib/datetime";
 import { manageRestaurant } from "./actions";
-import { RESERVATION_LABELS, MEALS, MEAL_TIMES, regionName, restaurantName, scheduledItem, type Meal, type SavedRestaurant } from "./model";
+import { RESERVATION_LABELS, MEALS, MEAL_TIMES, regionName, restaurantName, scheduledItem, mealSlot, type Meal, type SavedRestaurant } from "./model";
 import "./restaurant-library.css";
 
 type Props = { trip: TripDetail; restaurants: SavedRestaurant[] };
-type Modal = { mode: "save" | "schedule" | "delete" | "unschedule"; restaurant: SavedRestaurant | null };
+type Modal = { mode: "save" | "schedule" | "delete" | "unschedule" | "candidate" | "replace"; restaurant: SavedRestaurant | null };
 function subscribeDesktop(listener: () => void) {
   const media = window.matchMedia("(min-width: 761px)");
   media.addEventListener("change", listener);
@@ -30,6 +30,7 @@ export function RestaurantLibrary({ trip, restaurants }: Props) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [date, setDate] = useState("");
+  const [mealFilter, setMealFilter] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [mapView, setMapView] = useState(false);
   const [modal, setModal] = useState<Modal | null>(null);
@@ -46,15 +47,17 @@ export function RestaurantLibrary({ trip, restaurants }: Props) {
   const activeRegion = regions.includes(region) ? region : "";
   const visible = restaurants.filter(r => {
     const item = scheduledItem(r);
+    const slot = mealSlot(r, trip.timezone);
     return (!activeRegion || regionName(r.region) === activeRegion)
       && (status === "all" || (status === "planned" ? !!item : !item))
-      && (!date || (!!item && zonedDateKey(item.start_at,trip.timezone) === date))
+      && (!date || slot?.date === date)
+      && (!mealFilter || slot?.meal === mealFilter)
       && [r.name,r.original_name,r.region,r.menu,r.note].join(" ").toLocaleLowerCase().includes(query.toLocaleLowerCase());
-  });
-  const points: MapPoint[] = visible.flatMap(r => r.latitude === null || r.longitude === null ? [] : [{
+  }).sort((a,b) => date || mealFilter ? Number(!!scheduledItem(b)) - Number(!!scheduledItem(a)) : 0);
+  const points: MapPoint[] = visible.flatMap((r,index) => r.latitude === null || r.longitude === null ? [] : [{
     id:r.id,title:restaurantName(r),latitude:r.latitude,longitude:r.longitude,
-    kind:"candidate" as const,order:restaurants.indexOf(r)+1,
-    dayIndex: Math.max(0,days.findIndex(d => d.date === (scheduledItem(r) ? zonedDateKey(scheduledItem(r)!.start_at,trip.timezone) : ""))),
+    kind:"candidate" as const,order:index+1,
+    dayIndex: Math.max(0,days.findIndex(d => d.date === mealSlot(r, trip.timezone)?.date)),
   }]);
   const current = visible.find(r => r.id === selected);
   useEffect(() => {
@@ -65,16 +68,24 @@ export function RestaurantLibrary({ trip, restaurants }: Props) {
     return () => { document.body.style.overflow = previous; };
   }, [modal]);
   function mealLabel(r: SavedRestaurant) {
-    const item=scheduledItem(r);if(!item)return "가고 싶은 곳";
-    const key=zonedDateKey(item.start_at,trip.timezone), index=days.findIndex(d=>d.date===key);
-    return `${index<0?key:`Day ${index+1}`} · ${r.meal ?? "식사"} · ${zonedTimeLabel(item.start_at,trip.timezone)}`;
+    const item=scheduledItem(r), slot=mealSlot(r,trip.timezone);if(!slot)return "가고 싶은 곳 · 식사 미분류";
+    const index=days.findIndex(d=>d.date===slot.date);
+    return `${index<0?slot.date:`Day ${index+1}`} · ${slot.meal ?? "식사"} · ${item ? zonedTimeLabel(item.start_at,trip.timezone) : "대안"}`;
+  }
+  function replacementOptions(r: SavedRestaurant) {
+    const slot = mealSlot(r, trip.timezone);
+    if (!slot || scheduledItem(r)) return [];
+    return restaurants.filter(other => {
+      const target = mealSlot(other, trip.timezone);
+      return !!scheduledItem(other) && target?.date === slot.date && target?.meal === slot.meal;
+    });
   }
   function open(mode: Modal["mode"], restaurant: SavedRestaurant | null = null) { if(busy)return;setError("");setModal({mode,restaurant}); }
-  async function submit(action: "save" | "schedule" | "delete" | "unschedule", data: Record<string,unknown>) {
+  async function submit(action: Modal["mode"], data: Record<string,unknown>) {
     if(busy)return;setBusy(true);setError("");
     try {
       const r=modal?.restaurant;
-      const result=await manageRestaurant({tripId:trip.id,action,id:r?.id??null,expected:r?.updated_at??null,data:{...data,itemUpdatedAt:r?.itinerary_items?.updated_at??null}});
+      const result=await manageRestaurant({tripId:trip.id,action,id:r?.id??null,expected:r?.updated_at??null,data:{itemUpdatedAt:r?.itinerary_items?.updated_at??null,...data}});
       if(!result.ok){setError(result.message);return;}
       setMessage(result.message);setModal(null);startRefresh(()=>router.refresh());
     } catch { setError("연결을 확인하고 다시 시도하세요. 입력 내용은 유지됩니다."); }
@@ -94,14 +105,18 @@ export function RestaurantLibrary({ trip, restaurants }: Props) {
         <input className="rl-search" aria-label="저장한 맛집 검색" placeholder="맛집 이름이나 메뉴 검색" value={query} onChange={e=>setQuery(e.target.value)}/>
         <div className="rl-filters">{[{value:"all",label:"전체"},{value:"wish",label:"가고 싶은 곳"},{value:"planned",label:"일정에 추가됨"}].map(f=><button key={f.value} aria-pressed={status===f.value} onClick={()=>setStatus(f.value)}>{f.label}</button>)}<span>{visible.length}곳</span></div>
         <label className="rl-day-filter">방문 날짜<select aria-label="맛집 방문 날짜" value={date} onChange={e=>setDate(e.target.value)}><option value="">모두</option>{days.map(d=><option key={d.date} value={d.date}>Day {d.index+1} · {d.shortLabel}</option>)}</select></label>
+        <label className="rl-day-filter">식사 구분<select aria-label="맛집 식사 구분" value={mealFilter} onChange={e=>setMealFilter(e.target.value)}><option value="">모두</option>{MEALS.map(meal=><option key={meal}>{meal}</option>)}</select></label>
+        {(date || mealFilter) && <p className="rl-muted">일정 {visible.filter(r=>scheduledItem(r)).length}곳 · 대안 {visible.filter(r=>!scheduledItem(r)).length}곳 <button type="button" onClick={()=>{setDate("");setMealFilter("");}}>날짜·식사 필터 해제</button></p>}
         {visible.length===0&&<div className="rl-empty"><h3>{restaurants.length?"조건에 맞는 맛집이 없습니다":"첫 맛집을 저장해 보세요"}</h3><p>{restaurants.length?"다른 지역이나 날짜를 선택해 보세요.":"장소를 검색하거나 이름과 지역을 직접 입력할 수 있습니다."}</p>{editable&&!restaurants.length&&<button onClick={()=>open("save")}>맛집 저장하기</button>}</div>}
-        {visible.map(r=><article key={r.id} id={`restaurant-${r.id}`} className={`rl-card ${current?.id===r.id?"rl-selected":""}`}>
-          <span className="rl-number">{String(restaurants.indexOf(r)+1).padStart(2,"0")}</span>
+        {visible.map((r,index)=><article key={r.id} id={`restaurant-${r.id}`} className={`rl-card ${current?.id===r.id?"rl-selected":""}`}>
+          <span className="rl-number">{String(index+1).padStart(2,"0")}</span>
           <h3>{r.name}{r.original_name&&r.original_name!==r.name&&<span className="rl-original">({r.original_name})</span>}</h3>
           <p className={scheduledItem(r)?"rl-scheduled":"rl-muted"}>{mealLabel(r)}</p>
           <p className="rl-meta">{regionName(r.region)}{r.menu&&` · ${r.menu}`} · {RESERVATION_LABELS[r.reservation_status]}</p>{r.reservation_note&&<p className="rl-note">{r.reservation_note}</p>}{r.reservation_url&&<a className="rl-booking" href={r.reservation_url} target="_blank" rel="noopener noreferrer">예약·매장 안내 확인</a>}
           {r.note&&<p className="rl-note">{r.note}</p>}
           <div className="rl-actions">{editable&&<button onClick={()=>open("schedule",r)}>{scheduledItem(r)?"식사 일정 변경":"일정에 추가"}</button>}{r.latitude!==null?<button onClick={()=>selectOnMap(r.id)}>지도에서 보기</button>:<span className="rl-muted">위치 미등록</span>}
+            {editable&&!scheduledItem(r)&&<button onClick={()=>open("candidate",r)}>{r.candidate_date?"대안 분류 변경":"식사별 대안으로 분류"}</button>}
+            {editable&&replacementOptions(r).length>0&&<button onClick={()=>open("replace",r)}>이 식당으로 교체</button>}
             {editable&&<details><summary aria-label={`${r.name} 더보기`}>더보기</summary><div><button onClick={()=>open("save",r)}>맛집 정보 수정</button>{scheduledItem(r)&&<button onClick={()=>open("unschedule",r)}>일정에서 빼기</button>}<button onClick={()=>open("delete",r)}>보관함에서 삭제</button></div></details>}
           </div>
         </article>)}
@@ -114,10 +129,10 @@ export function RestaurantLibrary({ trip, restaurants }: Props) {
       </aside>
     </div>
     <dialog ref={dialog} className="rl-dialog" onCancel={e=>{if(busy)e.preventDefault();else setModal(null);}}>
-      {modal&&<><div className="rl-heading"><h2>{modal.mode==="save"?(modal.restaurant?"맛집 정보 수정":"맛집 저장"):modal.mode==="schedule"?"식사 일정 연결":modal.mode==="delete"?"보관함에서 삭제":"일정에서 빼기"}</h2><button disabled={busy} onClick={()=>setModal(null)}>닫기</button></div>
+      {modal&&<><div className="rl-heading"><h2>{modal.mode==="save"?(modal.restaurant?"맛집 정보 수정":"맛집 저장"):modal.mode==="schedule"?"식사 일정 연결":modal.mode==="candidate"?"식사별 대안 분류":modal.mode==="replace"?"식당 교체 확인":modal.mode==="delete"?"보관함에서 삭제":"일정에서 빼기"}</h2><button disabled={busy} onClick={()=>setModal(null)}>닫기</button></div>
         {error&&<p role="alert" className="rl-error">{error}</p>}
         {saving&&<LoadingStatus label="저장 중…" className="py-3" />}
-        {modal.mode==="save"?<RestaurantForm key={modal.restaurant?.id??"new"} trip={trip} value={modal.restaurant} defaultRegion={activeRegion} regions={regions} busy={busy} onSubmit={data=>submit("save",data)}/>:modal.mode==="schedule"&&modal.restaurant?<MealForm key={modal.restaurant.id} trip={trip} value={modal.restaurant} busy={busy} onSubmit={data=>submit("schedule",data)}/>:<><p>{modal.restaurant&&restaurantName(modal.restaurant)}</p><p className="rl-muted">{modal.mode==="delete"?"보관함에서만 삭제합니다. 이미 추가한 일정은 유지됩니다.":"연결된 식사 일정은 삭제하고 맛집은 보관함에 남깁니다."}</p><button disabled={busy} className="rl-primary rl-confirm" onClick={()=>submit(modal.mode as "delete"|"unschedule",{})}>{busy?"처리 중…":"확인"}</button></>}
+        {modal.mode==="save"?<RestaurantForm key={modal.restaurant?.id??"new"} trip={trip} value={modal.restaurant} defaultRegion={activeRegion} regions={regions} busy={busy} onSubmit={data=>submit("save",data)}/>:modal.mode==="schedule"&&modal.restaurant?<MealForm key={modal.restaurant.id} trip={trip} value={modal.restaurant} busy={busy} onSubmit={data=>submit("schedule",data)}/>:modal.mode==="candidate"&&modal.restaurant?<CandidateForm trip={trip} value={modal.restaurant} defaultDate={date} defaultMeal={mealFilter} busy={busy} onSubmit={data=>submit("candidate",data)}/>:modal.mode==="replace"&&modal.restaurant?<ReplacementForm value={modal.restaurant} choices={replacementOptions(modal.restaurant)} timezone={trip.timezone} busy={busy} onSubmit={data=>submit("replace",data)}/>:<><p>{modal.restaurant&&restaurantName(modal.restaurant)}</p><p className="rl-muted">{modal.mode==="delete"?"보관함에서만 삭제합니다. 이미 추가한 일정은 유지됩니다.":"연결된 식사 일정은 삭제하고 맛집은 보관함에 남깁니다."}</p><button disabled={busy} className="rl-primary rl-confirm" onClick={()=>submit(modal.mode as "delete"|"unschedule",{})}>{busy?"처리 중…":"확인"}</button></>}
       </>}
     </dialog>
   </div>;
@@ -151,11 +166,43 @@ function RestaurantForm({trip,value,defaultRegion,regions,busy,onSubmit}:{trip:T
     <button className="rl-primary rl-confirm" type="submit">{busy?"저장 중…":"보관함에 저장"}</button>
   </fieldset></form>;
 }
+function CandidateForm({ trip, value, defaultDate, defaultMeal, busy, onSubmit }: {
+  trip: TripDetail; value: SavedRestaurant; defaultDate: string; defaultMeal: string; busy: boolean; onSubmit: (data: Record<string, unknown>) => void;
+}) {
+  const days = tripDays(trip.startDate, trip.endDate);
+  const preferred = value.candidate_date || defaultDate;
+  const [date, setDate] = useState(days.some(day => day.date === preferred) ? preferred : trip.startDate);
+  const [meal, setMeal] = useState(value.candidate_meal || defaultMeal || "점심");
+  return <form onSubmit={event => { event.preventDefault(); onSubmit({ date, meal }); }}><fieldset disabled={busy}>
+    <p>{restaurantName(value)}</p><p className="rl-muted">같은 날짜·끼니의 식당과 함께 비교할 대안으로 보관합니다. 일정에는 아직 추가하지 않습니다.</p>
+    <label>대안 날짜<select aria-label="대안 날짜" value={date} onChange={event => setDate(event.target.value)}>{days.map(day => <option key={day.date} value={day.date}>Day {day.index+1} · {day.shortLabel}</option>)}</select></label>
+    <label>대안 식사 구분<select aria-label="대안 식사 구분" value={meal} onChange={event => setMeal(event.target.value)}>{MEALS.map(value => <option key={value}>{value}</option>)}</select></label>
+    <button type="submit" className="rl-primary rl-confirm">{busy ? "저장 중…" : "대안 분류 저장"}</button>
+    {value.candidate_date && <button type="button" className="rl-confirm" onClick={() => onSubmit({ date: null, meal: null })}>대안 분류 해제</button>}
+  </fieldset></form>;
+}
+
+function ReplacementForm({ value, choices, timezone, busy, onSubmit }: {
+  value: SavedRestaurant; choices: SavedRestaurant[]; timezone: string; busy: boolean; onSubmit: (data: Record<string, unknown>) => void;
+}) {
+  const [selected, setSelected] = useState(choices[0]?.id ?? "");
+  const target = choices.find(row => row.id === selected);
+  return <form onSubmit={event => {
+    event.preventDefault(); if (!target?.itinerary_items) return;
+    onSubmit({ scheduledId: target.id, scheduledExpected: target.updated_at, itemUpdatedAt: target.itinerary_items.updated_at });
+  }}><fieldset disabled={busy || !target}>
+    <label>교체할 기존 식당<select aria-label="교체할 기존 식당" value={selected} onChange={event => setSelected(event.target.value)}>{choices.map(row => <option key={row.id} value={row.id}>{row.name} · {zonedTimeLabel(row.itinerary_items!.start_at, timezone)}</option>)}</select></label>
+    <p>새 식당: <strong>{restaurantName(value)}</strong></p>
+    <p className="rl-muted">방문 시각과 체류 시간을 유지합니다. 기존 식당은 대안으로 남습니다. 기존 일정은 삭제 기록으로 보존하며 메모·예약 정보·첨부파일은 새 식당으로 옮기지 않습니다. 실제 예약은 별도로 확인하세요.</p>
+    <button type="submit" className="rl-primary rl-confirm">{busy ? "교체 중…" : "방문 시각을 유지하고 교체"}</button>
+  </fieldset></form>;
+}
+
 function MealForm({trip,value,busy,onSubmit}:{trip:TripDetail;value:SavedRestaurant;busy:boolean;onSubmit:(data:Record<string,unknown>)=>void}) {
   const item=scheduledItem(value),days=tripDays(trip.startDate,trip.endDate);
-  const local=item?utcToZonedLocal(item.start_at,trip.timezone):"";
+  const local=item?utcToZonedLocal(item.start_at,trip.timezone):value.candidate_date?`${value.candidate_date}T${MEAL_TIMES[value.candidate_meal??"점심"]}`:"";
   const [date,setDate]=useState(days.some(d=>d.date===local.slice(0,10))?local.slice(0,10):trip.startDate);
-  const [meal,setMeal]=useState<Meal>(value.meal??"점심");
+  const [meal,setMeal]=useState<Meal>((item ? value.meal : value.candidate_meal)??"점심");
   const [time,setTime]=useState(local.slice(11,16)||MEAL_TIMES[meal]);
   return <form onSubmit={e=>{e.preventDefault();onSubmit({local:`${date}T${time}`,meal});}}><fieldset disabled={busy}>
     <p>{restaurantName(value)}</p><label>방문 날짜<select aria-label="방문 날짜" value={date} onChange={e=>setDate(e.target.value)}>{days.map(d=><option key={d.date} value={d.date}>Day {d.index+1} · {d.shortLabel} ({d.weekday})</option>)}</select></label>

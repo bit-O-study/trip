@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { RestaurantLibrary } from "./restaurant-library";
 import type { TripDetail } from "@/features/trips/types";
+import type { SavedRestaurant } from "./model";
 const mocks = vi.hoisted(() => ({ save:vi.fn(), refresh:vi.fn(), desktop:false }));
 vi.mock("next/navigation", () => ({ useRouter:()=>({refresh:mocks.refresh}) }));
 vi.mock("./actions", () => ({ manageRestaurant:mocks.save }));
@@ -12,6 +13,35 @@ beforeEach(()=>{
   vi.stubGlobal("matchMedia",()=>({matches:mocks.desktop,addEventListener:vi.fn(),removeEventListener:vi.fn()}));
   HTMLDialogElement.prototype.showModal=function(){this.setAttribute("open","");};
   HTMLDialogElement.prototype.close=function(){this.removeAttribute("open");};
+});
+const restaurant: SavedRestaurant = { id:"candidate", trip_id:trip.id, name:"대안 식당", original_name:"", region:"가오슝", menu:"만두", note:"", address:"Taiwan", latitude:null, longitude:null, reservation_status:"unknown", reservation_note:"", reservation_url:"", updated_at:"candidate-version", item_id:null, meal:null, itinerary_items:null, candidate_date:"2026-11-21", candidate_meal:"저녁" };
+const planned: SavedRestaurant = { ...restaurant, id:"planned", name:"기존 식당", updated_at:"planned-version", item_id:"meal-item", meal:"저녁", candidate_date:null, candidate_meal:null, itinerary_items:{id:"meal-item",start_at:"2026-11-21T11:00:00Z",updated_at:"item-version",status:"confirmed",deleted_at:null} };
+it("날짜·끼니 필터는 확정 식당과 대안을 함께 보여주며 교체 대상의 버전을 전송한다", async () => {
+  mocks.save.mockResolvedValue({ok:false,message:"변경 확인 필요"});
+  render(<RestaurantLibrary trip={trip} restaurants={[restaurant,planned,{...restaurant,id:"other",name:"다른 날 식당",candidate_date:"2026-11-19"}]} />);
+  fireEvent.change(screen.getByLabelText("맛집 방문 날짜"),{target:{value:"2026-11-21"}});
+  fireEvent.change(screen.getByLabelText("맛집 식사 구분"),{target:{value:"저녁"}});
+  expect(screen.getByText("기존 식당",{exact:true})).toBeInTheDocument();
+  expect(screen.getByText("대안 식당",{exact:true})).toBeInTheDocument();
+  expect(screen.queryByText("다른 날 식당",{exact:true})).not.toBeInTheDocument();
+  expect(screen.getByText(/일정 1곳 · 대안 1곳/)).toBeInTheDocument();
+  expect(screen.getAllByRole("article")[0]).toHaveTextContent("기존 식당");
+  fireEvent.click(screen.getByRole("button",{name:"이 식당으로 교체"}));
+  const dialog=screen.getByRole("dialog");
+  expect(within(dialog).getByLabelText("교체할 기존 식당")).toHaveValue(planned.id);
+  await act(async()=>fireEvent.submit(dialog.querySelector("form")!));
+  expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({action:"replace",id:restaurant.id,expected:restaurant.updated_at,data:{scheduledId:planned.id,scheduledExpected:planned.updated_at,itemUpdatedAt:"item-version"}}));
+  expect(within(dialog).getByRole("alert")).toHaveTextContent("변경 확인 필요");
+});
+it("미분류 식당을 날짜·끼니 대안으로 저장할 수 있다", async () => {
+  mocks.save.mockResolvedValue({ok:true,message:"저장했습니다"});
+  render(<RestaurantLibrary trip={trip} restaurants={[{...restaurant,candidate_date:null,candidate_meal:null}]} />);
+  fireEvent.click(screen.getByRole("button",{name:"식사별 대안으로 분류"}));
+  const dialog=screen.getByRole("dialog");
+  fireEvent.change(within(dialog).getByLabelText("대안 날짜"),{target:{value:"2026-11-21"}});
+  fireEvent.change(within(dialog).getByLabelText("대안 식사 구분"),{target:{value:"저녁"}});
+  await act(async()=>fireEvent.submit(dialog.querySelector("form")!));
+  expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({action:"candidate",data:expect.objectContaining({date:"2026-11-21",meal:"저녁"})}));
 });
 it("모바일 목록은 지도 모듈을 로드하지 않고 지도 보기에서만 연다",()=>{
   render(<RestaurantLibrary trip={trip} restaurants={[]} />);
