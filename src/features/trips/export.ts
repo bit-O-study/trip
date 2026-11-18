@@ -1,5 +1,6 @@
 import { listSavedRestaurants } from "@/features/restaurants/queries";
 import { listExpenses } from "@/features/expenses/queries";
+import { listPackingItems } from "@/features/packing/queries";
 import {
   currentTravelLegs,
   getTrip,
@@ -19,7 +20,7 @@ import {
  * `schemaVersion` 을 넣는 이유: 내보낸 파일은 우리 손을 떠나 몇 년 뒤에 열린다.
  * 형태가 바뀌었을 때 어느 버전으로 읽어야 하는지 파일 자체가 말해야 한다.
  */
-export const EXPORT_SCHEMA_VERSION = 6;
+export const EXPORT_SCHEMA_VERSION = 7;
 
 export type TripExport = {
   schemaVersion: number;
@@ -31,13 +32,14 @@ export type TripExport = {
   restaurantPolls: Array<Record<string, unknown>>;
   savedRestaurants: Array<Record<string, unknown>>;
   expenses: Array<Record<string, unknown>>;
+  packingItems: Array<Record<string, unknown>>;
 };
 
 export async function buildTripExport(tripId: string): Promise<TripExport | null> {
   const trip = await getTrip(tripId);
   if (!trip) return null;
 
-  const [items, members, polls, travelLegs, savedRestaurants, expenses] = await Promise.all([
+  const [items, members, polls, travelLegs, savedRestaurants, expenses, packingItems] = await Promise.all([
     listItems(tripId),
     listTripMembers(tripId),
     // GET 내보내기는 읽기만 한다. 마감이 지난 투표도 여기서 확정하지 않는다.
@@ -45,10 +47,12 @@ export async function buildTripExport(tripId: string): Promise<TripExport | null
     listTravelLegs(tripId),
     listSavedRestaurants(tripId),
     listExpenses(tripId),
+    listPackingItems(tripId),
   ]);
 
   return {
     schemaVersion: EXPORT_SCHEMA_VERSION,
+    packingItems: packingItems.map(item => ({ ...item })),
     expenses: expenses.map(expense => ({ ...expense })),
     savedRestaurants: savedRestaurants.map(restaurant => ({ ...restaurant })),
     exportedAt: new Date().toISOString(),
