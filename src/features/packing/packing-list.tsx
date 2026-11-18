@@ -16,6 +16,7 @@ export function PackingList({ tripId, items, editable }: Props) {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
   const [hideDone, setHideDone] = useState(false);
+  const [category, setCategory] = useState("기타");
   const stats = progress(items);
   const categories = [...new Set([...PACKING_CATEGORIES, ...items.map(item => item.category)])];
 
@@ -51,8 +52,13 @@ export function PackingList({ tripId, items, editable }: Props) {
       <h2 className="mb-4 text-lg font-semibold">준비물 추가</h2>
       <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
         <label className="text-sm">준비물<input required name="title" autoComplete="off" maxLength={100} placeholder="예: 보조배터리" className={inputClass} /></label>
-        <label className="text-sm">분류<input required name="category" list="packing-categories" maxLength={30} defaultValue="기타" className={inputClass} /></label>
-        <datalist id="packing-categories">{categories.map(c => <option key={c} value={c} />)}</datalist>
+        <div className="min-w-0 space-y-2">
+          <label className="block text-sm">분류<select aria-label="분류" name={category ? "category" : undefined} value={category} onChange={event => setCategory(event.target.value)} className={inputClass}>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            <option value="">직접 입력</option>
+          </select></label>
+          {!category && <label className="block text-sm">새 분류 이름<input required name="category" maxLength={30} placeholder="예: 촬영 장비" className={inputClass} /></label>}
+        </div>
         <button type="submit" className="min-h-11 rounded-lg bg-foreground px-5 py-3 text-sm font-semibold text-background">{busy ? "저장 중…" : "추가"}</button>
       </fieldset>
       <div className="mt-4 text-sm"><button type="button" disabled={busy} onClick={() => void run({ tripId, action: "template", id: null, expected: null, data: {} })} className="min-h-11 py-2 underline">대만 여행 기본 준비물 추가</button><span className="ml-2 text-xs text-muted-foreground">이미 있는 항목은 건너뜁니다.</span></div>
