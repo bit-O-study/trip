@@ -18,3 +18,18 @@ export async function manageExpense(input: unknown): Promise<{ ok: boolean; mess
   revalidatePath(`/trips/${value.tripId}/expenses`);
   return { ok: true, message: value.action === "delete" ? "지출을 삭제했습니다." : "지출을 저장했습니다." };
 }
+
+const categoryRequest = z.object({
+  tripId: z.uuid(), from: z.string().trim().min(1).max(30), to: z.string().trim().min(1).max(30),
+  expected: z.array(z.object({ id: z.uuid(), updated_at: z.string().min(1) })).min(1),
+}).refine(value => value.from !== value.to);
+export async function renameExpenseCategory(input: unknown): Promise<{ ok: boolean; message: string }> {
+  const parsed = categoryRequest.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "변경할 카테고리 이름을 확인해 주세요." };
+  const { tripId, from, to, expected } = parsed.data;
+  const client = await createSupabaseServerClient();
+  const { data, error } = await client.rpc("rename_expense_category", { p_trip_id: tripId, p_from: from, p_to: to, p_expected: expected });
+  if (error) return { ok: false, message: error.code === "40001" ? "지출 내역이 변경되었습니다. 새로고침 후 변경 대상을 다시 확인해 주세요." : dbErrorMessage("분류를 변경하지 못했습니다", error) };
+  revalidatePath(`/trips/${tripId}/expenses`);
+  return { ok: true, message: `${data}건의 카테고리를 ${to}(으)로 변경했습니다.` };
+}

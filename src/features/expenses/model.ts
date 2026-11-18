@@ -5,8 +5,11 @@ export const CURRENCIES = ["KRW", "TWD", "USD", "JPY", "EUR", "CNY", "VND", "THB
 export function fractionDigits(currency: string) { return ["KRW", "JPY", "VND"].includes(currency) ? 0 : 2; }
 export function parseAmount(value: string, currency: string): number | null {
   const digits = fractionDigits(currency);
-  if (!new RegExp(`^\\d{1,11}${digits ? '(?:\\.\\d{1,2})?' : ''}$`).test(value.trim())) return null;
-  const [whole, fraction = ""] = value.trim().split(".");
+  const trimmed = value.trim();
+  if (trimmed.includes(",") && !/^\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$/.test(trimmed)) return null;
+  const normalized = trimmed.replaceAll(",", "");
+  if (!new RegExp(`^\\d{1,11}${digits ? '(?:\\.\\d{1,2})?' : ''}$`).test(normalized)) return null;
+  const [whole, fraction = ""] = normalized.split(".");
   const amount = Number(whole) * 10 ** digits + Number(fraction.padEnd(digits, "0"));
   return Number.isSafeInteger(amount) && amount > 0 && amount <= 99999999999 ? amount : null;
 }

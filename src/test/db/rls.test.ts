@@ -44,6 +44,38 @@ describe("여행 지출", () => {
   async function save(tripId: string, id: string | null = null, expected: string | null = null, data = payload) {
     return (await db.pg.query<{ id: string }>("select trip.manage_expense($1,'save',$2,$3,$4) id", [tripId,id,expected,JSON.stringify(data)])).rows[0].id;
   }
+  it("분류 이름 변경·통합은 편집자에게만 허용하고 변경된 스냅샷 전체를 거부한다", async () => {
+    const tripId = await seedTrip();
+    const first = await save(tripId), second = await save(tripId);
+    await save(tripId, null, null, { ...payload, category: "간식" });
+    const snapshot = async () => (await db.pg.query<{ id: string; updated_at: string }>("select id,updated_at from trip.expenses where trip_id=$1 and category='식비' order by id", [tripId])).rows;
+    const expected = await snapshot();
+    const rename = (rows: unknown = expected, to = "간식", trip = tripId) => db.pg.query("select trip.rename_expense_category($1,'식비',$2,$3)", [trip, to, JSON.stringify(rows)]);
+    for (const user of [USER.viewer, USER.stranger]) { await db.asUser(user); await expectDenied(() => rename()); }
+    await db.asAnon(); await expectDenied(() => rename());
+    await db.asUser(USER.editor);
+    await expectDenied(() => rename([expected[0]]));
+    await expectDenied(() => rename([expected[0], expected[0]]));
+    await expectDenied(() => rename(expected, " "));
+    const current = (await db.pg.query<{ updated_at: string }>("select updated_at from trip.expenses where id=$1", [first])).rows[0];
+    await save(tripId, first, current.updated_at, { ...payload, title: "동행자가 수정" });
+    await expectDenied(() => rename());
+    expect((await db.pg.query("select id from trip.expenses where trip_id=$1 and category='식비'", [tripId])).rows).toHaveLength(2);
+    const latest = await snapshot();
+    await rename(latest);
+    const merged = (await db.pg.query<{ category: string; amount_minor: number }>("select category,amount_minor from trip.expenses where trip_id=$1", [tripId])).rows;
+    expect(merged).toHaveLength(3);
+    expect(merged.every(row => row.category === "간식" && Number(row.amount_minor) === 85000)).toBe(true);
+    await expectDenied(() => save(tripId, second, String((expected.find(row => row.id === second) as { updated_at: string }).updated_at)));
+  });
+  it("분류 변경은 다른 여행의 스냅샷과 삭제된 여행을 거부한다", async () => {
+    const tripId = await seedTrip(); await save(tripId);
+    const snapshot = (await db.pg.query("select id,updated_at from trip.expenses where trip_id=$1", [tripId])).rows;
+    const otherTrip = await seedTrip(); await save(otherTrip);
+    await expectDenied(() => db.pg.query("select trip.rename_expense_category($1,'식비','간식',$2)", [otherTrip, JSON.stringify(snapshot)]));
+    await db.pg.query("update trip.trips set deleted_at=now() where id=$1", [tripId]);
+    await expectDenied(() => db.pg.query("select trip.rename_expense_category($1,'식비','간식',$2)", [tripId, JSON.stringify(snapshot)]));
+  });
   it("소유자·편집자는 저장하고 조회자는 읽기만, 비멤버·익명은 접근할 수 없다", async () => {
     const tripId = await seedTrip(); await save(tripId);
     await db.asUser(USER.editor); await save(tripId);

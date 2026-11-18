@@ -1,0 +1,34 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, expect, it, vi } from "vitest";
+import { CategoryManager } from "./category-manager";
+import type { Expense } from "./model";
+const manage = vi.hoisted(() => vi.fn());
+vi.mock("./actions", () => ({ renameExpenseCategory: manage }));
+const row: Expense = { id: "one", title: "점심", category: "식비", spent_on: "2026-11-18", amount_minor: 100, currency: "TWD", note: "", updated_at: "original-version" };
+beforeEach(() => vi.clearAllMocks());
+it("변경 대상 건수와 통합을 표시하고 확인한 버전만 서버로 전송한다", async () => {
+  const user = userEvent.setup(), changed = vi.fn();
+  manage.mockResolvedValue({ ok: true, message: "변경 완료" });
+  render(<CategoryManager tripId="trip-one" expenses={[row, { ...row, id: "two", category: "간식" }]} disabled={false} onChanged={changed} />);
+  await user.click(screen.getByText("사용한 카테고리 정리"));
+  await user.selectOptions(screen.getByLabelText("변경할 카테고리"), "식비");
+  await user.type(screen.getByLabelText("새 이름 또는 합칠 카테고리"), "간식");
+  expect(screen.getByText(/‘식비’ 1건 → ‘간식’에 합칩니다/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "1건 분류 변경" }));
+  expect(manage).toHaveBeenCalledWith({ tripId: "trip-one", from: "식비", to: "간식", expected: [{ id: row.id, updated_at: row.updated_at }] });
+  expect(changed).toHaveBeenCalledWith("식비", "간식");
+});
+it("실패 시 이름을 유지하고 입력 중에는 변경을 막는다", async () => {
+  const user = userEvent.setup(), changed = vi.fn();
+  manage.mockResolvedValue({ ok: false, message: "다른 곳에서 변경됨" });
+  const view = render(<CategoryManager tripId="trip-one" expenses={[row]} disabled={false} onChanged={changed} />);
+  await user.click(screen.getByText("사용한 카테고리 정리"));
+  await user.type(screen.getByLabelText("새 이름 또는 합칠 카테고리"), "음식");
+  await user.click(screen.getByRole("button", { name: "1건 분류 변경" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("다른 곳에서 변경됨");
+  expect(screen.getByLabelText("새 이름 또는 합칠 카테고리")).toHaveValue("음식");
+  expect(changed).not.toHaveBeenCalled();
+  view.rerender(<CategoryManager tripId="trip-one" expenses={[row]} disabled onChanged={changed} />);
+  expect(screen.getByRole("button", { name: "1건 분류 변경" })).toBeDisabled();
+});
