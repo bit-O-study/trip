@@ -39,6 +39,48 @@ async function seedTrip(): Promise<string> {
   return tripId;
 }
 
+describe("여행 지출", () => {
+  const payload = { title: "점심", category: "식비", spent_on: "2026-02-14", amount_minor: 85000, currency: "TWD", note: "2명" };
+  async function save(tripId: string, id: string | null = null, expected: string | null = null, data = payload) {
+    return (await db.pg.query<{ id: string }>("select trip.manage_expense($1,'save',$2,$3,$4) id", [tripId,id,expected,JSON.stringify(data)])).rows[0].id;
+  }
+  it("소유자·편집자는 저장하고 조회자는 읽기만, 비멤버·익명은 접근할 수 없다", async () => {
+    const tripId = await seedTrip(); await save(tripId);
+    await db.asUser(USER.editor); await save(tripId);
+    await db.asUser(USER.viewer);
+    expect((await db.pg.query("select * from trip.expenses")).rows).toHaveLength(2);
+    await expectDenied(() => save(tripId));
+    await db.asUser(USER.stranger);
+    expect((await db.pg.query("select * from trip.expenses")).rows).toHaveLength(0);
+    await expectDenied(() => save(tripId));
+    await db.asAnon(); await expectDenied(() => save(tripId));
+    await expectDenied(() => db.pg.query("select * from trip.expenses"));
+  });
+  it("타 여행 연결·직접 쓰기·오래된 수정·조회자의 삭제를 거부한다", async () => {
+    const tripId = await seedTrip(), id = await save(tripId);
+    const row = (await db.pg.query<{updated_at:string}>("select updated_at from trip.expenses where id=$1", [id])).rows[0];
+    const other = await seedTrip();
+    await expectDenied(() => save(other,id,row.updated_at));
+    await expectDenied(() => save(tripId,id,"2000-01-01"));
+    await expectDenied(() => db.pg.query("update trip.expenses set title='침입' where id=$1",[id]));
+    await db.asUser(USER.viewer);
+    await expectDenied(() => db.pg.query("select trip.manage_expense($1,'delete',$2,$3,'{}')",[tripId,id,row.updated_at]));
+    await db.asUser(USER.editor);
+    await save(tripId,id,row.updated_at,{...payload,category:"기념품",amount_minor:999});
+    expect((await db.pg.query<{category:string}>("select category from trip.expenses where id=$1",[id])).rows[0].category).toBe("기념품");
+    await expectDenied(() => db.pg.query("select trip.manage_expense($1,'delete',$2,$3,'{}')",[tripId,id,row.updated_at]));
+    const current = (await db.pg.query<{updated_at:string}>("select updated_at from trip.expenses where id=$1",[id])).rows[0];
+    await db.pg.query("select trip.manage_expense($1,'delete',$2,$3,'{}')",[tripId,id,current.updated_at]);
+    expect((await db.pg.query("select * from trip.expenses")).rows).toHaveLength(0);
+  });
+  it("삭제된 여행과 잘못된 금액·분류·통화를 거부한다", async () => {
+    const tripId = await seedTrip();
+    for (const data of [{...payload,amount_minor:0},{...payload,category:" "},{...payload,currency:"BAD"}]) await expectDenied(() => save(tripId,null,null,data));
+    await db.pg.query("update trip.trips set deleted_at=now() where id=$1",[tripId]);
+    await expectDenied(() => save(tripId));
+  });
+});
+
 describe("맛집 보관함", () => {
   const payload = { name: "우육면", originalName: "牛肉麵", region: "가오슝", latitude: 22.62, longitude: 120.28 };
   it("예약 안내를 저장하고 잘못된 상태와 위험한 링크를 거부한다", async () => {
