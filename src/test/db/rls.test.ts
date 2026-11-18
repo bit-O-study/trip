@@ -113,6 +113,54 @@ describe("여행 지출", () => {
   });
 });
 
+describe("여행 준비물", () => {
+  const item = { title: "보조배터리", category: "전자기기", checked: false };
+  const manage = (tripId: string, action: string, id: string | null = null, expected: string | null = null, data: unknown = item) =>
+    db.pg.query<{ manage_packing_item: number }>("select trip.manage_packing_item($1,$2,$3,$4,$5)", [tripId, action, id, expected, JSON.stringify(data)]);
+  const rows = async (tripId: string) => (await db.pg.query<{ id: string; checked: boolean; updated_at: string }>("select id,checked,updated_at from trip.packing_items where trip_id=$1", [tripId])).rows;
+  it("소유자·편집자는 변경하고 조회자는 읽기만, 비멤버·익명은 접근할 수 없다", async () => {
+    const tripId = await seedTrip(); await manage(tripId, "save");
+    await db.asUser(USER.editor); await manage(tripId, "save", null, null, { ...item, title: "여권" });
+    await db.asUser(USER.viewer);
+    expect(await rows(tripId)).toHaveLength(2);
+    await expectDenied(() => manage(tripId, "save"));
+    await expectDenied(() => manage(tripId, "add_many", null, null, { items: [item] }));
+    await db.asUser(USER.stranger);
+    expect(await rows(tripId)).toHaveLength(0);
+    await expectDenied(() => manage(tripId, "save"));
+    await db.asAnon(); await expectDenied(() => manage(tripId, "save"));
+    await expectDenied(() => db.pg.query("select * from trip.packing_items"));
+  });
+  it("체크 변경은 낙관적 잠금을 따르고 직접 쓰기·타 여행·조회자 삭제를 거부한다", async () => {
+    const tripId = await seedTrip(); await manage(tripId, "save");
+    const [row] = await rows(tripId);
+    await expectDenied(() => db.pg.query("update trip.packing_items set checked=true where id=$1", [row.id]));
+    const other = await seedTrip();
+    await expectDenied(() => manage(other, "save", row.id, row.updated_at, { ...item, checked: true }));
+    await db.asUser(USER.viewer);
+    await expectDenied(() => manage(tripId, "delete", row.id, row.updated_at, {}));
+    await db.asUser(USER.editor);
+    await manage(tripId, "save", row.id, row.updated_at, { ...item, checked: true });
+    expect((await rows(tripId))[0].checked).toBe(true);
+    await expectDenied(() => manage(tripId, "save", row.id, row.updated_at, { ...item, checked: false }));
+    await expectDenied(() => manage(tripId, "delete", row.id, row.updated_at, {}));
+    await manage(tripId, "delete", row.id, (await rows(tripId))[0].updated_at, {});
+    expect(await rows(tripId)).toHaveLength(0);
+  });
+  it("기본 목록은 중복을 건너뛰고 잘못된 입력·삭제된 여행을 거부한다", async () => {
+    const tripId = await seedTrip();
+    const template = { items: [item, { title: "여권", category: "서류·결제" }] };
+    expect((await manage(tripId, "add_many", null, null, template)).rows[0].manage_packing_item).toBe(2);
+    expect((await manage(tripId, "add_many", null, null, template)).rows[0].manage_packing_item).toBe(0);
+    expect(await rows(tripId)).toHaveLength(2);
+    for (const data of [{ ...item, title: " " }, { ...item, category: "x".repeat(31) }]) await expectDenied(() => manage(tripId, "save", null, null, data));
+    await expectDenied(() => manage(tripId, "add_many", null, null, { items: [] }));
+    await expectDenied(() => manage(tripId, "bogus"));
+    await db.pg.query("update trip.trips set deleted_at=now() where id=$1", [tripId]);
+    await expectDenied(() => manage(tripId, "save"));
+  });
+});
+
 describe("맛집 보관함", () => {
   const payload = { name: "우육면", originalName: "牛肉麵", region: "가오슝", latitude: 22.62, longitude: 120.28 };
   it("예약 안내를 저장하고 잘못된 상태와 위험한 링크를 거부한다", async () => {
