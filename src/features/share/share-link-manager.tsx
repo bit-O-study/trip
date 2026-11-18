@@ -38,7 +38,6 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
     rotateShareLinkAction,
     SHARE_IDLE,
   );
-  const [copied, setCopied] = useState(false);
 
   const fresh = rotated.sharePath ? rotated : created;
   const active = links.filter((link) => statusLabel(link) === "사용 중");
@@ -104,16 +103,7 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
             onFocus={(event) => event.currentTarget.select()}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
           />
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(absolute(fresh.sharePath!));
-              setCopied(true);
-            }}
-            className="rounded-full border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-          >
-            {copied ? "복사했습니다" : "링크 복사"}
-          </button>
+          <ShareLinkCopy key={fresh.sharePath} path={fresh.sharePath} />
         </div>
       ) : null}
 
@@ -155,5 +145,27 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
         </ul>
       ) : null}
     </div>
+  );
+}
+
+export function ShareLinkCopy({ path }: { path: string }) {
+  const [status, setStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
+  async function copy() {
+    setStatus("pending");
+    try {
+      await navigator.clipboard.writeText(absolute(path));
+      setStatus("success");
+    } catch {
+      setStatus("error");
+    }
+  }
+  return (
+    <>
+      <button type="button" onClick={copy} disabled={status === "pending"}
+        className="rounded-full border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50">
+        {status === "pending" ? "복사 중…" : status === "success" ? "복사했습니다" : "링크 복사"}
+      </button>
+      {status === "error" ? <p role="alert" className="text-xs text-danger">복사하지 못했습니다. 위 링크를 선택해 직접 복사해 주세요.</p> : null}
+    </>
   );
 }
