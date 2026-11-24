@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>디자인 시스템</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1000px; height: 960px; box-sizing: border-box; padding: 44px 48px; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; display: flex; gap: 48px">
+
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 30px">
+
+<section>
+<h2 style="margin: 0 0 12px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 22px">색</h2>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<sc-for list="{{colors}}" as="c" hint-placeholder-count="8">
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 14px; border: 1px solid #E3DBCB; background: #FFFDF8">
+<svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="flex: none"><rect width="44" height="44" rx="10" fill="{{c.hex}}" stroke="#857B66" stroke-width="1"/></svg>
+<div style="min-width: 0"><div style="font-size: 14px; font-weight: 600">{{c.name}}</div><div style="font-size: 12px; color: #5E594F">{{c.hex}} · {{c.use}}</div></div>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section>
+<h2 style="margin: 0 0 4px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 22px">Day 색상</h2>
+<p style="margin: 0 0 12px; font-size: 13px; color: #5E594F">타임라인 번호, 지도 마커, 날짜 탭이 같은 색을 써요. 숫자와 함께 표시해 색만으로 구분하지 않아요.</p>
+<div style="display: flex; gap: 10px">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="5">
+<div style="flex: 1; text-align: center">
+<svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" fill="{{d.hex}}"/><text x="26" y="32" text-anchor="middle" font-family="IBM Plex Sans KR, sans-serif" font-size="18" font-weight="600" fill="#FFFFFF">{{d.n}}</text></svg>
+<div style="margin-top: 4px; font-size: 12px; color: #5E594F">{{d.hex}}</div>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section>
+<h2 style="margin: 0 0 12px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 22px">티켓 구분선</h2>
+<div style="position: relative; overflow: hidden; border-radius: 20px; background: #0E5A52; color: #F6F2EA">
+<div style="padding: 16px 20px"><div style="font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 20px">대만 4박 5일</div><div style="font-size: 13px; opacity: 0.85">가오슝 → 타이베이</div></div>
+<div style="position: relative; height: 0; border-top: 2px dashed rgba(246,242,234,0.45); margin: 0 16px">
+<span style="position: absolute; left: -26px; top: -11px; width: 20px; height: 20px; border-radius: 10px; background: #F6F2EA"></span>
+<span style="position: absolute; right: -26px; top: -11px; width: 20px; height: 20px; border-radius: 10px; background: #F6F2EA"></span>
+</div>
+<div style="padding: 12px 20px; font-size: 13px">준비물 6 / 20 · 사전 결제 ₩1,617,120</div>
+</div>
+<p style="margin: 8px 0 0; font-size: 12px; color: #5E594F">여행 카드와 지출 합계에만 써서 &ldquo;여행의 한 장&rdquo; 느낌을 줘요.</p>
+</section>
+</div>
+
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 30px">
+
+<section>
+<h2 style="margin: 0 0 12px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 22px">글꼴</h2>
+<div style="padding: 16px 18px; border-radius: 16px; border: 1px solid #E3DBCB; background: #FFFDF8; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px"><span style="font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 34px; letter-spacing: -0.02em; line-height: 1.2">대만 4박 5일</span><span style="flex: none; font-size: 12px; color: #5E594F">Serif 700 · 34</span></div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px"><span style="font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 20px">Day 1 · 가오슝 도착</span><span style="flex: none; font-size: 12px; color: #5E594F">Serif 700 · 20</span></div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px"><span style="font-size: 16px; font-weight: 600">리우허 야시장</span><span style="flex: none; font-size: 12px; color: #5E594F">Sans 600 · 16</span></div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px"><span style="font-size: 14px; color: #5E594F">도보 12분 · 현금 준비</span><span style="flex: none; font-size: 12px; color: #5E594F">Sans 400 · 14</span></div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px"><span style="font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums">₩1,617,120 · 08:35</span><span style="flex: none; font-size: 12px; color: #5E594F">숫자는 고정폭</span></div>
+</div>
+<p style="margin: 8px 0 0; font-size: 12px; color: #5E594F">제목은 Noto Serif KR로 여행 수첩 느낌을, 본문은 IBM Plex Sans KR로 또렷하게 읽혀요.</p>
+</section>
+
+<section>
+<h2 style="margin: 0 0 12px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 22px">버튼과 칩</h2>
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 10px; flex-wrap: wrap">
+<button type="button" style="height: 52px; padding: 0 26px; border: 0; border-radius: 14px; background: #0E5A52; color: #FFFFFF; font: 600 16px 'IBM Plex Sans KR', sans-serif">기본 동작</button>
+<button type="button" style="height: 52px; padding: 0 22px; border-radius: 14px; border: 1px solid #857B66; background: #FFFDF8; color: #1C1B18; font: 600 16px 'IBM Plex Sans KR', sans-serif">보조</button>
+<button type="button" style="height: 52px; padding: 0 22px; border: 0; border-radius: 14px; background: #FEE500; color: #191919; font: 600 16px 'IBM Plex Sans KR', sans-serif">카카오</button>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<span style="display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #1C1B18; color: #F6F2EA; font-size: 15px; font-weight: 600">선택된 탭</span>
+<span style="display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #ECE5D6; font-size: 15px">탭</span>
+<span style="display: flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 999px; background: #FCEBC8; color: #7A4B00; font-size: 12px; font-weight: 600">다음 일정까지 15분 부족</span>
+</div>
+<div style="display: flex; align-items: center; gap: 16px">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 24px; height: 24px; border-radius: 8px; border: 2px solid #857B66; box-sizing: border-box"></span>안 챙김</span>
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 24px; height: 24px; border-radius: 8px; background: #0E5A52; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7"/></svg></span>챙김</span>
+</div>
+</div>
+</section>
+
+<section>
+<h2 style="margin: 0 0 8px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 22px">원칙</h2>
+<ul style="margin: 0; padding-left: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 4px">
+<li>누를 수 있는 것은 모두 높이 44px 이상</li>
+<li>본문 대비 4.5:1 이상, 색만으로 의미를 전달하지 않기</li>
+<li>드래그만 되는 조작 없이 버튼 대체 경로 함께 제공</li>
+<li>화면마다 가장 중요한 동작은 하나, 초록 버튼으로</li>
+</ul>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      colors: [
+        { name: '종이', hex: '#F6F2EA', use: '배경' },
+        { name: '카드', hex: '#FFFDF8', use: '카드 면' },
+        { name: '먹', hex: '#1C1B18', use: '본문·제목' },
+        { name: '보조 글자', hex: '#5E594F', use: '설명·메타' },
+        { name: '선', hex: '#E3DBCB', use: '테두리' },
+        { name: '칩', hex: '#ECE5D6', use: '비활성 칩' },
+        { name: '여행 초록', hex: '#0E5A52', use: '주요 동작' },
+        { name: '연한 초록', hex: '#D8EBE6', use: '진행 카드' }
+      ],
+      days: [
+        { n: 1, hex: '#D2452D' }, { n: 2, hex: '#0F7C86' }, { n: 3, hex: '#7A4FC2' }, { n: 4, hex: '#8F6200' }, { n: 5, hex: '#2F63C8' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

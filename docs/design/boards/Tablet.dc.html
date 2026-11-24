@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>일정 태블릿</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 820px; height: 1100px; box-sizing: border-box; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; padding: 0 28px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; height: 64px">
+<div style="display: flex; align-items: center; gap: 10px">
+<a href="Main.dc.html" aria-label="여행 목록으로" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1C1B18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+<span style="font-weight: 600">내 여행</span>
+</div>
+<button type="button" style="height: 48px; padding: 0 20px; border: 0; border-radius: 14px; background: #0E5A52; color: #FFFFFF; font: 600 15px 'IBM Plex Sans KR', sans-serif">일정 추가</button>
+</div>
+
+<h1 style="margin: 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 34px; line-height: 1.3; letter-spacing: -0.02em">대만 4박 5일</h1>
+<p style="margin: 4px 0 0; font-size: 15px; color: #5E594F">11.19 목 – 11.23 월 · 가오슝 → 타이베이</p>
+
+<nav aria-label="여행 메뉴" style="display: flex; gap: 8px; margin-top: 16px">
+<a href="Tablet.dc.html" aria-current="page" style="display: flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 22px; background: #1C1B18; color: #F6F2EA; font-size: 15px; font-weight: 600">일정</a>
+<a href="Packing.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 22px; background: #ECE5D6; font-size: 15px">준비물</a>
+<a href="Restaurants.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 22px; background: #ECE5D6; font-size: 15px">맛집</a>
+<a href="Expenses.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 22px; background: #ECE5D6; font-size: 15px">지출</a>
+</nav>
+
+<div style="display: flex; gap: 24px; margin-top: 20px">
+<section aria-label="Day 1 일정" style="width: 400px; flex: none">
+<div role="tablist" aria-label="날짜 선택" style="display: flex; gap: 8px; overflow-x: auto">
+<button type="button" role="tab" aria-selected="true" style="flex: none; min-width: 64px; height: 56px; border: 0; border-radius: 16px; background: #D2452D; color: #FFFFFF; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.25"><span style="display: block; font-size: 12px; font-weight: 600">DAY 1</span><span style="display: block; font-size: 14px">19 목</span></button>
+<button type="button" role="tab" aria-selected="false" style="flex: none; min-width: 64px; height: 56px; border: 1px solid #E3DBCB; border-radius: 16px; background: #FFFDF8; color: #1C1B18; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.25"><span style="display: block; font-size: 12px; font-weight: 600; color: #0F7C86">DAY 2</span><span style="display: block; font-size: 14px">20 금</span></button>
+<button type="button" role="tab" aria-selected="false" style="flex: none; min-width: 64px; height: 56px; border: 1px solid #E3DBCB; border-radius: 16px; background: #FFFDF8; color: #1C1B18; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.25"><span style="display: block; font-size: 12px; font-weight: 600; color: #7A4FC2">DAY 3</span><span style="display: block; font-size: 14px">21 토</span></button>
+<button type="button" role="tab" aria-selected="false" style="flex: none; min-width: 64px; height: 56px; border: 1px solid #E3DBCB; border-radius: 16px; background: #FFFDF8; color: #1C1B18; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.25"><span style="display: block; font-size: 12px; font-weight: 600; color: #8F6200">DAY 4</span><span style="display: block; font-size: 14px">22 일</span></button>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; margin-top: 18px">
+<span style="width: 6px; height: 36px; border-radius: 3px; background: #D2452D"></span>
+<div><div style="font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 20px; line-height: 1.3">Day 1 · 가오슝 도착</div><div style="font-size: 13px; color: #5E594F">일정 4개</div></div>
+</div>
+<div style="margin-top: 14px">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+<div style="display: flex; gap: 8px">
+<div style="width: 44px; padding-top: 14px; text-align: right; font-size: 13px; color: #5E594F; font-variant-numeric: tabular-nums">{{r.time}}</div>
+<div style="width: 28px; display: flex; flex-direction: column; align-items: center; padding-top: 10px">
+<span style="width: 28px; height: 28px; border-radius: 14px; background: #D2452D; color: #FFFFFF; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center">{{r.n}}</span>
+<sc-if value="{{r.line}}" hint-placeholder-val="{{true}}"><span style="flex: 1; width: 2px; background: #D2452D; opacity: 0.35"></span></sc-if>
+</div>
+<div style="flex: 1; min-width: 0; margin-bottom: 12px; padding: 14px 16px; border-radius: 16px; border: 1px solid #E3DBCB; background: #FFFDF8">
+<div style="font-size: 12px; font-weight: 600; color: #5E594F">{{r.kind}}</div>
+<div style="margin-top: 2px; font-size: 16px; font-weight: 600">{{r.title}}</div>
+<div style="font-size: 13.500px; color: #5E594F">{{r.sub}}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section aria-label="지도" style="flex: 1; min-width: 0; position: relative; height: 780px; border-radius: 24px; overflow: hidden; background: #E8E2D2; border: 1px solid #E3DBCB">
+<svg viewBox="0 0 340 780" width="100%" height="780" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Day 1 경로 지도" >
+<path d="M0 0H100C130 200 90 420 120 780H0Z" fill="#CFE0E3"/>
+<g stroke="#FFFDF8" stroke-width="8" fill="none" stroke-linecap="round"><path d="M110 640L340 520"/><path d="M180 0L230 780"/><path d="M290 0L330 780"/></g>
+<path d="M70 640L150 520L240 440L280 280" fill="none" stroke="#D2452D" stroke-width="4" stroke-dasharray="1 9" stroke-linecap="round"/>
+<g font-family="IBM Plex Sans KR, sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">
+<circle cx="70" cy="640" r="15" fill="#D2452D" stroke="#FFFDF8" stroke-width="3"/><text x="70" y="645">1</text>
+<circle cx="150" cy="520" r="15" fill="#D2452D" stroke="#FFFDF8" stroke-width="3"/><text x="150" y="525">2</text>
+<circle cx="240" cy="440" r="15" fill="#D2452D" stroke="#FFFDF8" stroke-width="3"/><text x="240" y="445">3</text>
+<circle cx="280" cy="280" r="15" fill="#D2452D" stroke="#FFFDF8" stroke-width="3"/><text x="280" y="285">4</text>
+</g>
+</svg>
+<div style="position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; border: 1px solid #E3DBCB; background: #FFFDF8">
+<button type="button" aria-label="확대" style="width: 44px; height: 44px; border: 0; background: transparent; font: 400 22px 'IBM Plex Sans KR', sans-serif; color: #1C1B18">+</button>
+<button type="button" aria-label="축소" style="width: 44px; height: 44px; border: 0; border-top: 1px solid #E3DBCB; background: transparent; font: 400 22px 'IBM Plex Sans KR', sans-serif; color: #1C1B18">−</button>
+</div>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":820,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      rows: [
+        { n: 1, time: '08:35', kind: '항공', title: '인천 → 가오슝', sub: '08:35 출발 · 10:25 도착 (현지)', line: true },
+        { n: 2, time: '14:00', kind: '숙박 · 2박', title: '가오슝 안 호텔 체크인', sub: '11.19 – 11.21', line: true },
+        { n: 3, time: '18:30', kind: '저녁 식사', title: '리우허 야시장', sub: '18:30 – 20:30', line: true },
+        { n: 4, time: '20:45', kind: '관광', title: '아이허 야경 산책', sub: '20:45 –', line: false }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

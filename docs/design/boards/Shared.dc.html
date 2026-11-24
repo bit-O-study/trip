@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>읽기 전용 공유 화면</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 1060px; box-sizing: border-box; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; display: flex; flex-direction: column">
+
+<div role="status" style="display: flex; align-items: center; gap: 8px; padding: 12px 20px; background: #1C1B18; color: #F6F2EA; font-size: 13px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+읽기 전용으로 공유된 여행이에요
+</div>
+
+<div style="padding: 0 20px">
+<h1 style="margin: 22px 0 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 30px; line-height: 1.3; letter-spacing: -0.02em">대만 4박 5일</h1>
+<p style="margin: 4px 0 0; font-size: 14px; color: #5E594F">11.19 목 – 11.23 월 · 가오슝 → 타이베이</p>
+
+<div role="tablist" aria-label="날짜 선택" style="display: flex; gap: 8px; margin: 16px -20px 0; padding: 0 20px; overflow-x: auto">
+<button type="button" role="tab" aria-selected="true" style="flex: none; min-width: 64px; height: 56px; border: 0; border-radius: 16px; background: #D2452D; color: #FFFFFF; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.25"><span style="display: block; font-size: 12px; font-weight: 600">DAY 1</span><span style="display: block; font-size: 14px">19 목</span></button>
+<button type="button" role="tab" aria-selected="false" style="flex: none; min-width: 64px; height: 56px; border: 1px solid #E3DBCB; border-radius: 16px; background: #FFFDF8; color: #1C1B18; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.25"><span style="display: block; font-size: 12px; font-weight: 600; color: #0F7C86">DAY 2</span><span style="display: block; font-size: 14px">20 금</span></button>
+<button type="button" role="tab" aria-selected="false" style="flex: none; min-width: 64px; height: 56px; border: 1px solid #E3DBCB; border-radius: 16px; background: #FFFDF8; color: #1C1B18; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.25"><span style="display: block; font-size: 12px; font-weight: 600; color: #7A4FC2">DAY 3</span><span style="display: block; font-size: 14px">21 토</span></button>
+<button type="button" role="tab" aria-selected="false" style="flex: none; min-width: 64px; height: 56px; border: 1px solid #E3DBCB; border-radius: 16px; background: #FFFDF8; color: #1C1B18; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.25"><span style="display: block; font-size: 12px; font-weight: 600; color: #8F6200">DAY 4</span><span style="display: block; font-size: 14px">22 일</span></button>
+</div>
+
+<div style="margin-top: 20px">
+<sc-for list="{{stops}}" as="s" hint-placeholder-count="4">
+<div style="display: flex; gap: 8px">
+<div style="width: 44px; padding-top: 14px; text-align: right; font-size: 13px; color: #5E594F; font-variant-numeric: tabular-nums">{{s.time}}</div>
+<div style="width: 28px; display: flex; flex-direction: column; align-items: center; padding-top: 10px">
+<span style="width: 28px; height: 28px; border-radius: 14px; background: #D2452D; color: #FFFFFF; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center">{{s.n}}</span>
+<sc-if value="{{s.line}}" hint-placeholder-val="{{true}}"><span style="flex: 1; width: 2px; background: #D2452D; opacity: 0.35"></span></sc-if>
+</div>
+<div style="flex: 1; min-width: 0; margin-bottom: 10px; padding: 14px 16px; border-radius: 16px; border: 1px solid #E3DBCB; background: #FFFDF8">
+<div style="font-size: 12px; font-weight: 600; color: #5E594F">{{s.kind}}</div>
+<div style="margin-top: 2px; font-size: 16px; font-weight: 600">{{s.title}}</div>
+<div style="font-size: 13.500px; color: #5E594F">{{s.sub}}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="margin-top: auto; padding: 18px 20px 28px; border-top: 1px solid #E3DBCB; background: #FFFDF8; text-align: center">
+<div style="font-size: 14px; color: #5E594F">나도 여행 일정을 한 노선에 모아 보세요</div>
+<a href="Login.dc.html" style="margin-top: 10px; display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 14px; background: #0E5A52; color: #FFFFFF; font-size: 16px; font-weight: 600">Trip Planner 시작하기</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      stops: [
+        { n: 1, time: '08:35', kind: '항공', title: '인천 → 가오슝', sub: '08:35 출발 · 10:25 도착 (현지 시각)', line: true },
+        { n: 2, time: '14:00', kind: '숙박 · 2박', title: '가오슝 안 호텔 체크인', sub: '11.19 – 11.21', line: true },
+        { n: 3, time: '18:30', kind: '저녁 식사', title: '리우허 야시장', sub: '18:30 – 20:30', line: true },
+        { n: 4, time: '20:45', kind: '관광', title: '아이허 야경 산책', sub: '20:45 –', line: false }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

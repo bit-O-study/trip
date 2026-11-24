@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>일정 수정</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 1100px; box-sizing: border-box; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; padding: 0 20px; display: flex; flex-direction: column">
+
+<div style="display: flex; align-items: center; justify-content: space-between; padding-top: 12px">
+<a href="Schedule.dc.html" aria-label="일정으로" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1C1B18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+</div>
+<h1 style="margin: 4px 0 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 26px; line-height: 1.3; letter-spacing: -0.02em">일정 수정</h1>
+
+<form style="margin-top: 16px; display: flex; flex-direction: column; gap: 14px">
+<label style="display: block; font-size: 14px; font-weight: 500">제목
+<input type="text" value="리우허 야시장" style="display: block; box-sizing: border-box; width: 100%; height: 52px; margin-top: 6px; padding: 0 16px; border-radius: 14px; border: 1px solid #857B66; background: #FFFDF8; font: 400 16px 'IBM Plex Sans KR', sans-serif; color: #1C1B18">
+</label>
+<div style="display: flex; gap: 12px">
+<label style="flex: 1; display: block; font-size: 14px; font-weight: 500">시작
+<input type="time" value="18:30" style="display: block; box-sizing: border-box; width: 100%; height: 52px; margin-top: 6px; padding: 0 12px; border-radius: 14px; border: 1px solid #857B66; background: #FFFDF8; font: 400 16px 'IBM Plex Sans KR', sans-serif; color: #1C1B18">
+</label>
+<label style="flex: 1; display: block; font-size: 14px; font-weight: 500">종료
+<input type="time" value="20:30" style="display: block; box-sizing: border-box; width: 100%; height: 52px; margin-top: 6px; padding: 0 12px; border-radius: 14px; border: 1px solid #857B66; background: #FFFDF8; font: 400 16px 'IBM Plex Sans KR', sans-serif; color: #1C1B18">
+</label>
+</div>
+<div>
+<div id="move-label" style="font-size: 14px; font-weight: 500">이전 일정에서 이동 방법</div>
+<div role="radiogroup" aria-labelledby="move-label" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px">
+<sc-for list="{{moves}}" as="m" hint-placeholder-count="4">
+<button type="button" role="radio" aria-checked="{{m.on}}" onClick="{{m.pick}}" style="height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid #857B66; background: {{m.bg}}; color: {{m.fg}}; font: 500 15px 'IBM Plex Sans KR', sans-serif">{{m.name}}</button>
+</sc-for>
+</div>
+<p style="margin: 8px 0 0; font-size: 13px; color: #5E594F">{{moveNote}}</p>
+</div>
+<label style="display: block; font-size: 14px; font-weight: 500">메모
+<textarea rows="3" style="display: block; box-sizing: border-box; width: 100%; margin-top: 6px; padding: 12px 16px; border-radius: 14px; border: 1px solid #857B66; background: #FFFDF8; font: 400 16px 'IBM Plex Sans KR', sans-serif; color: #1C1B18; resize: none">현금 준비, 줄 서는 가게는 먼저 확인</textarea>
+</label>
+</form>
+
+<section aria-label="순서와 날짜 바꾸기" style="margin-top: 22px; padding: 18px; border-radius: 22px; border: 1px solid #E3DBCB; background: #FFFDF8">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">순서와 날짜 바꾸기</h2>
+<p style="margin: 2px 0 12px; font-size: 13px; color: #5E594F">끌지 않아도 버튼으로 옮길 수 있어요. 키보드와 화면 읽기 프로그램에서도 똑같이 쓸 수 있어요.</p>
+<div style="display: flex; gap: 8px">
+<button type="button" style="flex: 1; height: 48px; border-radius: 14px; border: 1px solid #857B66; background: transparent; color: #1C1B18; font: 600 15px 'IBM Plex Sans KR', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>위로</button>
+<button type="button" style="flex: 1; height: 48px; border-radius: 14px; border: 1px solid #857B66; background: transparent; color: #1C1B18; font: 600 15px 'IBM Plex Sans KR', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>아래로</button>
+</div>
+<label style="display: block; margin-top: 12px; font-size: 14px; font-weight: 500">다른 날로 이동
+<select style="display: block; box-sizing: border-box; width: 100%; height: 52px; margin-top: 6px; padding: 0 12px; border-radius: 14px; border: 1px solid #857B66; background: #FFFDF8; font: 400 16px 'IBM Plex Sans KR', sans-serif; color: #1C1B18"><option>Day 1 · 11.19 (현재)</option><option>Day 2 · 11.20</option><option>Day 3 · 11.21</option></select>
+</label>
+</section>
+
+<div style="margin-top: auto; padding: 16px 0 24px; display: flex; flex-direction: column; gap: 6px">
+<button type="button" style="height: 56px; border: 0; border-radius: 18px; background: #0E5A52; color: #FFFFFF; font: 600 17px 'IBM Plex Sans KR', sans-serif">변경 저장</button>
+<button type="button" style="height: 48px; border: 0; background: transparent; color: #B3261E; font: 500 14px 'IBM Plex Sans KR', sans-serif">이 일정 삭제</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1100}}'>
+const MOVES = [['도보', '도보 25분'], ['MRT', 'MRT 약 12분'], ['택시', '택시 약 8분'], ['버스', '버스 약 15분']];
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { move: '도보' };
+  }
+  renderVals() {
+    const move = this.state.move;
+    const cur = MOVES.find(([v]) => v === move);
+    return {
+      moveNote: '직전 일정에서 ' + cur[1] + ' · 예상이라 실제와 다를 수 있어요',
+      moves: MOVES.map(([v]) => ({
+        name: v, on: move === v,
+        bg: move === v ? '#1C1B18' : '#FFFDF8',
+        fg: move === v ? '#F6F2EA' : '#1C1B18',
+        pick: () => this.setState({ move: v })
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

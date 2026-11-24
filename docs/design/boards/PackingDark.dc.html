@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>준비물 다크 모드</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 1100px; box-sizing: border-box; background: #14130F; color: #F1ECE0; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; padding: 0 20px">
+
+<div style="display: flex; align-items: center; padding-top: 12px">
+<a href="ScheduleDark.dc.html" aria-label="일정으로" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F1ECE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+</div>
+<h1 style="margin: 4px 0 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 28px; line-height: 1.3; letter-spacing: -0.02em">대만 4박 5일</h1>
+<p style="margin: 4px 0 0; font-size: 14px; color: #B3AC9C">11.19 목 – 11.23 월 · 가오슝 → 타이베이</p>
+
+<nav aria-label="여행 메뉴" style="display: flex; gap: 8px; margin: 18px -20px 0; padding: 0 20px; overflow-x: auto">
+<a href="ScheduleDark.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #2A2822; font-size: 15px">일정</a>
+<a href="PackingDark.dc.html" aria-current="page" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #F1ECE0; color: #14130F; font-size: 15px; font-weight: 600">준비물</a>
+<a href="PackingDark.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #2A2822; font-size: 15px">맛집</a>
+<a href="ExpensesDark.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #2A2822; font-size: 15px">지출</a>
+</nav>
+
+<div style="margin-top: 18px; display: flex; align-items: center; gap: 18px; padding: 20px; border-radius: 24px; background: #12332F; color: #CDEBE4">
+<svg width="84" height="84" viewBox="0 0 84 84" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="30" aria-label="준비물 완료율" style="flex: none">
+<circle cx="42" cy="42" r="34" fill="none" stroke="#1F4A44" stroke-width="9"/>
+<circle cx="42" cy="42" r="34" fill="none" stroke="#5BC0B2" stroke-width="9" stroke-linecap="round" stroke-dasharray="64.1 213.6" transform="rotate(-90 42 42)"/>
+<text x="42" y="48" text-anchor="middle" font-family="IBM Plex Sans KR, sans-serif" font-size="18" font-weight="600" fill="#CDEBE4">30%</text>
+</svg>
+<div><div style="font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 26px; line-height: 1.2; font-variant-numeric: tabular-nums">6 / 20</div><div style="margin-top: 4px; font-size: 14px">출발까지 14개 남았어요</div></div>
+</div>
+
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<section style="margin-top: 16px" aria-label="{{g.name}} 준비물">
+<h2 style="margin: 0 0 4px; display: flex; align-items: baseline; justify-content: space-between; font-size: 14px; font-weight: 600; color: #B3AC9C"><span>{{g.name}}</span><span style="font-variant-numeric: tabular-nums">{{g.count}}</span></h2>
+<div style="border-radius: 18px; border: 1px solid #35322A; background: #1E1C17; overflow: hidden">
+<sc-for list="{{g.items}}" as="i" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 14px; min-height: 52px; box-sizing: border-box; padding: 6px 16px; border-top: 1px solid #2A2822">
+<sc-if value="{{i.done}}" hint-placeholder-val="{{false}}">
+<span style="flex: none; width: 24px; height: 24px; border-radius: 8px; background: #3FA796; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#07261F" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7"/></svg></span>
+<span style="flex: 1; color: #8B8577; text-decoration: line-through">{{i.title}}</span>
+</sc-if>
+<sc-if value="{{i.todo}}" hint-placeholder-val="{{true}}">
+<span style="flex: none; width: 24px; height: 24px; border-radius: 8px; border: 2px solid #7C766A; box-sizing: border-box"></span>
+<span style="flex: 1">{{i.title}}</span>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1100}}'>
+const DONE = ['여권 (유효기간 확인)', '항공권·숙소 예약 확인서', '현금 (TWD 환전)', '해외 결제 카드', '교통카드 (EasyCard 등)', 'eSIM 설치·활성화 확인'];
+const GROUPS = [
+  ['서류·결제', ['여권 (유효기간 확인)', '항공권·숙소 예약 확인서', '현금 (TWD 환전)', '해외 결제 카드', '교통카드 (EasyCard 등)', '여행자 보험']],
+  ['의류', ['얇은 겉옷 (북부 아침저녁 쌀쌀)', '편한 신발', '우산·우비 (비가 잦음)']],
+  ['전자기기', ['eSIM 설치·활성화 확인', '충전기·케이블', '보조배터리 (기내 휴대)']]
+];
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      groups: GROUPS.map(([name, titles]) => ({
+        name,
+        count: titles.filter((t) => DONE.includes(t)).length + '/' + titles.length,
+        items: titles.map((title) => ({ title, done: DONE.includes(title), todo: !DONE.includes(title) }))
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

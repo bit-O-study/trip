@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>여행 회고</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 1060px; box-sizing: border-box; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; padding: 0 20px">
+
+<div style="display: flex; align-items: center; padding-top: 12px">
+<a href="Main.dc.html" aria-label="여행 목록으로" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1C1B18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+</div>
+
+<div style="margin-top: 4px; position: relative; overflow: hidden; border-radius: 28px; background: #0E5A52; color: #F6F2EA; padding: 26px 24px 22px">
+<div style="font-size: 13px; opacity: 0.85">여행 회고</div>
+<h1 style="margin: 6px 0 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 30px; line-height: 1.3; letter-spacing: -0.02em">대만 4박 5일을<br>돌아봐요</h1>
+<svg viewBox="0 0 300 60" width="100%" height="60" style="margin-top: 14px" aria-hidden="true"><path d="M6 44C60 44 66 14 114 20S170 50 214 30 270 10 294 14" fill="none" stroke="#F6F2EA" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round" opacity="0.8"/><circle cx="6" cy="44" r="6" fill="#F6F2EA"/><circle cx="114" cy="20" r="6" fill="#F6F2EA"/><circle cx="214" cy="30" r="6" fill="#F6F2EA"/><circle cx="294" cy="14" r="6" fill="#F6F2EA"/></svg>
+<div style="margin-top: 8px; display: flex; gap: 24px; font-variant-numeric: tabular-nums">
+<div><div style="font-size: 12px; opacity: 0.8">기간</div><div style="font-weight: 600">4박 5일</div></div>
+<div><div style="font-size: 12px; opacity: 0.8">총 지출</div><div style="font-weight: 600">₩1,617,120</div></div>
+<div><div style="font-size: 12px; opacity: 0.8">도시</div><div style="font-weight: 600">2곳</div></div>
+</div>
+</div>
+
+<h2 style="margin: 24px 0 10px; font-size: 18px; font-weight: 600">하루 한 줄</h2>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 12px; min-height: 64px; box-sizing: border-box; padding: 10px 16px; border-radius: 16px; border: 1px solid #E3DBCB; background: #FFFDF8">
+<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true" style="flex: none"><circle cx="17" cy="17" r="17" fill="{{d.color}}"/><text x="17" y="22.500" text-anchor="middle" font-family="IBM Plex Sans KR, sans-serif" font-size="14" font-weight="600" fill="#FFFFFF">{{d.n}}</text></svg>
+<div style="flex: 1; min-width: 0"><div style="font-size: 13px; color: #5E594F">{{d.date}}</div><div style="font-size: 15px; color: {{d.fg}}">{{d.note}}</div></div>
+</div>
+</sc-for>
+</div>
+
+<h2 style="margin: 24px 0 10px; font-size: 18px; font-weight: 600">사진</h2>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<button type="button" style="aspect-ratio: 1 / 1; border-radius: 16px; border: 1.500px dashed #857B66; background: transparent; color: #0E5A52; font: 600 13px 'IBM Plex Sans KR', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>사진 추가</button>
+<div style="aspect-ratio: 1 / 1; border-radius: 16px; background: #ECE5D6"></div>
+<div style="aspect-ratio: 1 / 1; border-radius: 16px; background: #ECE5D6"></div>
+</div>
+<p style="margin: 8px 0 0; font-size: 12px; color: #5E594F">사진의 촬영 시각과 위치로 일정에 자동으로 연결하는 것을 제안해요.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      days: [
+        { n: 1, color: '#D2452D', date: '11.19 목', note: '가오슝 도착, 야시장 [한 줄 기록]', fg: '#5E594F' },
+        { n: 2, color: '#0F7C86', date: '11.20 금', note: '[한 줄 기록을 남겨 보세요]', fg: '#5E594F' },
+        { n: 3, color: '#7A4FC2', date: '11.21 토', note: '[한 줄 기록을 남겨 보세요]', fg: '#5E594F' },
+        { n: 4, color: '#8F6200', date: '11.22 일', note: '[한 줄 기록을 남겨 보세요]', fg: '#5E594F' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

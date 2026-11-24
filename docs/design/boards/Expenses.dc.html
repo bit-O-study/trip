@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>지출 정리</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 1480px; box-sizing: border-box; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; padding: 0 20px">
+
+<div style="display: flex; align-items: center; padding-top: 12px">
+<a href="Schedule.dc.html" aria-label="일정으로" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1C1B18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+</div>
+<h1 style="margin: 4px 0 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 28px; line-height: 1.3; letter-spacing: -0.02em">대만 4박 5일</h1>
+<p style="margin: 4px 0 0; font-size: 14px; color: #5E594F">11.19 목 – 11.23 월 · 가오슝 → 타이베이</p>
+
+<nav aria-label="여행 메뉴" style="display: flex; gap: 8px; margin: 18px -20px 0; padding: 0 20px; overflow-x: auto">
+<a href="Schedule.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #ECE5D6; font-size: 15px">일정</a>
+<a href="Packing.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #ECE5D6; font-size: 15px">준비물</a>
+<a href="Schedule.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #ECE5D6; font-size: 15px">맛집</a>
+<a href="Expenses.dc.html" aria-current="page" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #1C1B18; color: #F6F2EA; font-size: 15px; font-weight: 600">지출</a>
+</nav>
+
+<div style="margin-top: 18px; padding: 22px 22px 20px; border-radius: 24px; background: #1C1B18; color: #F6F2EA">
+<div style="font-size: 13px; opacity: 0.8">{{heroLabel}}</div>
+<div data-testid="expense-total" style="margin-top: 4px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 36px; line-height: 1.2; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">{{total}}</div>
+<div style="margin-top: 16px; height: 10px; border-radius: 5px; overflow: hidden; background: #3A3832">
+<svg width="100%" height="10" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+<sc-for list="{{segments}}" as="seg" hint-placeholder-count="4"><rect x="{{seg.x}}" width="{{seg.w}}" height="10" fill="{{seg.color}}"/></sc-for>
+</svg>
+</div>
+<div style="margin-top: 12px; font-size: 12px; opacity: 0.75">{{count}}건 · 원화(KRW) 합계 · 통화가 다르면 환율 없이 따로 더해요</div>
+</div>
+
+<div role="group" aria-label="카테고리 필터" style="display: flex; gap: 8px; margin: 14px -20px 0; padding: 0 20px; overflow-x: auto">
+<sc-for list="{{chips}}" as="chip" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{chip.on}}" onClick="{{chip.pick}}" style="flex: none; min-height: 56px; padding: 6px 14px; border-radius: 16px; border: 1px solid #E3DBCB; background: {{chip.bg}}; text-align: left; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.3; color: {{chip.fg}}">
+<span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="5" fill="{{chip.color}}"/></svg>{{chip.name}}</span>
+<span style="display: block; font-size: 13px; font-variant-numeric: tabular-nums; opacity: 0.85">{{chip.amount}}</span>
+</button>
+</sc-for>
+</div>
+
+<button type="button" role="switch" aria-checked="{{exclude}}" onClick="{{toggleExclude}}" style="margin-top: 10px; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; box-sizing: border-box; padding: 8px 4px; border: 0; background: transparent; text-align: left; font-family: 'IBM Plex Sans KR', sans-serif; color: #1C1B18">
+<span style="flex: none; position: relative; width: 44px; height: 26px; border-radius: 13px; background: #857B66; display: block">
+<sc-if value="{{exclude}}" hint-placeholder-val="{{false}}"><span style="position: absolute; inset: 0; border-radius: 13px; background: #0E5A52"></span><span style="position: absolute; top: 3px; left: 21px; width: 20px; height: 20px; border-radius: 10px; background: #FFFFFF"></span></sc-if>
+<sc-if value="{{include}}" hint-placeholder-val="{{true}}"><span style="position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 10px; background: #FFFFFF"></span></sc-if>
+</span>
+<span><span style="display: block; font-size: 15px; font-weight: 500">환전 제외하고 보기</span><span style="display: block; font-size: 12px; color: #5E594F">환전은 현지 지출과 이중으로 더해질 수 있어요</span></span>
+</button>
+
+<div style="margin-top: 6px">
+<sc-for list="{{days}}" as="day" hint-placeholder-count="3">
+<section aria-label="{{day.label}} 지출">
+<h2 style="margin: 14px 0 6px; display: flex; align-items: baseline; justify-content: space-between; font-size: 14px; font-weight: 600; color: #5E594F"><span>{{day.label}}</span><span style="font-variant-numeric: tabular-nums">{{day.sum}}</span></h2>
+<div style="border-radius: 18px; border: 1px solid #E3DBCB; background: #FFFDF8; overflow: hidden">
+<sc-for list="{{day.rows}}" as="row" hint-placeholder-count="2">
+<div data-testid="expense-row" style="display: flex; align-items: center; gap: 12px; min-height: 68px; box-sizing: border-box; padding: 10px 16px; border-top: 1px solid #EFE8D9">
+<div style="flex: 1; min-width: 0">
+<div style="font-size: 16px; font-weight: 500">{{row.title}}</div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #5E594F"><svg width="8" height="8" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="5" fill="{{row.color}}"/></svg>{{row.meta}}</div>
+</div>
+<div style="font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums">{{row.amount}}</div>
+<button type="button" aria-label="{{row.title}} 수정" style="flex: none; width: 44px; height: 44px; margin-right: -10px; border: 0; background: transparent; color: #5E594F; display: flex; align-items: center; justify-content: center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+</button>
+</div>
+</sc-for>
+</div>
+</section>
+</sc-for>
+</div>
+
+<button type="button" style="margin-top: 22px; width: 100%; height: 56px; border: 0; border-radius: 18px; background: #0E5A52; color: #FFFFFF; font: 600 16px 'IBM Plex Sans KR', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>지출 추가</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1480}}'>
+const COLORS = { '숙박': '#4FB3A5', '교통': '#7FA6F2', '관광': '#F29B7F', '기타': '#857B66' };
+const ROWS = [
+  { date: '11.22 일', title: '타이베이 화산딘 1박', cat: '숙박', amount: 207895, note: '11.22 – 11.23' },
+  { date: '11.21 토', title: '가오슝 난 난 1박', cat: '숙박', amount: 323102, note: '11.21 – 11.22' },
+  { date: '11.19 목', title: '가오슝 안 호텔 2박', cat: '숙박', amount: 284733, note: '11.19 – 11.21' },
+  { date: '11.18 수 · 사전 결제', title: '타이베이 스지 투어', cat: '관광', amount: 69500, note: '예약 선결제' },
+  { date: '11.18 수 · 사전 결제', title: '가오슝 타이난 투어', cat: '관광', amount: 62600, note: '예약 선결제' },
+  { date: '11.18 수 · 사전 결제', title: '기차', cat: '교통', amount: 152400, note: '예약 선결제' },
+  { date: '11.18 수 · 사전 결제', title: 'eSIM', cat: '기타', amount: 16890, note: '예약 선결제' },
+  { date: '11.18 수 · 사전 결제', title: '환전', cat: '기타', amount: 500000, note: '현금 · 이중 집계 주의', exchange: true }
+];
+function won(n) { return '₩' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cat: '', exclude: false };
+  }
+  renderVals() {
+    const cat = this.state.cat, exclude = this.state.exclude;
+    const base = ROWS.filter((r) => !(exclude && r.exchange));
+    const shown = base.filter((r) => !cat || r.cat === cat);
+    const sum = (list) => list.reduce((a, r) => a + r.amount, 0);
+    const totalAll = sum(base);
+    const names = ['숙박', '기타', '교통', '관광'];
+    let x = 0;
+    const segments = [];
+    names.forEach((n) => {
+      const part = sum(base.filter((r) => r.cat === n));
+      if (!part) return;
+      const w = (part / totalAll) * 100;
+      segments.push({ x: x.toFixed(2), w: Math.max(w - 0.6, 0.4).toFixed(2), color: COLORS[n] });
+      x += w;
+    });
+    const chips = [{ name: '전체', color: '#1C1B18', amount: won(totalAll), value: '' }].concat(
+      names.filter((n) => base.some((r) => r.cat === n)).map((n) => ({ name: n, color: COLORS[n], amount: won(sum(base.filter((r) => r.cat === n))), value: n }))
+    ).map((c) => ({
+      name: c.name, color: c.color, amount: c.amount,
+      on: cat === c.value,
+      bg: cat === c.value ? '#1C1B18' : '#FFFDF8',
+      fg: cat === c.value ? '#F6F2EA' : '#1C1B18',
+      pick: () => this.setState({ cat: c.value })
+    }));
+    const order = [];
+    const byDay = {};
+    shown.forEach((r) => { if (!byDay[r.date]) { byDay[r.date] = []; order.push(r.date); } byDay[r.date].push(r); });
+    const days = order.map((d) => ({
+      label: d,
+      sum: won(sum(byDay[d])),
+      rows: byDay[d].map((r) => ({ title: r.title, color: COLORS[r.cat], meta: r.cat + ' · ' + r.note, amount: won(r.amount) }))
+    }));
+    return {
+      exclude, include: !exclude,
+      toggleExclude: () => this.setState((s) => ({ exclude: !s.exclude })),
+      heroLabel: cat ? cat + ' 사용 금액' : (exclude ? '총 사용 금액 (환전 제외)' : '총 사용 금액'),
+      total: won(sum(shown)),
+      count: shown.length,
+      segments, chips, days
+    };
+  }
+}
+</script>
+</body>
+</html>

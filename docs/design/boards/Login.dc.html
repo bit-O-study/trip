@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>로그인</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 900px; box-sizing: border-box; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; display: flex; flex-direction: column; line-height: 1.55; padding: 0 20px">
+
+<div style="display: flex; align-items: center; gap: 10px; padding-top: 16px; height: 44px">
+<div style="width: 36px; height: 36px; border-radius: 12px; background: #1C1B18; display: flex; align-items: center; justify-content: center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F6F2EA" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 18c6 0 3-7 8-7 3 0 4-2 6-5"/></svg>
+</div>
+<span style="font-weight: 600; font-size: 16px">Trip Planner</span>
+</div>
+
+<svg viewBox="0 0 350 110" width="350" height="110" style="margin-top: 22px" aria-hidden="true">
+<path d="M12 84C60 84 70 30 118 40S178 92 222 62 300 20 338 30" fill="none" stroke="#1C1B18" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/>
+<circle cx="12" cy="84" r="9" fill="#D2452D"/>
+<circle cx="118" cy="40" r="9" fill="#0F7C86"/>
+<circle cx="178" cy="80" r="9" fill="#7A4FC2"/>
+<circle cx="250" cy="48" r="9" fill="#8F6200"/>
+<circle cx="338" cy="30" r="9" fill="#2F63C8"/>
+<g font-family="IBM Plex Sans KR, sans-serif" font-size="10" font-weight="600" fill="#FFFFFF" text-anchor="middle">
+<text x="12" y="87.5">1</text><text x="118" y="43.5">2</text><text x="178" y="83.5">3</text><text x="250" y="51.5">4</text><text x="338" y="33.5">5</text>
+</g>
+</svg>
+
+<h1 style="margin: 18px 0 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 30px; line-height: 1.32; letter-spacing: -0.02em">항공편, 숙소, 맛집을<br>한 노선에 모아요</h1>
+<p style="margin: 10px 0 0; font-size: 15px; color: #5E594F">로그인하면 내 여행이 어느 기기에서든 이어져요.</p>
+
+<div style="margin-top: 28px; display: flex; flex-direction: column; gap: 12px">
+<button type="button" style="height: 52px; border: 0; border-radius: 14px; background: #FEE500; color: #191919; font: 600 16px 'IBM Plex Sans KR', sans-serif; display: flex; align-items: center; justify-content: center; gap: 10px">
+<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C6.5 3 2 6.5 2 10.8c0 2.8 1.8 5.2 4.6 6.6l-1 3.6c-.1.4.3.7.6.5l4.3-2.8c.5.1 1 .1 1.5.1 5.5 0 10-3.5 10-7.9S17.500 3 12 3z" fill="#191919"/></svg>
+카카오로 계속하기
+</button>
+<button type="button" style="height: 52px; border: 1px solid #857B66; border-radius: 14px; background: #FFFDF8; color: #1C1B18; font: 600 16px 'IBM Plex Sans KR', sans-serif; display: flex; align-items: center; justify-content: center; gap: 10px">
+<span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 10px; border: 1.5px solid #1C1B18; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">G</span>
+Google로 계속하기
+</button>
+</div>
+
+<div style="display: flex; align-items: center; gap: 12px; margin: 22px 0 18px; color: #5E594F; font-size: 13px">
+<span style="flex: 1; height: 1px; background: #E3DBCB"></span>또는 이메일로<span style="flex: 1; height: 1px; background: #E3DBCB"></span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px">
+<label style="display: block; font-size: 14px; font-weight: 500">이메일
+<input type="email" placeholder="you@example.com" autocomplete="email" style="display: block; box-sizing: border-box; width: 100%; height: 52px; margin-top: 6px; padding: 0 16px; border-radius: 14px; border: 1px solid #857B66; background: #FFFDF8; font: 400 16px 'IBM Plex Sans KR', sans-serif; color: #1C1B18">
+</label>
+<label style="display: block; font-size: 14px; font-weight: 500">비밀번호
+<span style="display: flex; align-items: center; margin-top: 6px; height: 52px; border-radius: 14px; border: 1px solid #857B66; background: #FFFDF8; padding: 0 6px 0 16px">
+<input type="password" autocomplete="current-password" placeholder="8자 이상" style="flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: 400 16px 'IBM Plex Sans KR', sans-serif; color: #1C1B18">
+<button type="button" style="height: 44px; padding: 0 12px; border: 0; background: transparent; color: #0E5A52; font: 600 14px 'IBM Plex Sans KR', sans-serif">보기</button>
+</span>
+</label>
+</div>
+
+<button type="button" style="margin-top: 18px; height: 52px; border: 0; border-radius: 14px; background: #0E5A52; color: #FFFFFF; font: 600 16px 'IBM Plex Sans KR', sans-serif">로그인</button>
+
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; font-size: 14px">
+<a href="Login.dc.html" style="display: flex; align-items: center; min-height: 44px; color: #5E594F">비밀번호를 잊으셨나요?</a>
+<a href="Login.dc.html" style="display: flex; align-items: center; min-height: 44px; color: #0E5A52; font-weight: 600">회원가입</a>
+</div>
+
+<div style="margin-top: auto; display: flex; justify-content: center; gap: 4px; padding-bottom: 16px; font-size: 13px; color: #5E594F">
+<a href="Login.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 10px">개인정보처리방침</a>
+<a href="Login.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 10px">위치정보 이용 고지</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>접근성 점검</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1100px; height: 960px; box-sizing: border-box; padding: 44px 48px; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; display: flex; gap: 40px">
+
+<section style="flex: 1.5; min-width: 0">
+<h1 style="margin: 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 26px">색 대비 점검</h1>
+<p style="margin: 6px 0 14px; font-size: 13px; color: #5E594F">WCAG 2.1 기준으로 직접 계산한 값이에요. 글자는 4.5:1, 입력창·체크박스 같은 테두리는 3:1 이상이에요.</p>
+<div style="border-radius: 18px; border: 1px solid #E3DBCB; background: #FFFDF8; overflow: hidden">
+<div style="display: flex; padding: 10px 16px; background: #ECE5D6; font-size: 12px; font-weight: 600; color: #5E594F"><span style="flex: 1">조합</span><span style="width: 70px; text-align: right">대비</span><span style="width: 56px; text-align: right">기준</span><span style="width: 56px; text-align: right">결과</span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+<div style="display: flex; align-items: center; min-height: 36px; padding: 0 16px; border-top: 1px solid #EFE8D9; font-size: 13px">
+<span style="flex: 1; display: flex; align-items: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect width="22" height="22" rx="6" fill="{{r.bg}}" stroke="#E3DBCB"/><text x="11" y="15.500" text-anchor="middle" font-family="IBM Plex Sans KR, sans-serif" font-size="12" font-weight="600" fill="{{r.fg}}">가</text></svg>{{r.name}}</span>
+<span style="width: 70px; text-align: right; font-variant-numeric: tabular-nums">{{r.ratio}}</span>
+<span style="width: 56px; text-align: right; color: #5E594F">{{r.need}}</span>
+<span style="width: 56px; text-align: right; font-weight: 600; color: #0B6B3A">통과</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 22px">
+<div style="padding: 18px; border-radius: 20px; background: #FCEBC8; color: #5E3A00; font-size: 13px"><strong style="display: block; font-size: 14px; margin-bottom: 4px">고친 점</strong>입력창·체크박스 테두리가 연한 베이지(1.6:1과 2.2:1)라서 기준에 못 미쳤어요. 진한 색(#857B66)으로 바꿔 종이 3.7:1, 카드 4.1:1이 됐고 모든 화면에 반영했어요.</div>
+
+<div>
+<h2 style="margin: 0 0 8px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 20px">조작</h2>
+<ul style="margin: 0; padding-left: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 6px">
+<li>누르는 곳은 모두 높이 44px 이상</li>
+<li>드래그로만 되는 조작은 없어요. 위로·아래로·다른 날로 이동 버튼이 함께 있어요 (일정 수정 화면)</li>
+<li>탭 이동은 위에서 아래, 왼쪽에서 오른쪽 순서. 건너뛰기 링크로 본문으로 바로 가요</li>
+<li>색만으로 구분하지 않아요. Day는 숫자, 예약 상태는 글자 배지를 함께 써요</li>
+<li>움직임 줄이기 설정을 켜면 지도 이동과 진행 막대 애니메이션을 끄도록</li>
+</ul>
+</div>
+
+<div>
+<h2 style="margin: 0 0 8px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 20px">포커스 표시</h2>
+<div style="display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 16px; border: 1px solid #E3DBCB; background: #FFFDF8">
+<span style="display: flex; align-items: center; justify-content: center; width: 120px; height: 48px; border-radius: 14px; background: #0E5A52; color: #FFFFFF; font-size: 15px; font-weight: 600; outline: 3px solid #1C1B18; outline-offset: 3px">일정 추가</span>
+<span style="font-size: 13px; color: #5E594F">키보드로 이동하면 3px 먹색 테두리가 버튼 밖에 생겨요. 종이 배경과 15:1이에요.</span>
+</div>
+</div>
+
+<div>
+<h2 style="margin: 0 0 8px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 20px">아직 남은 것</h2>
+<ul style="margin: 0; padding-left: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 6px">
+<li>Day 1 색 위의 흰 글자는 4.54:1이라 기준을 겨우 넘어요. 실제로 구현할 때 조금 더 진한 빨강을 검토해요</li>
+<li>시안은 스크린리더로 직접 읽어 보지 않았어요. 구현 후에 확인이 필요해요</li>
+</ul>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = '4.5:1', n = '3:1';
+    return {
+      rows: [
+        { name: '본문 먹 / 종이', fg: '#1C1B18', bg: '#F6F2EA', ratio: '15.42', need: t },
+        { name: '보조 글자 / 종이', fg: '#5E594F', bg: '#F6F2EA', ratio: '6.23', need: t },
+        { name: '보조 글자 / 카드', fg: '#5E594F', bg: '#FFFDF8', ratio: '6.85', need: t },
+        { name: '흰 글자 / 여행 초록 버튼', fg: '#FFFFFF', bg: '#0E5A52', ratio: '8.07', need: t },
+        { name: '흰 글자 / Day 1 빨강', fg: '#FFFFFF', bg: '#D2452D', ratio: '4.54', need: t },
+        { name: '흰 글자 / Day 2 청록', fg: '#FFFFFF', bg: '#0F7C86', ratio: '4.94', need: t },
+        { name: '흰 글자 / Day 3 보라', fg: '#FFFFFF', bg: '#7A4FC2', ratio: '5.64', need: t },
+        { name: '흰 글자 / Day 4 황토', fg: '#FFFFFF', bg: '#8F6200', ratio: '5.36', need: t },
+        { name: '흰 글자 / Day 5 파랑', fg: '#FFFFFF', bg: '#2F63C8', ratio: '5.62', need: t },
+        { name: '경고 글자 / 경고 배경', fg: '#7A4B00', bg: '#FCEBC8', ratio: '6.30', need: t },
+        { name: '삭제 빨강 / 카드', fg: '#B3261E', bg: '#FFFDF8', ratio: '6.43', need: t },
+        { name: '다크 본문 / 다크 배경', fg: '#F1ECE0', bg: '#14130F', ratio: '15.77', need: t },
+        { name: '다크 보조 / 다크 카드', fg: '#B3AC9C', bg: '#1E1C17', ratio: '7.54', need: t },
+        { name: '다크 Day 1 (어두운 글자)', fg: '#14130F', bg: '#F0705A', ratio: '6.35', need: t },
+        { name: '입력 테두리 / 카드', fg: '#857B66', bg: '#FFFDF8', ratio: '4.11', need: n },
+        { name: '입력 테두리 / 종이', fg: '#857B66', bg: '#F6F2EA', ratio: '3.74', need: n }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

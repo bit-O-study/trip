@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>여행 회고 완성</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 1300px; box-sizing: border-box; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; padding: 0 20px">
+
+<div style="display: flex; align-items: center; padding-top: 12px">
+<a href="Main.dc.html" aria-label="여행 목록으로" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1C1B18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+</div>
+
+<div style="margin-top: 4px; position: relative; overflow: hidden; border-radius: 28px; background: #0E5A52; color: #F6F2EA">
+<div style="padding: 24px 24px 16px">
+<div style="font-size: 13px; opacity: 0.85">여행을 마쳤어요 · 11.19 – 11.23</div>
+<h1 style="margin: 6px 0 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 30px; line-height: 1.3; letter-spacing: -0.02em">대만 4박 5일</h1>
+</div>
+<div role="img" aria-label="가오슝에서 타이베이까지 5일간의 이동 경로" style="padding: 0 18px">
+<svg viewBox="0 0 330 90" width="100%" height="90" aria-hidden="true">
+<path d="M14 66C60 66 70 24 120 30S170 70 214 46 290 16 316 22" fill="none" stroke="#F6F2EA" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round" opacity="0.85"/>
+<g font-family="IBM Plex Sans KR, sans-serif" font-size="11" font-weight="600" text-anchor="middle" fill="#14130F">
+<circle cx="14" cy="66" r="10" fill="#F0705A"/><text x="14" y="70">1</text>
+<circle cx="120" cy="30" r="10" fill="#3FB5C0"/><text x="120" y="34">2</text>
+<circle cx="170" cy="62" r="10" fill="#A98BE8"/><text x="170" y="66">3</text>
+<circle cx="250" cy="34" r="10" fill="#D9A03A"/><text x="250" y="38">4</text>
+<circle cx="316" cy="22" r="10" fill="#6E9BEF"/><text x="316" y="26">5</text>
+</g>
+</svg>
+</div>
+<div style="display: flex; padding: 8px 24px 22px; gap: 24px; font-variant-numeric: tabular-nums">
+<div><div style="font-size: 12px; opacity: 0.8">기간</div><div style="font-weight: 600">4박 5일</div></div>
+<div><div style="font-size: 12px; opacity: 0.8">도시</div><div style="font-weight: 600">2곳</div></div>
+<div><div style="font-size: 12px; opacity: 0.8">총 지출</div><div style="font-weight: 600">₩1,617,120</div></div>
+</div>
+</div>
+
+<h2 style="margin: 24px 0 10px; font-size: 18px; font-weight: 600">하루 한 줄</h2>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="5">
+<div style="display: flex; align-items: center; gap: 12px; min-height: 64px; box-sizing: border-box; padding: 10px 16px; border-radius: 16px; border: 1px solid #E3DBCB; background: #FFFDF8">
+<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true" style="flex: none"><circle cx="17" cy="17" r="17" fill="{{d.color}}"/><text x="17" y="22.500" text-anchor="middle" font-family="IBM Plex Sans KR, sans-serif" font-size="14" font-weight="600" fill="#FFFFFF">{{d.n}}</text></svg>
+<div style="flex: 1; min-width: 0"><div style="font-size: 13px; color: #5E594F">{{d.date}}</div><div style="font-size: 15px">{{d.note}}</div></div>
+</div>
+</sc-for>
+</div>
+
+<h2 style="margin: 24px 0 10px; font-size: 18px; font-weight: 600">쓴 돈</h2>
+<div style="padding: 18px; border-radius: 20px; border: 1px solid #E3DBCB; background: #FFFDF8">
+<div style="display: flex; align-items: baseline; justify-content: space-between"><span style="font-size: 14px; color: #5E594F">환전 제외</span><span style="font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 24px; font-variant-numeric: tabular-nums">₩1,117,120</span></div>
+<svg width="100%" height="10" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true" style="display: block; margin-top: 10px; border-radius: 5px"><rect x="0" width="73" height="10" fill="#0E5A52"/><rect x="73.600" width="13.600" height="10" fill="#2F63C8"/><rect x="87.800" width="11.800" height="10" fill="#C2410C"/></svg>
+<div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: #5E594F"><span>숙박 ₩815,730</span><span>교통 ₩152,400</span><span>관광 ₩132,100</span><span>기타 ₩16,890</span></div>
+</div>
+
+<div style="margin-top: 22px; display: flex; flex-direction: column; gap: 10px">
+<button type="button" style="height: 56px; border: 0; border-radius: 18px; background: #0E5A52; color: #FFFFFF; font: 600 16px 'IBM Plex Sans KR', sans-serif">이 여행 복제해서 새 여행 만들기</button>
+<button type="button" style="height: 52px; border-radius: 16px; border: 1px solid #857B66; background: #FFFDF8; color: #1C1B18; font: 600 15px 'IBM Plex Sans KR', sans-serif">회고 공유하기</button>
+</div>
+<p style="margin: 10px 0 0; font-size: 12px; color: #5E594F; text-align: center">한 줄 기록과 복제는 제안하는 기능이에요. 지출 금액만 실제 값이에요.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      days: [
+        { n: 1, color: '#D2452D', date: '11.19 목', note: '가오슝 도착, 야시장 [한 줄 기록]' },
+        { n: 2, color: '#0F7C86', date: '11.20 금', note: '[한 줄 기록]' },
+        { n: 3, color: '#7A4FC2', date: '11.21 토', note: '[한 줄 기록]' },
+        { n: 4, color: '#8F6200', date: '11.22 일', note: '[한 줄 기록]' },
+        { n: 5, color: '#2F63C8', date: '11.23 월', note: '[한 줄 기록]' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

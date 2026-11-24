@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>지출 다크 모드</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 1100px; box-sizing: border-box; background: #14130F; color: #F1ECE0; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; padding: 0 20px">
+
+<div style="display: flex; align-items: center; padding-top: 12px">
+<a href="ScheduleDark.dc.html" aria-label="일정으로" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F1ECE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+</div>
+<h1 style="margin: 4px 0 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 28px; line-height: 1.3; letter-spacing: -0.02em">대만 4박 5일</h1>
+<p style="margin: 4px 0 0; font-size: 14px; color: #B3AC9C">11.19 목 – 11.23 월 · 가오슝 → 타이베이</p>
+
+<nav aria-label="여행 메뉴" style="display: flex; gap: 8px; margin: 18px -20px 0; padding: 0 20px; overflow-x: auto">
+<a href="ScheduleDark.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #2A2822; font-size: 15px">일정</a>
+<a href="PackingDark.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #2A2822; font-size: 15px">준비물</a>
+<a href="ExpensesDark.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #2A2822; font-size: 15px">맛집</a>
+<a href="ExpensesDark.dc.html" aria-current="page" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #F1ECE0; color: #14130F; font-size: 15px; font-weight: 600">지출</a>
+</nav>
+
+<div style="margin-top: 18px; padding: 22px 22px 20px; border-radius: 24px; background: #0E5A52; color: #F6F2EA">
+<div style="font-size: 13px; opacity: 0.85">총 사용 금액</div>
+<div style="margin-top: 4px; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 36px; line-height: 1.2; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">₩1,617,120</div>
+<div style="margin-top: 16px; height: 10px; border-radius: 5px; overflow: hidden; background: rgba(0,0,0,0.3)">
+<svg width="100%" height="10" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect x="0" width="50.100" height="10" fill="#9BE0D4"/><rect x="50.800" width="31.400" height="10" fill="#D9D2C0"/><rect x="82.800" width="8.800" height="10" fill="#9DBBF5"/><rect x="92.200" width="7.800" height="10" fill="#F6AE96"/></svg>
+</div>
+<div style="margin-top: 12px; font-size: 12px; opacity: 0.8">8건 · 원화(KRW) 합계 · 통화가 다르면 환율 없이 따로 더해요</div>
+</div>
+
+<div role="group" aria-label="카테고리" style="display: flex; gap: 8px; margin: 14px -20px 0; padding: 0 20px; overflow-x: auto">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="5">
+<div style="flex: none; min-height: 56px; padding: 6px 14px; border-radius: 16px; border: 1px solid #35322A; background: #1E1C17; line-height: 1.3">
+<span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="5" fill="{{c.color}}"/></svg>{{c.name}}</span>
+<span style="display: block; font-size: 13px; color: #B3AC9C; font-variant-numeric: tabular-nums">{{c.amount}}</span>
+</div>
+</sc-for>
+</div>
+
+<sc-for list="{{days}}" as="d" hint-placeholder-count="3">
+<section aria-label="{{d.label}} 지출">
+<h2 style="margin: 16px 0 6px; display: flex; align-items: baseline; justify-content: space-between; font-size: 14px; font-weight: 600; color: #B3AC9C"><span>{{d.label}}</span><span style="font-variant-numeric: tabular-nums">{{d.sum}}</span></h2>
+<div style="border-radius: 18px; border: 1px solid #35322A; background: #1E1C17; overflow: hidden">
+<sc-for list="{{d.rows}}" as="r" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 12px; min-height: 64px; box-sizing: border-box; padding: 10px 16px; border-top: 1px solid #2A2822">
+<div style="flex: 1; min-width: 0"><div style="font-size: 16px; font-weight: 500">{{r.title}}</div><div style="font-size: 13px; color: #B3AC9C">{{r.meta}}</div></div>
+<div style="font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums">{{r.amount}}</div>
+</div>
+</sc-for>
+</div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      chips: [
+        { name: '숙박', color: '#9BE0D4', amount: '₩815,730' },
+        { name: '기타', color: '#D9D2C0', amount: '₩516,890' },
+        { name: '교통', color: '#9DBBF5', amount: '₩152,400' },
+        { name: '관광', color: '#F6AE96', amount: '₩132,100' }
+      ],
+      days: [
+        { label: '11.22 일', sum: '₩207,895', rows: [{ title: '타이베이 화산딘 1박', meta: '숙박 · 11.22 – 11.23', amount: '₩207,895' }] },
+        { label: '11.21 토', sum: '₩323,102', rows: [{ title: '가오슝 난 난 1박', meta: '숙박 · 11.21 – 11.22', amount: '₩323,102' }] },
+        { label: '11.19 목', sum: '₩284,733', rows: [{ title: '가오슝 안 호텔 2박', meta: '숙박 · 11.19 – 11.21', amount: '₩284,733' }] },
+        { label: '11.18 수 · 사전 결제', sum: '₩801,390', rows: [
+          { title: '타이베이 스지 투어', meta: '관광 · 예약 선결제', amount: '₩69,500' },
+          { title: '기차', meta: '교통 · 예약 선결제', amount: '₩152,400' }
+        ] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

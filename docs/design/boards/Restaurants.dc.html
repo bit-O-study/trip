@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>맛집 보관함</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 1180px; box-sizing: border-box; background: #F6F2EA; color: #1C1B18; font-family: 'IBM Plex Sans KR', system-ui, sans-serif; line-height: 1.55; padding: 0 20px">
+
+<div style="display: flex; align-items: center; padding-top: 12px">
+<a href="Schedule.dc.html" aria-label="일정으로" style="width: 44px; height: 44px; margin-left: -10px; display: flex; align-items: center; justify-content: center">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1C1B18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</a>
+</div>
+<h1 style="margin: 4px 0 0; font-family: 'Noto Serif KR', serif; font-weight: 700; font-size: 28px; line-height: 1.3; letter-spacing: -0.02em">대만 4박 5일</h1>
+<p style="margin: 4px 0 0; font-size: 14px; color: #5E594F">가고 싶은 맛집 {{count}}곳</p>
+
+<nav aria-label="여행 메뉴" style="display: flex; gap: 8px; margin: 18px -20px 0; padding: 0 20px; overflow-x: auto">
+<a href="Schedule.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #ECE5D6; font-size: 15px">일정</a>
+<a href="Packing.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #ECE5D6; font-size: 15px">준비물</a>
+<a href="Restaurants.dc.html" aria-current="page" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #1C1B18; color: #F6F2EA; font-size: 15px; font-weight: 600">맛집</a>
+<a href="Expenses.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: #ECE5D6; font-size: 15px">지출</a>
+</nav>
+
+<div role="group" aria-label="지역 필터" style="display: flex; gap: 8px; margin: 16px -20px 0; padding: 0 20px; overflow-x: auto">
+<sc-for list="{{regions}}" as="reg" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{reg.on}}" onClick="{{reg.pick}}" style="flex: none; height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid #857B66; background: {{reg.bg}}; color: {{reg.fg}}; font: 500 15px 'IBM Plex Sans KR', sans-serif">{{reg.name}}</button>
+</sc-for>
+</div>
+
+<div style="margin-top: 14px; display: flex; flex-direction: column; gap: 12px">
+<sc-for list="{{cards}}" as="r" hint-placeholder-count="3">
+<article style="padding: 16px 18px; border-radius: 20px; border: 1px solid #E3DBCB; background: #FFFDF8">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px">
+<div style="min-width: 0">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">{{r.name}}</h2>
+<div style="font-size: 13px; color: #5E594F">{{r.orig}}</div>
+</div>
+<span style="flex: none; padding: 4px 10px; border-radius: 999px; background: {{r.badgeBg}}; color: {{r.badgeFg}}; font-size: 12px; font-weight: 600">{{r.badge}}</span>
+</div>
+<div style="margin-top: 8px; font-size: 14px; color: #5E594F">{{r.region}} · {{r.menu}}</div>
+<div style="margin-top: 4px; font-size: 13px; color: #5E594F">{{r.note}}</div>
+<div style="margin-top: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+<sc-if value="{{r.linked}}" hint-placeholder-val="{{false}}">
+<span style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 12px; background: #F4DDD7; color: #7A2414; font-size: 13px; font-weight: 600"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="5" fill="#D2452D"/></svg>{{r.linkText}}</span>
+</sc-if>
+<sc-if value="{{r.unlinked}}" hint-placeholder-val="{{true}}">
+<button type="button" style="height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: #0E5A52; color: #FFFFFF; font: 600 14px 'IBM Plex Sans KR', sans-serif">일정에 추가</button>
+</sc-if>
+<button type="button" style="height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #857B66; background: transparent; font: 500 14px 'IBM Plex Sans KR', sans-serif; color: #1C1B18">지도에서 보기</button>
+</div>
+</article>
+</sc-for>
+</div>
+
+<button type="button" style="margin-top: 16px; width: 100%; height: 52px; border-radius: 16px; border: 1.500px dashed #857B66; background: transparent; color: #0E5A52; font: 600 15px 'IBM Plex Sans KR', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>맛집 저장</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1180}}'>
+const OK = ['#D8EBE6', '#0B3F39'], NO = ['#F3DAD5', '#8A2A1B'], UNK = ['#ECE5D6', '#5E594F'];
+const DATA = [
+  { name: '리우허 야시장', orig: '六合夜市', region: '가오슝', menu: '야시장 · 해산물', note: '현금 준비, 늦은 저녁 추천', badge: '예약 불가', c: NO, linked: 'Day 1 저녁에 연결됨' },
+  { name: '융캉우육면', orig: '永康牛肉麵', region: '타이베이', menu: '우육면', note: '피크 시간은 줄이 길어요', badge: '예약 불가', c: NO, linked: '' },
+  { name: '딘타이펑 신이점', orig: '鼎泰豐', region: '타이베이', menu: '샤오롱바오', note: '온라인 대기표 가능', badge: '예약 가능', c: OK, linked: '' },
+  { name: '아쭝면선', orig: '阿宗麵線', region: '타이베이', menu: '곱창국수', note: '', badge: '예약 미확인', c: UNK, linked: '' }
+];
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { region: '' };
+  }
+  renderVals() {
+    const region = this.state.region;
+    const list = DATA.filter((r) => !region || r.region === region);
+    const regions = [['', '전체'], ['가오슝', '가오슝'], ['타이베이', '타이베이']].map(([v, name]) => ({
+      name, on: region === v,
+      bg: region === v ? '#1C1B18' : '#FFFDF8',
+      fg: region === v ? '#F6F2EA' : '#1C1B18',
+      pick: () => this.setState({ region: v })
+    }));
+    return {
+      count: list.length,
+      regions,
+      cards: list.map((r) => ({
+        name: r.name, orig: r.orig, region: r.region, menu: r.menu, note: r.note || '메모 없음',
+        badge: r.badge, badgeBg: r.c[0], badgeFg: r.c[1],
+        linked: !!r.linked, unlinked: !r.linked, linkText: r.linked
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>
