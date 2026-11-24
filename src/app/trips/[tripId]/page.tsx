@@ -1,7 +1,7 @@
 import { listTravelLegs } from "@/features/trips/queries";
 import { Suspense } from "react";
 import { TripTabs } from "@/features/restaurants/trip-tabs";
-import { neighborMap, legKey } from "@/features/trips/travel";
+import { neighborMap, legKey, scheduleOverlapMap } from "@/features/trips/travel";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -102,6 +102,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
   const items = [...schedule.items].sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt) || a.id.localeCompare(b.id));
   const legs = new Map((travelLegs ?? []).map((leg) => [legKey(leg.fromId, leg.toId), leg]));
   const neighbors = neighborMap(items);
+  const overlaps = scheduleOverlapMap(items);
   const days = tripDays(trip.startDate, trip.endDate);
   const staysByDate = indexContinuingStays(items, days.map((day) => day.date), trip.timezone);
   const editable = canEdit(trip.role);
@@ -288,6 +289,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                         <ItemRow
                           key={item.id}
                           item={item}
+                          overlaps={overlaps.get(item.id) ?? []}
                         previous={neighbors.get(item.id)?.previous}
                         next={neighbors.get(item.id)?.next}
                         previousLeg={legs.get(legKey(neighbors.get(item.id)?.previous?.id ?? "", item.id))}
@@ -338,6 +340,7 @@ export default async function TripDetailPage({ params, searchParams }: Props) {
                       <ItemRow
                         key={item.id}
                         item={item}
+                        overlaps={overlaps.get(item.id) ?? []}
                         previous={neighbors.get(item.id)?.previous}
                         next={neighbors.get(item.id)?.next}
                         previousLeg={legs.get(legKey(neighbors.get(item.id)?.previous?.id ?? "", item.id))}

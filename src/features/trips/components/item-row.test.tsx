@@ -20,6 +20,14 @@ function setup(editable = true) {
   return render(<ToastProvider><TripBoard points={[]}><ol><ItemRow {...defaults} editable={editable} next={{ ...item, id: "next", title: "다음 장소" }} /></ol></TripBoard></ToastProvider>);
 }
 describe("일정 보기와 상세창", () => {
+  it("인접하지 않은 일정과 이전 날짜 일정의 겹침도 카드에 보여준다", () => {
+    render(<ToastProvider><TripBoard points={[]}><ol><ItemRow {...defaults}
+      overlaps={[{ id: "long-tour", title: "긴 투어", minutes: 90 }, { id: "overnight", title: "전날 야간 이동", minutes: 30 }]}
+    /></ol></TripBoard></ToastProvider>);
+    expect(screen.getByText("‘긴 투어’ 일정과 1시간 30분 겹칩니다.")).toBeInTheDocument();
+    expect(screen.getByText("‘전날 야간 이동’ 일정과 30분 겹칩니다.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
   it("상세를 열기 전에도 다음 일정과 겹치는 시간을 보여준다", () => {
     render(<ToastProvider><TripBoard points={[]}><ol><ItemRow {...defaults}
       item={{ ...item, endAt: "2026-02-14T03:00:00Z" }}

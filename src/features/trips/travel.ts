@@ -68,6 +68,30 @@ export function scheduleOverlapMinutes(from: Stop, to: Stop): number | null {
   return overlap > 0 ? Math.ceil(overlap / 60_000) : null;
 }
 
+export type ScheduleOverlap = { id: string; title: string; minutes: number };
+
+/** 날짜나 표시 순서와 관계없이 비교하고 각 행에 겹치는 일정만 전달한다. */
+export function scheduleOverlapMap(items: readonly Stop[]): Map<string, ScheduleOverlap[]> {
+  const timed = items.filter(item => scheduleOverlapMinutes(item, item) !== null)
+    .map(item => ({ item, start: Date.parse(item.startAt!), end: Date.parse(item.endAt!) }))
+    .sort((a, b) => a.start - b.start || a.item.id.localeCompare(b.item.id));
+  const result = new Map<string, ScheduleOverlap[]>();
+  function add(from: Stop, to: Stop, minutes: number) {
+    const list = result.get(from.id) ?? [];
+    list.push({ id: to.id, title: to.title, minutes });
+    result.set(from.id, list);
+  }
+  for (let i = 0; i < timed.length; i++) {
+    const from = timed[i];
+    for (let j = i + 1; j < timed.length && timed[j].start < from.end; j++) {
+      const to = timed[j];
+      const minutes = scheduleOverlapMinutes(from.item, to.item);
+      if (minutes !== null) { add(from.item, to.item, minutes); add(to.item, from.item, minutes); }
+    }
+  }
+  return result;
+}
+
 /** 종료 시각·이동시간을 모두 아는 구간만 경고한다. 추정 소요시간은 만들지 않는다. */
 export function travelConflictMinutes(from: Stop, to: Stop, leg?: TravelLeg): number | null {
   if (!leg || leg.minutes === null || !from.endAt || !to.startAt || from.allDay || to.allDay) return null;
