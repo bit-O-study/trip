@@ -7,6 +7,28 @@ import { PACKING_CATEGORIES, groupByCategory, progress, type PackingItem } from 
 const inputClass = "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base";
 type Props = { tripId: string; items: PackingItem[]; editable: boolean };
 
+function PackingEditor({ item, categories, busy, onSave, onCancel }: {
+  item: PackingItem; categories: string[]; busy: boolean;
+  onSave: (data: { title: string; category: string }) => Promise<void>; onCancel: () => void;
+}) {
+  const [category, setCategory] = useState(item.category);
+  return <form className="w-full rounded-lg border border-border p-3" aria-label={`${item.title} 수정`} onSubmit={async event => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    await onSave({ title: String(data.get("title") ?? ""), category: String(data.get("category") ?? "") });
+  }}>
+    <fieldset disabled={busy} className="grid gap-3">
+      <label className="text-sm">준비물 이름<input autoFocus required name="title" maxLength={100} defaultValue={item.title} className={inputClass} /></label>
+      <label className="text-sm">수정할 분류<select aria-label="수정할 분류" name={category ? "category" : undefined} value={category} onChange={event => setCategory(event.target.value)} className={inputClass}>
+        {[...new Set([...categories, item.category])].map(value => <option key={value} value={value}>{value}</option>)}
+        <option value="">직접 입력</option>
+      </select></label>
+      {!category && <label className="text-sm">수정할 새 분류 이름<input required name="category" maxLength={30} className={inputClass} /></label>}
+      <div className="flex gap-4"><button type="submit" className="min-h-11 font-semibold">{busy ? "저장 중…" : "수정 저장"}</button><button type="button" className="min-h-11" onClick={onCancel}>수정 취소</button></div>
+    </fieldset>
+  </form>;
+}
+
 export function PackingList({ tripId, items, editable }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -17,6 +39,7 @@ export function PackingList({ tripId, items, editable }: Props) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [hideDone, setHideDone] = useState(false);
   const [category, setCategory] = useState("기타");
+  const [editing, setEditing] = useState<PackingItem | null>(null);
   const stats = progress(items);
   const categories = [...new Set([...PACKING_CATEGORIES, ...items.map(item => item.category)])];
 
@@ -69,14 +92,18 @@ export function PackingList({ tripId, items, editable }: Props) {
     {items.length > 0 && <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={hideDone} onChange={e => setHideDone(e.target.checked)} className="size-5" />챙긴 항목 숨기기</label>}
     {groups.map(([name, rows]) => <section key={name} aria-label={`${name} 준비물`}>
       <h2 className="mb-1 text-sm font-semibold text-muted-foreground">{name} <span className="tabular-nums">({rows.filter(r => r.checked).length}/{rows.length})</span></h2>
-      <ul className="divide-y divide-border">{rows.map(item => <li key={item.id} className="flex items-center gap-3 py-1" data-testid="packing-row">
+      <ul className="divide-y divide-border">{rows.map(item => <li key={item.id} className="flex flex-wrap items-center gap-3 py-1" data-testid="packing-row">
         <label className="flex min-h-11 min-w-0 flex-1 items-center gap-3">
-          <input type="checkbox" checked={item.checked} disabled={!editable || busy} onChange={() => void toggle(item)} className="size-5 shrink-0" />
+          <input type="checkbox" checked={item.checked} disabled={!editable || busy || editing?.id === item.id} onChange={() => void toggle(item)} className="size-5 shrink-0" />
           <span className={`min-w-0 break-words ${item.checked ? "text-muted-foreground line-through" : ""}`}>{item.title}</span>
         </label>
-        {editable && (deleting === item.id
+        {editable && !editing && <button disabled={busy} type="button" className="min-h-11 shrink-0 px-2 text-sm" aria-label={`${item.title} 수정`} onClick={() => { setDeleting(null); setEditing({ ...item }); }}>수정</button>}
+        {editable && editing?.id !== item.id && (deleting === item.id
           ? <div className="flex shrink-0 items-center gap-3 text-sm" role="group" aria-label="준비물 삭제 확인"><button disabled={busy} type="button" className="min-h-11 text-red-600" onClick={() => void run({ tripId, action: "delete", id: item.id, expected: item.updated_at, data: {} })}>삭제 확인</button><button disabled={busy} type="button" className="min-h-11" onClick={() => setDeleting(null)}>취소</button></div>
           : <button disabled={busy} type="button" className="min-h-11 shrink-0 px-2 text-sm text-muted-foreground" aria-label={`${item.title} 삭제`} onClick={() => setDeleting(item.id)}>삭제</button>)}
+        {editable && editing?.id === item.id && <PackingEditor item={editing} categories={categories} busy={busy} onCancel={() => setEditing(null)} onSave={async data => {
+          if (await run({ tripId, action: "save", id: editing.id, expected: editing.updated_at, data: { ...data, checked: editing.checked } })) setEditing(null);
+        }} />}
       </li>)}</ul>
     </section>)}
     {items.length > 0 && !groups.length && <p className="text-sm text-muted-foreground">모든 준비물을 챙겼어요.</p>}
