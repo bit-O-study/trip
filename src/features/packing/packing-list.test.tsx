@@ -47,3 +47,26 @@ it("읽기 전용에서는 수정 작업을 제공하지 않는다", () => {
   expect(screen.queryByRole("button", { name: "여권 수정" })).not.toBeInTheDocument();
   expect(screen.getByRole("checkbox", { name: "여권" })).toBeDisabled();
 });
+
+it("숨기기 필터와 서버의 분류 변경·삭제에도 작성 중인 내용을 보존한다", async () => {
+  const user = userEvent.setup();
+  manage.mockResolvedValue({ ok: false, message: "다른 곳에서 삭제되었습니다" });
+  const view = render(<PackingList tripId="trip-one" items={[item]} editable />);
+  await user.click(screen.getByRole("button", { name: "여권 수정" }));
+  await user.clear(screen.getByLabelText("준비물 이름"));
+  await user.type(screen.getByLabelText("준비물 이름"), "여권과 사본");
+  await user.selectOptions(screen.getByLabelText("수정할 분류"), "");
+  await user.type(screen.getByLabelText("수정할 새 분류 이름"), "출국 서류");
+  await user.click(screen.getByRole("checkbox", { name: "챙긴 항목 숨기기" }));
+  expect(screen.queryByTestId("packing-row")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("준비물 이름")).toHaveValue("여권과 사본");
+  await user.click(screen.getByRole("checkbox", { name: "챙긴 항목 숨기기" }));
+  view.rerender(<PackingList tripId="trip-one" items={[{ ...item, category: "서류·결제", updated_at: "new-version" }]} editable />);
+  expect(screen.getByLabelText("수정할 새 분류 이름")).toHaveValue("출국 서류");
+  view.rerender(<PackingList tripId="trip-one" items={[]} editable />);
+  expect(screen.getByLabelText("준비물 이름")).toHaveValue("여권과 사본");
+  await user.click(screen.getByRole("button", { name: "수정 저장" }));
+  expect(manage).toHaveBeenCalledWith({ tripId: "trip-one", action: "save", id: item.id, expected: "original-version", data: { title: "여권과 사본", category: "출국 서류", checked: true } });
+  expect(await screen.findByRole("alert")).toHaveTextContent("다른 곳에서 삭제되었습니다");
+  expect(screen.getByLabelText("수정할 새 분류 이름")).toHaveValue("출국 서류");
+});
