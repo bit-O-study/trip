@@ -65,7 +65,7 @@ export function ExpenseBook({ tripId, draftOwner, expenses, editable, currency, 
     const draft = readDraft(storageKey);
     if (row && dirty && editing?.id === row.id) { setShowForm(true); return; }
     if (row && (dirty || draft) && (editing?.id ?? draft?.row?.id) !== row.id && !window.confirm("작성 중인 지출을 버리고 다른 지출을 수정할까요?")) return;
-    if (!row && dirty) { setShowForm(true); return; }
+    if (!row && (dirty || editing)) { setShowForm(true); return; }
     if (draft && (!row || draft.row?.id === row.id)) {
       setEditing(draft.row); setFields(draft.fields); setDirty(true);
       setDraftNotice("작성하던 내용을 복원했습니다. 저장 버튼을 눌러 반영하세요.");

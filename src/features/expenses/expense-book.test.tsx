@@ -82,3 +82,26 @@ it("수정 초안 복원은 원래 버전을 보내 충돌을 덮어쓰지 않�
   expect(mocks.manage).toHaveBeenCalledWith(expect.objectContaining({ expected: row.updated_at, id: row.id }));
   expect(screen.getByLabelText("지출명")).toHaveValue("택시 수정 중");
 });
+
+it("수정 화면을 접었다 이어써도 새 지출로 바뀌어 중복 저장되지 않는다", async () => {
+  const user = userEvent.setup(); render(<ExpenseBook {...props} />);
+  await user.click(screen.getByRole("button", { name: "택시 수정" }));
+  // 아직 값을 바꾸지 않아 초안이 없는 상태에서도 수정 대상은 유지해야 한다.
+  await user.click(screen.getByRole("button", { name: "접기" }));
+  await user.click(screen.getByRole("button", { name: "지출 추가 / 이어쓰기" }));
+  expect(screen.getByRole("heading", { name: "지출 수정" })).toBeInTheDocument();
+  expect(screen.getByLabelText("지출명")).toHaveValue("택시");
+  await user.clear(screen.getByLabelText("금액"));
+  await user.type(screen.getByLabelText("금액"), "350");
+  await user.click(screen.getByRole("button", { name: "변경 저장" }));
+  expect(mocks.manage).toHaveBeenCalledWith(expect.objectContaining({ id: row.id, expected: row.updated_at, data: expect.objectContaining({ amount_minor: 35000 }) }));
+});
+
+it("열려 있는 수정 화면에서 이어쓰기를 눌러도 기존 지출을 수정한다", async () => {
+  const user = userEvent.setup(); render(<ExpenseBook {...props} />);
+  await user.click(screen.getByRole("button", { name: "택시 수정" }));
+  await user.click(screen.getByRole("button", { name: "지출 추가 / 이어쓰기" }));
+  expect(screen.getByRole("heading", { name: "지출 수정" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "변경 저장" }));
+  expect(mocks.manage).toHaveBeenCalledWith(expect.objectContaining({ id: row.id, expected: row.updated_at }));
+});
