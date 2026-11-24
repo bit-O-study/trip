@@ -44,8 +44,8 @@ it("저장 후 연속 입력할 날짜·통화·카테고리를 유지하고 임
   await user.type(screen.getByLabelText("금액"), "1,000");
   fireEvent.change(screen.getByLabelText("사용 날짜"), { target: { value: "2026-11-20" } });
   await user.selectOptions(screen.getByLabelText("통화"), "KRW");
-  const category = screen.getByRole("combobox", { name: /카테고리 기본/ });
-  await user.clear(category); await user.type(category, "쇼핑");
+  const category = screen.getByRole("combobox", { name: "카테고리" });
+  await user.selectOptions(category, "쇼핑");
   await user.click(screen.getByRole("button", { name: "지출 저장" }));
   await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
   expect(mocks.manage).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ amount_minor: 1000, category: "쇼핑" }) }));
@@ -54,7 +54,20 @@ it("저장 후 연속 입력할 날짜·통화·카테고리를 유지하고 임
   expect(screen.getByLabelText("지출명")).toHaveValue("");
   expect(screen.getByLabelText("사용 날짜")).toHaveValue("2026-11-20");
   expect(screen.getByLabelText("통화")).toHaveValue("KRW");
-  expect(screen.getByRole("combobox", { name: /카테고리 기본/ })).toHaveValue("쇼핑");
+  expect(screen.getByRole("combobox", { name: "카테고리" })).toHaveValue("쇼핑");
+});
+it("직접 입력한 카테고리를 초안에 보관하고 기본 분류로 다시 바꿔 저장한다", async () => {
+  const user = userEvent.setup(); const first = render(<ExpenseBook {...props} />);
+  await user.click(screen.getByRole("button", { name: "지출 추가 / 이어쓰기" }));
+  await user.selectOptions(screen.getByLabelText("카테고리", { exact: true }), "");
+  await user.type(screen.getByLabelText("새 카테고리 이름"), "통신");
+  expect(readDraft(draftKey(props.draftOwner, props.tripId))?.fields.category).toBe("통신");
+  first.unmount(); render(<ExpenseBook {...props} />);
+  await user.click(screen.getByRole("button", { name: "지출 추가 / 이어쓰기" }));
+  expect(screen.getByLabelText("새 카테고리 이름")).toHaveValue("통신");
+  await user.selectOptions(screen.getByLabelText("카테고리", { exact: true }), "교통");
+  expect(readDraft(draftKey(props.draftOwner, props.tripId))?.fields.category).toBe("교통");
+  expect(screen.queryByLabelText("새 카테고리 이름")).not.toBeInTheDocument();
 });
 it("수정 초안 복원은 원래 버전을 보내 충돌을 덮어쓰지 않는다", async () => {
   const user = userEvent.setup(); const first = render(<ExpenseBook {...props} />);

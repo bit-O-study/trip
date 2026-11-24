@@ -12,6 +12,24 @@ const inputClass = "mt-1 w-full rounded-lg border border-border bg-background px
 function Amounts({ rows }: { rows: Expense[] }) {
   return <>{totals(rows).map(([currency, amount]) => <span key={currency} className="block tabular-nums">{formatAmount(amount, currency)}</span>)}</>;
 }
+function CategoryInput({ categories, initial }: { categories: string[]; initial: string }) {
+  const [value, setValue] = useState(initial);
+  const [custom, setCustom] = useState(!categories.includes(initial));
+  const field = useRef<HTMLInputElement>(null);
+  function change(next: string) {
+    // 상위 폼의 onChange가 초안을 읽기 전에 제출 값을 동기화한다.
+    if (field.current) field.current.value = next;
+    setValue(next);
+  }
+  return <div className="min-w-0 space-y-2">
+    <input ref={field} type="hidden" name="category" value={value} readOnly />
+    <label className="block text-sm">카테고리<select aria-label="카테고리" value={custom ? "" : value} onChange={event => { setCustom(!event.target.value); change(event.target.value); }} className={inputClass}>
+      {categories.map(category => <option key={category} value={category}>{category}</option>)}
+      <option value="">직접 입력</option>
+    </select></label>
+    {custom && <label className="block text-sm">새 카테고리 이름<input required maxLength={30} value={value} onChange={event => change(event.target.value)} placeholder="예: 통신, 환전" className={inputClass} /></label>}
+  </div>;
+}
 export function ExpenseBook({ tripId, draftOwner, expenses, editable, currency, defaultDate }: Props) {
   const router = useRouter();
   const [category, setCategory] = useViewChoice(viewChoiceKey(draftOwner, tripId, "expenses.category"), "", value => !value || CATEGORIES.includes(value) || expenses.some(row => row.category === value));
@@ -105,8 +123,7 @@ export function ExpenseBook({ tripId, draftOwner, expenses, editable, currency, 
         <label className="text-sm">사용 날짜<input required type="date" name="spent_on" defaultValue={fields?.spent_on ?? editing?.spent_on ?? defaultDate} className={inputClass} /></label>
         <label className="text-sm">금액<input required inputMode="decimal" name="amount" maxLength={40} defaultValue={fields?.amount ?? (editing ? String(editing.amount_minor / 10 ** fractionDigits(editing.currency)) : "")} placeholder="예: 850" className={inputClass} /></label>
         <label className="text-sm">통화<select name="currency" defaultValue={fields?.currency ?? editing?.currency ?? (CURRENCIES.includes(currency as typeof CURRENCIES[number]) ? currency : "KRW")} className={inputClass}>{CURRENCIES.map(c => <option key={c}>{c}</option>)}</select></label>
-        <label className="text-sm">카테고리<input required name="category" list="expense-categories" maxLength={30} defaultValue={fields?.category ?? editing?.category ?? "식비"} className={inputClass} /><span className="mt-1 block text-xs text-muted-foreground">기본 분류를 선택하거나 직접 입력하세요.</span></label>
-        <datalist id="expense-categories">{categories.map(c => <option key={c} value={c} />)}</datalist>
+        <CategoryInput categories={categories} initial={fields?.category ?? editing?.category ?? "식비"} />
         <label className="text-sm">메모 (선택)<input name="note" maxLength={1000} defaultValue={fields?.note ?? editing?.note ?? ""} placeholder="예: 2명 식사, 카드 결제" className={inputClass} /></label>
         {draftNotice && <p className="text-xs text-muted-foreground sm:col-span-2" role="status">{draftNotice}</p>}
         <div className="flex flex-wrap gap-3 sm:col-span-2"><button className="rounded-lg bg-foreground px-5 py-3 text-sm font-semibold text-background" type="submit">{busy ? "저장 중…" : editing ? "변경 저장" : "지출 저장"}</button><button type="button" onClick={() => { if (formRef.current) setFields(Object.fromEntries(new FormData(formRef.current)) as ExpenseFields); setShowForm(false); }} className="px-3 py-3 text-sm">접기</button><button type="button" onClick={() => { if (dirty && !window.confirm("작성 중인 내용을 버릴까요?")) return; clearDraft(storageKey); setEditing(null); setFields(null); setDirty(false); setShowForm(false); setError(""); }} className="px-3 py-3 text-sm">작성 취소</button></div>
