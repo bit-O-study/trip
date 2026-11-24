@@ -12,6 +12,7 @@ import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
 import android.widget.LinearLayout;
 import android.view.WindowInsets;
+import android.view.View;
 
 /**
  * Trip Planner 웹을 여는 WebView 껍데기. 화면은 웹 배포로 바뀌므로 화면을 고칠 때 APK 를 다시 만들 필요가 없다.
@@ -25,11 +26,22 @@ public final class MainActivity extends Activity {
     private LinearLayout root;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        // 안전 영역은 아래 루트 패딩에서 한 번만 처리한다.
+        // 구형 Android의 decor 자동 여백과 직접 적용하는 여백이 겹치지 않게 한다.
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            getWindow().setDecorFitsSystemWindows(false);
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(
+                getWindow().getDecorView().getSystemUiVisibility()
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+        }
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             if (android.os.Build.VERSION.SDK_INT >= 30) {
-                android.graphics.Insets edges = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime());
+                android.graphics.Insets edges = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
                 view.setPadding(edges.left, edges.top, edges.right, edges.bottom);
             } else view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             // 루트에서 이미 반영한 안전 영역이 WebView에 다시 적용되지 않게 소비한다.
@@ -69,6 +81,8 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle state) { if (web != null) web.saveState(state); if (fileExport != null) fileExport.saveState(state); super.onSaveInstanceState(state); }
     @Override protected void onActivityResult(int request, int result, Intent data) { super.onActivityResult(request, result, data); if (fileExport != null) fileExport.onResult(request, result, data); }
     @Override protected void onPause() { CookieManager.getInstance().flush(); super.onPause(); }
+    // Android 13+는 onCreate의 OnBackInvokedDispatcher를 사용한다. 아래는 이전 OS 전용이다.
+    @android.annotation.SuppressLint("GestureBackNavigation")
     @Override public void onBackPressed() { if (web != null && web.canGoBack()) web.goBack(); else super.onBackPressed(); }
     @Override protected void onDestroy() { if (web != null) web.destroy(); super.onDestroy(); }
 }
