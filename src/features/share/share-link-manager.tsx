@@ -30,16 +30,16 @@ function statusLabel(link: ShareLinkSummary): string {
  * 유일한 복구 경로이고, 그래서 회전 버튼을 같은 자리에 둔다.
  */
 export function ShareLinkManager({ tripId, links, readable }: Props) {
-  const [created, createAction, creating] = useActionState<ShareActionState, FormData>(
-    createShareLinkAction,
+  const [fresh, action, pending] = useActionState<ShareActionState, FormData>(
+    async (previous, data) => {
+      try {
+        return await (data.get("operation") === "rotate" ? rotateShareLinkAction : createShareLinkAction)(previous, data);
+      } catch {
+        return { status: "error", message: "처리 결과를 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요." };
+      }
+    },
     SHARE_IDLE,
   );
-  const [rotated, rotateAction, rotating] = useActionState<ShareActionState, FormData>(
-    rotateShareLinkAction,
-    SHARE_IDLE,
-  );
-
-  const fresh = rotated.sharePath ? rotated : created;
   const active = links.filter((link) => statusLabel(link) === "사용 중");
 
   return (
@@ -63,35 +63,37 @@ export function ShareLinkManager({ tripId, links, readable }: Props) {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <form action={createAction}>
+        <form action={action}>
+          <input type="hidden" name="operation" value="create" />
           <input type="hidden" name="tripId" value={tripId} />
           <button
             type="submit"
-            disabled={!readable || creating || rotating}
+            disabled={!readable || pending}
             className="rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
           >
-            {creating ? "만드는 중…" : "공유 링크 만들기"}
+            {pending ? "처리 중…" : "공유 링크 만들기"}
           </button>
         </form>
         {active.length > 0 ? (
-          <form action={rotateAction}>
+          <form action={action}>
+            <input type="hidden" name="operation" value="rotate" />
             <input type="hidden" name="tripId" value={tripId} />
             <button
               type="submit"
-              disabled={!readable || creating || rotating}
+              disabled={!readable || pending}
               className="rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
             >
-              {rotating ? "교체 중…" : "링크 새로 발급(기존 폐기)"}
+              {pending ? "처리 중…" : "링크 새로 발급(기존 폐기)"}
             </button>
           </form>
         ) : null}
       </div>
 
-      {fresh.status === "error" && fresh.message ? (
+      {!pending && fresh.status === "error" && fresh.message ? (
         <p role="alert" className="text-sm text-danger">{fresh.message}</p>
       ) : null}
 
-      {fresh.sharePath ? (
+      {!pending && fresh.sharePath ? (
         <div className="space-y-1 rounded-lg border border-border bg-muted/60 px-3 py-3">
           <p className="text-xs font-medium text-primary">
             지금 한 번만 표시됩니다. 복사해서 전달하세요.

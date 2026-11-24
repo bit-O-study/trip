@@ -1,9 +1,26 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { ShareLinkCopy } from "./share-link-manager";
+import { ShareLinkCopy, ShareLinkManager } from "./share-link-manager";
+import { createShareLinkAction, rotateShareLinkAction } from "./actions";
 
 vi.mock("./actions", () => ({ createShareLinkAction: vi.fn(), revokeShareLinkAction: vi.fn(), rotateShareLinkAction: vi.fn() }));
 afterEach(() => vi.unstubAllGlobals());
+
+it("재발급 뒤 다시 생성하면 가장 최근 링크를 표시하고 재발급 실패도 보여준다", async () => {
+  vi.mocked(createShareLinkAction).mockResolvedValueOnce({ status: "success", sharePath: "/share/first" }).mockResolvedValueOnce({ status: "success", sharePath: "/share/latest" });
+  vi.mocked(rotateShareLinkAction).mockResolvedValueOnce({ status: "success", sharePath: "/share/rotated" }).mockResolvedValueOnce({ status: "error", message: "재발급 실패" });
+  render(<ShareLinkManager tripId="trip" readable links={[{ id: "link", shortId: "short", expiresAt: null, revokedAt: null, lastAccessedAt: null, accessCount: 0, createdAt: "2026-11-18" }]} />);
+  async function submit(name: string) { await act(async () => fireEvent.submit(screen.getByRole("button", { name }).closest("form")!)); }
+  await submit("공유 링크 만들기");
+  expect(screen.getByLabelText("공개 공유 링크")).toHaveValue(new URL("/share/first", window.location.origin).toString());
+  await submit("링크 새로 발급(기존 폐기)");
+  expect(screen.getByLabelText("공개 공유 링크")).toHaveValue(new URL("/share/rotated", window.location.origin).toString());
+  await submit("공유 링크 만들기");
+  expect(screen.getByLabelText("공개 공유 링크")).toHaveValue(new URL("/share/latest", window.location.origin).toString());
+  await submit("링크 새로 발급(기존 폐기)");
+  expect(screen.getByRole("alert")).toHaveTextContent("재발급 실패");
+  expect(screen.queryByLabelText("공개 공유 링크")).not.toBeInTheDocument();
+});
 
 it("복사가 완료된 뒤에만 성공을 표시하고 새 링크에는 성공 상태를 넘기지 않는다", async () => {
   let finish!: () => void;
